@@ -79,7 +79,7 @@ const MTF_TFS=['1m','5m','15m','1H','4H'];
 let mtfRequest=0,signalHistory=JSON.parse(localStorage.getItem('byLotusericSignalHistory')||'[]');
 function calcEMA(values,n){let out=[],k=2/(n+1),p=null;for(const v of values){p=p===null?v:v*k+p*(1-k);out.push(p)}return out}
 function calcRSI(values,n=14){if(values.length<n+1)return null;let gain=0,loss=0;for(let i=values.length-n;i<values.length;i++){let d=values[i]-values[i-1];if(d>0)gain+=d;else loss-=d}if(loss===0)return 100;let rs=(gain/n)/(loss/n);return 100-100/(1+rs)}
-function closedCandles(rows){return parseCandles(rows).filter(x=>x.confirm==='1')}
+function closedCandles(rows){const parsed=rows.length&&Array.isArray(rows[0])?parseCandles(rows):rows;return parsed.filter(x=>x.confirm==='1')}
 function renderSignal(candles){const c=closedCandles(candles);if(c.length<30){$('signalText').textContent='VERİ BEKLENİYOR';$('signalDetail').textContent='En az 30 kapanmış mum gerekli';$('signalHero').className='signalHero wait';return}
 const closes=c.map(x=>x.close),e9=calcEMA(closes,9),e21=calcEMA(closes,21),rsi=calcRSI(closes,14),i=c.length-1;
 const up=e9[i]>e21[i],crossUp=e9[i-1]<=e21[i-1]&&up,crossDown=e9[i-1]>=e21[i-1]&&!up;
