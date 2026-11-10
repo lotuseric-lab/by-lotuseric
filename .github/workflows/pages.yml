@@ -23,6 +23,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Download and vendor Lightweight Charts
+        run: |
+          mkdir -p vendor /tmp/lwc
+          npm pack lightweight-charts@5.0.8 --pack-destination /tmp/lwc
+          tar -xzf /tmp/lwc/lightweight-charts-5.0.8.tgz -C /tmp/lwc
+          test -s /tmp/lwc/package/dist/lightweight-charts.standalone.production.js
+          cp /tmp/lwc/package/dist/lightweight-charts.standalone.production.js vendor/
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
