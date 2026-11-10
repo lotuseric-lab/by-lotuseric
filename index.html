@@ -75,7 +75,7 @@ async function fetchCandles(ex,s,t,limit=300){
  const r=await fetch(url);if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();
  if(ex==='okx'){if(j.code!=='0')throw Error(j.msg);return j.data.map(x=>({time:+x[0]/1000|0,open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5],confirm:x[8]})).sort((a,b)=>a.time-b.time)}
  if(ex==='binance'){if(!Array.isArray(j))throw Error(j.msg||'Binance API hatası');return j.map(x=>({time:+x[0]/1000|0,open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5],confirm:+x[6]<Date.now()})).sort((a,b)=>a.time-b.time)}
- if(j.retCode!==0)throw Error(j.retMsg);return j.result.list.map(x=>({time:+x.start/1000|0,open:+x.open,high:+x.high,low:+x.low,close:+x.close,volume:+x.volume,confirm:+x.end<Date.now()})).sort((a,b)=>a.time-b.time)
+ if(j.retCode!==0)throw Error(j.retMsg);return j.result.list.map(x=>({time:+x[0]/1000|0,open:+x[1],high:+x[2],low:+x[3],close:+x[4],volume:+x[5],confirm:(+x[0]+({'1m':60000,'3m':180000,'5m':300000,'15m':900000,'30m':1800000,'1H':3600000,'2H':7200000,'4H':14400000,'6H':21600000,'12H':43200000,'1D':86400000,'1W':604800000,'1M':2592000000}[t]||300000))<Date.now()})).filter(x=>Number.isFinite(x.time)&&Number.isFinite(x.open)&&Number.isFinite(x.high)&&Number.isFinite(x.low)&&Number.isFinite(x.close)).sort((a,b)=>a.time-b.time)
 }
 async function loadInstruments(){
  setConnection(exchange.toUpperCase()+' LİSTESİ');
