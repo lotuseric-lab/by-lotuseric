@@ -106,7 +106,8 @@ body:has(main:fullscreen) header,body:has(main:fullscreen) .nav{display:none!imp
 <div id="coinDrawer" class="coinDrawer hidden" aria-label="Coin seçici"><div class="coinDrawerHead"><b id="exchangeListTitle">OKX USDT Perpetual listesi</b><button id="closeCoinDrawer" aria-label="Kapat">✕</button></div><div class="coinDrawerCount muted" id="listCount">—</div><input id="coinSearch" placeholder="Coin ara · BTC, ETH..." autocomplete="off"><div id="coinList"><div class="muted loading">Aktif kontratlar yükleniyor…</div></div></div>
 <nav class="nav"><button class="active" data-page="chart"><strong>⌁</strong>Grafik</button><button data-page="coins"><strong>☷</strong>Coinler</button><button data-page="alerts"><strong>♧</strong>Alarmlar</button><button data-page="settings"><strong>⚙</strong>Ayarlar</button></nav>
 <div class="modal hidden" id="trendModal"><div class="sheet"><button class="close" id="closeTrend">Kapat ✕</button><h3>Trend analiz ayarları</h3><p class="notice">Yalnızca seçtiklerin ortak trend hesabına katılır. Kendi yazdığın indikatörleri ileride özel sinyal girişiyle ekleyebileceğiz; Pine kodu henüz otomatik çalıştırılmaz.</p><div class="engineRow"><span><b>EMA 9 / 21</b><br><small>Yön filtresi</small></span><input type="checkbox" id="useEma" checked></div><div class="engineRow"><span><b>RSI 14</b><br><small>50 seviyesi yön filtresi</small></span><input type="checkbox" id="useRsi" checked></div><div class="engineRow"><span><b>MACD 12 / 26 / 9</b><br><small>Histogram yönü</small></span><input type="checkbox" id="useMacd" checked></div><p class="notice">En az iki etkin indikatör ve %67 uyum gerekir; aksi halde NÖTR.</p><button id="saveTrend" style="width:100%">Ayarları kaydet</button></div></div><div class="modal hidden" id="modal"><div class="sheet"><button class="close" id="closeModal">Kapat ✕</button><h3>İndikatör yönetimi</h3><p class="notice">İlk sürümde EMA çizgilerini açıp kapatabilirsin. Alt panel indikatörleri, Pine Studio ve özel yerleşim sonraki geliştirme aşamasında eklenecek.</p><label><input type="checkbox" id="ema9check" checked> EMA 9</label><br><br><label><input type="checkbox" id="ema21check" checked> EMA 21</label><br><br><label><input type="checkbox" id="ema55check"> EMA 55</label><br><br><button id="saveIndicators">Kaydet</button></div></div>
-<script src="./vendor/lightweight-charts.standalone.production.js"></script>
+<script>window.__lwcLoadState="yükleniyor";</script>
+<script src="./vendor/lightweight-charts.standalone.production.js" onload="window.__lwcLoadState=(window.LightweightCharts&&window.LightweightCharts.createChart)?'hazır':'dosya yüklendi ama API yok'" onerror="window.__lwcLoadState='yerel dosya 404 veya yükleme engeli'"></script>
 <script>
 if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
 const API='https://www.okx.com',WS='wss://ws.okx.com:8443/ws/v5/business';
@@ -240,15 +241,16 @@ drawSetCategory('lines');
 async function ensureChartLibrary(){
  const valid=()=>!!(window.LightweightCharts&&typeof window.LightweightCharts.createChart==='function'&&window.LightweightCharts.CandlestickSeries);
  if(valid())return true;
- const urls=['https://cdn.jsdelivr.net/npm/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js','https://raw.githubusercontent.com/tradingview/lightweight-charts/v5.0.8/dist/lightweight-charts.standalone.production.js','https://unpkg.com/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js'];
-
- for(const src of urls){try{await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=src;sc.onload=resolve;sc.onerror=()=>reject(Error('CDN yüklenemedi: '+src));document.head.appendChild(sc)});if(valid())return true;console.warn('CDN returned without Lightweight Charts API')}catch(e){console.warn(e.message)}}
+ const local='./vendor/lightweight-charts.standalone.production.js';
+ try{await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=local;sc.onload=resolve;sc.onerror=()=>reject(Error('Yerel grafik motoru dosyası yüklenemedi: '+local));document.head.appendChild(sc)});if(valid())return true;}catch(e){console.error(e)}
+ const urls=['https://cdn.jsdelivr.net/npm/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js','https://unpkg.com/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js'];
+ for(const src of urls){try{await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=src;sc.onload=resolve;sc.onerror=()=>reject(Error('CDN yüklenemedi: '+src));document.head.appendChild(sc)});if(valid())return true;}catch(e){console.warn(e.message)}}
  return false;
 }
 async function startApp(){
  try{
   const libOK=await ensureChartLibrary();
-  if(!libOK){$('candleState').textContent='GRAFİK MOTORU YÜKLENEMEDİ';$('connectionNote').textContent='Grafik motoru üç kaynaktan da yüklenemedi. Coin verisi alınsa bile grafik çizilemez. CDN erişimini kontrol et.';setConnection('GRAFİK MOTORU YOK');}
+  if(!libOK){$('candleState').textContent='GRAFİK MOTORU YÜKLENEMEDİ';$('connectionNote').textContent='Grafik motoru yüklenemedi. Yerel dosya durumu: '+(window.__lwcLoadState||'bilinmiyor')+'. Dosya yolu: ./vendor/lightweight-charts.standalone.production.js';setConnection('GRAFİK MOTORU YOK');}
   const saved=localStorage.getItem('byLotusericIndicators');if(saved)enabled={...enabled,...JSON.parse(saved)};
   setupTF();
   if(libOK){initChart();initChartTypePanel();}
