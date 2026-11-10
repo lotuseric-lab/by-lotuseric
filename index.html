@@ -240,6 +240,23 @@ body>.nav{position:fixed;z-index:50;left:0;right:0;bottom:0;padding:6px 8px calc
  .chartControlsDetails>summary{padding:9px 10px;font-size:11px}
  .chartControlsDetails .chartControlsBelow{padding:7px}
 }
+
+/* Keep the timeframe picker above the collapsible controls and fully visible on mobile */
+.chartControlsDetails[open]{position:relative;z-index:60;overflow:visible}
+.chartControlsBelow,.chartControlsBelow .exchangeBar{overflow:visible}
+.chartControlsBelow .exchangeBar{position:relative;z-index:61}
+.chartControlsBelow #timeframeMenu{
+ position:absolute;top:calc(100% + 6px);left:0;right:0;width:min(520px,calc(100vw - 40px));min-width:0;max-height:60dvh;overflow-y:auto;overscroll-behavior:contain;
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:10px;
+ background:#0b1422;border:1px solid #58708e;border-radius:12px;box-shadow:0 14px 36px #000e;z-index:9999
+}
+.chartControlsBelow #timeframeMenu.hidden{display:none!important}
+.chartControlsBelow #timeframeMenu section{min-width:0}
+.chartControlsBelow #timeframeMenu section>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+.chartControlsBelow #timeframeMenu button{min-height:36px;padding:8px 5px;font-size:12px;white-space:nowrap}
+@media(max-width:759px){
+ .chartControlsBelow #timeframeMenu{position:fixed;top:auto;left:12px;right:12px;bottom:calc(82px + env(safe-area-inset-bottom));width:auto;max-height:55dvh;z-index:99999}
+}
 </style>
 </head>
 <body>
