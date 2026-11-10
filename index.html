@@ -160,6 +160,50 @@ body:has(main:fullscreen) header,body:has(main:fullscreen) .nav{display:none!imp
  .chartcard.orientation-landscape #chart{height:34dvh;min-height:220px}
  .chartcard:fullscreen #chart{height:auto!important;min-height:0;flex:1}
 }
+
+/* APP SHELL: fit the active device viewport instead of behaving like a long web page */
+html,body{width:100%;height:100%;min-height:0;margin:0;overscroll-behavior:none}
+body{height:100dvh;overflow:hidden;display:flex;flex-direction:column}
+body>header{display:none!important}
+body>main{width:100%;max-width:none;min-height:0;height:100dvh;flex:1;margin:0;padding:8px 10px calc(66px + env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain}
+body>.nav{position:fixed;z-index:50;left:0;right:0;bottom:0;padding:6px 8px calc(6px + env(safe-area-inset-bottom));margin:0;background:#08111ff2;border-top:1px solid #263952;backdrop-filter:blur(14px)}
+.workspace{display:block;min-height:0}
+.workspace>.primary{min-width:0}
+.chartcard{min-width:0}
+#chart{height:calc(100dvh - 250px);min-height:260px;max-height:none}
+.secondary{display:none!important}
+body.drawing-active{touch-action:none}
+body.drawing-active>main{overflow:hidden;touch-action:none}
+body.drawing-active .chartcard{touch-action:none}
+body.drawing-active #chart,.drawingOverlay,.drawingOverlay.active{touch-action:none!important;-webkit-user-select:none;user-select:none}
+.drawingOverlay.active{cursor:crosshair}
+@media(min-width:760px){
+ body>main{padding:12px 16px 16px;overflow:hidden}
+ .workspace{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(280px,.8fr);gap:12px;height:100%;min-height:0}
+ .workspace>.primary{min-height:0;overflow:auto}
+ .secondary{display:block!important;min-height:0;max-height:calc(100dvh - 105px);overflow:auto}
+ #chart{height:calc(100dvh - 245px);min-height:320px}
+ body>.nav{display:none}
+}
+@media(max-width:759px){
+ body>main{padding:6px 8px calc(62px + env(safe-area-inset-bottom))}
+ .exchangeBar{grid-template-columns:minmax(0,1fr) 70px 94px;gap:4px;margin:0 0 4px}
+ .toolbar{margin:0 0 4px}
+ .symbolrow{margin:0 0 4px}
+ .charthead{padding:5px 8px}
+ .charthead b{font-size:11px}
+ #chart{height:calc(100dvh - 230px);min-height:240px}
+ .quick{padding:4px 0;gap:4px}
+ .mobileLayoutToggle{margin:2px 0 4px;padding:6px 9px}
+ .coinTabs{margin:5px 0}
+}
+@media(orientation:landscape) and (max-width:900px){
+ body>main{padding:4px 8px 4px 8px}
+ .exchangeBar{grid-template-columns:150px 70px 94px}
+ .toolbar,.symbolrow{display:none}
+ #chart{height:calc(100dvh - 112px);min-height:180px}
+ body>.nav{display:none}
+}
 </style>
 </head>
 <body>
@@ -340,7 +384,7 @@ let trendPrefs={ema:true,rsi:true,macd:true};let miniInstances=[],miniSelections
 function saveWorkspaceLayout(){const state={count:multiCount,orientation:localStorage.getItem('byLotusericChartOrientation')||'portrait',sync:syncMini,selections:miniSelections.slice(0,16)};localStorage.setItem('byLotusericWorkspaceLayout',JSON.stringify(state));const n=$('layoutSaveState');if(n)n.textContent='Düzen kaydedildi';}
 function restoreWorkspaceLayout(){try{const s=JSON.parse(localStorage.getItem('byLotusericWorkspaceLayout')||'null');if(!s)return false;miniSelections=Array.isArray(s.selections)?s.selections.slice(0,16):[];syncMini=!!s.sync;const mode=s.orientation==='landscape'?'landscape':'portrait';localStorage.setItem('byLotusericChartOrientation',mode);$('mainChartCard').classList.toggle('orientation-portrait',mode==='portrait');$('mainChartCard').classList.toggle('orientation-landscape',mode==='landscape');$('chartPortrait').classList.toggle('active',mode==='portrait');$('chartLandscape').classList.toggle('active',mode==='landscape');$('multiCharts').classList.toggle('layout-portrait',mode==='portrait');$('multiCharts').classList.toggle('layout-landscape',mode==='landscape');$('syncCharts').classList.toggle('active',syncMini);$('syncCharts').textContent=syncMini?'⇄ Zamanı eşitle: Açık':'⇄ Zamanı eşitle: Kapalı';multiCount=Math.max(1,Math.min(16,+s.count||1));$('layoutCount').value=String(multiCount);return true}catch(e){console.warn('Kayıtlı düzen okunamadı',e);return false}}
 function setActiveMini(i){activeMiniIndex=i;miniInstances.forEach((x,k)=>x.box.classList.toggle('active-chart',k===i));}
-function drawActivateMini(i){const item=miniInstances[i];if(!item||!item.plot||!item.series)return;let ov=item.plot.querySelector('.drawingOverlay');if(!ov){ov=document.createElement('div');ov.className='drawingOverlay';ov.innerHTML='<svg></svg>';item.plot.style.position='relative';item.plot.append(ov);ov.addEventListener('pointerdown',drawDown);ov.addEventListener('pointermove',drawMove);ov.addEventListener('pointerup',drawUp);new ResizeObserver(drawRender).observe(item.plot)}drawCtx={chart:item.chart,series:item.series,el:item.plot,ov,svg:ov.firstElementChild,symbol:item.symbolSelect.value,tf:item.timeSelect.value,id:'mini'+i};barData=item.data||[];drawSelected=null;drawDraft=null;drawCtx.drag=null;ov.classList.toggle('active',drawModeEnabled&&$('drawingPanel').classList.contains('open'));drawRender();$('chartTitle').textContent='Grafik '+(i+1)+' · '+item.symbolSelect.value+' · '+item.timeSelect.value;}
+function drawActivateMini(i){const item=miniInstances[i];if(!item||!item.plot||!item.series)return;let ov=item.plot.querySelector('.drawingOverlay');if(!ov){ov=document.createElement('div');ov.className='drawingOverlay';ov.innerHTML='<svg></svg>';item.plot.style.position='relative';item.plot.append(ov);ov.addEventListener('pointerdown',drawDown);ov.addEventListener('pointermove',drawMove);ov.addEventListener('pointerup',drawUp);ov.addEventListener('pointercancel',drawUp);new ResizeObserver(drawRender).observe(item.plot)}drawCtx={chart:item.chart,series:item.series,el:item.plot,ov,svg:ov.firstElementChild,symbol:item.symbolSelect.value,tf:item.timeSelect.value,id:'mini'+i};barData=item.data||[];drawSelected=null;drawDraft=null;drawCtx.drag=null;ov.classList.toggle('active',drawModeEnabled&&$('drawingPanel').classList.contains('open'));drawRender();$('chartTitle').textContent='Grafik '+(i+1)+' · '+item.symbolSelect.value+' · '+item.timeSelect.value;}
 function drawActivateMain(){if(!chart||!candleSeries)return;drawCtx={chart,series:candleSeries,el:$('chart'),ov:window.__mainDrawOverlay||$('chart').querySelector('.drawingOverlay'),svg:(window.__mainDrawOverlay||$('chart').querySelector('.drawingOverlay'))?.querySelector('svg'),symbol:current,tf,id:'main'};barData=window.__mainBarData||barData;if(drawCtx.ov){drawCtx.ov.classList.toggle('active',drawModeEnabled&&$('drawingPanel').classList.contains('open'));drawRender()}}
 function syncRange(source,range){if(!syncMini||syncGuard||!range)return;syncGuard=true;for(const x of miniInstances){if(x.chart!==source)try{x.chart.timeScale().setVisibleLogicalRange(range)}catch{}}if(chart&&chart!==source)try{chart.timeScale().setVisibleLogicalRange(range)}catch{}syncGuard=false}
 function buildMultiCharts(n){
@@ -432,7 +476,7 @@ function drawAll(){return [...( $('drawShared').checked?drawItems('shared'):[]),
 function drawSave(layer,items){localStorage.setItem(drawStoreKey(layer),JSON.stringify(items))}
 function drawHistoryPush(layer){drawUndo.push({layer,before:JSON.stringify(drawItems(layer))});if(drawUndo.length>100)drawUndo.shift();drawRedo=[]}
 function drawFindSelected(){for(const layer of ['local','shared']){const d=drawItems(layer).find(x=>x.id===drawSelected);if(d)return {layer,d}}return null}
-function drawMount(){const el=$('chart');el.style.position='relative';const ov=document.createElement('div');ov.className='drawingOverlay';ov.innerHTML='<svg></svg>';el.append(ov);const bar=document.createElement('div');bar.className='drawContextBar';bar.innerHTML='<button data-act="color">Renk</button><button data-act="thin">−</button><span data-width>2px</span><button data-act="thick">+</button><button data-act="lock">Kilitle</button><button data-act="delete">Sil</button><button data-act="close">×</button>';el.append(bar);bar.addEventListener('click',e=>{const act=e.target.dataset.act;if(!act)return;const f=drawFindSelected();if(act==='close'){drawSelected=null;bar.classList.remove('open');drawRender();return}if(!f)return;if(act==='delete'){$('drawDelete').click();bar.classList.remove('open');return}if(act==='lock'){$('drawLock').click();return}if(act==='color'){$('drawColor').click();return}const width=Math.max(1,Math.min(6,(+f.d.width||2)+(act==='thick'?1:-1)));drawHistoryPush(f.layer);drawSave(f.layer,drawItems(f.layer).map(d=>d.id===f.d.id?{...d,width}:d));bar.querySelector('[data-width]').textContent=width+'px';drawRender()});drawCtx={chart,series:candleSeries,el,ov,bar,svg:ov.firstElementChild,symbol:current,tf,id:'main'};window.__mainDrawOverlay=ov;ov.addEventListener('pointerdown',drawDown);ov.addEventListener('pointermove',drawMove);ov.addEventListener('pointerup',drawUp);new ResizeObserver(drawRender).observe(el);drawRender()}
+function drawMount(){const el=$('chart');el.style.position='relative';const ov=document.createElement('div');ov.className='drawingOverlay';ov.innerHTML='<svg></svg>';el.append(ov);const bar=document.createElement('div');bar.className='drawContextBar';bar.innerHTML='<button data-act="color">Renk</button><button data-act="thin">−</button><span data-width>2px</span><button data-act="thick">+</button><button data-act="lock">Kilitle</button><button data-act="delete">Sil</button><button data-act="close">×</button>';el.append(bar);bar.addEventListener('click',e=>{const act=e.target.dataset.act;if(!act)return;const f=drawFindSelected();if(act==='close'){drawSelected=null;bar.classList.remove('open');drawRender();return}if(!f)return;if(act==='delete'){$('drawDelete').click();bar.classList.remove('open');return}if(act==='lock'){$('drawLock').click();return}if(act==='color'){$('drawColor').click();return}const width=Math.max(1,Math.min(6,(+f.d.width||2)+(act==='thick'?1:-1)));drawHistoryPush(f.layer);drawSave(f.layer,drawItems(f.layer).map(d=>d.id===f.d.id?{...d,width}:d));bar.querySelector('[data-width]').textContent=width+'px';drawRender()});drawCtx={chart,series:candleSeries,el,ov,bar,svg:ov.firstElementChild,symbol:current,tf,id:'main'};window.__mainDrawOverlay=ov;ov.addEventListener('pointerdown',drawDown);ov.addEventListener('pointermove',drawMove);ov.addEventListener('pointerup',drawUp);ov.addEventListener('pointercancel',drawUp);ov.addEventListener('lostpointercapture',()=>{if(drawCtx?.pending){drawCtx.pending=null;drawRender()}});new ResizeObserver(drawRender).observe(el);drawRender()}
 function drawXY(p){const x=drawCtx.chart.timeScale().timeToCoordinate(p.time),y=drawCtx.series.priceToCoordinate(p.price);return x===null||y===null?null:{x,y}}
 function drawPoint(x,y){const t=drawCtx.chart.timeScale().coordinateToTime(x),price=drawCtx.series.coordinateToPrice(y);if(t===null||price===null)return null;let p={time:typeof t==='number'?t:Math.floor(Date.parse(t)/1000),price};if(drawMagnet&&barData.length){let best=null,dist=22;for(const c of barData){const cx=drawCtx.chart.timeScale().timeToCoordinate(c.time);if(cx===null||Math.abs(cx-x)>18)continue;for(const v of [c.open,c.high,c.low,c.close]){const cy=drawCtx.series.priceToCoordinate(v),d=Math.hypot(cx-x,cy-y);if(d<dist){dist=d;best={time:c.time,price:v}}}const i=barData.indexOf(c),e=ema(barData,9)[i];if(e){const cy=drawCtx.series.priceToCoordinate(e),d=Math.hypot(cx-x,cy-y);if(d<dist){dist=d;best={time:c.time,price:e}}}}if(best)p=best}return p}
 function drawEl(tag,attrs){const e=document.createElementNS('http://www.w3.org/2000/svg',tag);Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));return e}
