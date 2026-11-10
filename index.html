@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="By LOTUSERIC">
+<title>By LOTUSERIC</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{color-scheme:dark;--bg:#080e19;--panel:#101a2a;--panel2:#142238;--line:#22344c;--muted:#8da2bb;--text:#e8f0fb;--green:#22c58b;--red:#ff647c;--blue:#6da9ff;--gold:#e9bd66}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:5;background:rgba(8,14,25,.96);backdrop-filter:blur(14px);padding:calc(10px + env(safe-area-inset-top)) 14px 10px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;justify-content:space-between}.brand b{font-size:19px;letter-spacing:.4px}.brand small{display:block;color:var(--muted);font-size:9px;letter-spacing:1.5px;margin-top:2px}.status{font-size:10px;color:var(--gold);border:1px solid #5a4828;border-radius:20px;padding:5px 8px}
+main{padding:12px;max-width:760px;margin:auto}.toolbar{display:grid;grid-template-columns:1fr 94px;gap:8px;margin-bottom:9px}
+select,input,button{font:inherit;color:var(--text);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px;min-width:0}select{width:100%}input{width:100%}button{cursor:pointer}button:active{transform:scale(.985)}
+.symbolrow{display:flex;gap:8px;align-items:center;margin-bottom:9px}.symbolrow select{flex:1;font-weight:700}.pricebox{text-align:right;min-width:112px}.price{font-size:17px;font-weight:750}.change{font-size:11px;color:var(--muted)}
+.tfrow{display:flex;gap:6px;overflow:auto;padding:2px 0 10px;scrollbar-width:none}.tfrow button{white-space:nowrap;padding:7px 10px;font-size:12px;border-radius:8px;color:var(--muted)}.tfrow button.active{background:#173b37;border-color:#246d5a;color:#73e2ba}
+.chartcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}.charthead{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid var(--line)}.charthead b{font-size:13px}.charthead span{color:var(--muted);font-size:11px}#chart{height:340px;width:100%}
+.quick{display:flex;gap:7px;padding:10px;overflow:auto}.chip{font-size:11px;padding:7px 10px;border:1px solid var(--line);border-radius:20px;background:#0d1726;color:var(--muted);white-space:nowrap}.chip.on{border-color:#277b61;color:#7de5bd;background:#102820}
+.section{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px}.sectiontop{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}.sectiontop b{font-size:14px}.muted{color:var(--muted);font-size:11px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.stat{background:var(--panel2);padding:10px;border-radius:10px}.stat span{display:block;color:var(--muted);font-size:10px}.stat b{display:block;margin-top:5px;font-size:14px}
+#coinList{max-height:310px;overflow:auto}.coin{display:flex;justify-content:space-between;padding:9px 2px;border-bottom:1px solid #1d2b3e;font-size:12px}.coin:last-child{border:0}
+.nav{position:fixed;bottom:0;left:0;right:0;z-index:10;display:grid;grid-template-columns:repeat(4,1fr);padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:rgba(8,14,25,.97);border-top:1px solid var(--line)}.nav button{border:0;background:none;padding:6px 2px;color:var(--muted);font-size:10px}.nav button strong{display:block;font-size:17px;margin-bottom:3px}.nav button.active{color:#78dfb8}
+.hidden{display:none!important}.notice{font-size:11px;color:var(--muted);line-height:1.5}.loading{color:var(--gold)}
+.modal{position:fixed;inset:0;z-index:20;background:#000a;display:flex;align-items:flex-end}.sheet{background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 0 0;padding:18px 14px calc(22px + env(safe-area-inset-bottom));width:100%;max-height:82vh;overflow:auto}.sheet h3{margin:0 0 12px}.sheet .close{float:right}
+@media(min-width:650px){main{padding:18px}.toolbar{grid-template-columns:1fr 120px}#chart{height:440px}}
+@media(min-width:760px){body{padding-bottom:82px}header{padding-left:24px;padding-right:24px}main{max-width:1180px;padding:20px 24px}.brand b{font-size:22px}.workspace{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(280px,.85fr);gap:16px;align-items:start}.primary,.secondary{min-width:0}.secondary{position:sticky;top:92px}#chart{height:470px}.section{margin-top:16px}}
+@media(min-width:1100px){main{max-width:1500px;padding:24px 30px}.workspace{grid-template-columns:minmax(0,2.2fr) minmax(320px,.8fr);gap:20px}#chart{height:560px}.nav{left:50%;right:auto;transform:translateX(-50%);width:min(680px,100%);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0}}
+@media(min-width:760px) and (max-width:1099px){#chart{height:430px}}
+</style>
+<script src="https://unpkg.com/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+<header><div class="brand"><div><b>BY LOTUSERIC</b><small>SMART CRYPTO ANALYTICS</small></div><span class="status" id="connection">BAĞLANIYOR</span></div></header>
+<main>
+<div class="toolbar"><input id="search" placeholder="Coin ara · BTC, ETH..." autocomplete="off"><button id="refresh">↻ Yenile</button></div>
+<div class="symbolrow"><select id="symbol" aria-label="OKX Perpetual kontratı"><option>Kontratlar yükleniyor…</option></select><div class="pricebox"><div class="price" id="lastPrice">—</div><div class="change" id="lastChange">OKX USDT-SWAP</div></div></div>
+<div class="tfrow" id="timeframes"></div>
+<div class="workspace"><div class="primary"><section class="chartcard"><div class="charthead"><b id="chartTitle">BTC-USDT-SWAP · 5m</b><span id="candleState">Canlı veri bekleniyor</span></div><div id="chart"></div><div class="quick"><button class="chip on" data-ind="ema9">EMA 9</button><button class="chip on" data-ind="ema21">EMA 21</button><button class="chip" data-ind="ema55">EMA 55</button><button class="chip" id="manageIndicators">İndikatör yönetimi</button></div></section></div>
+<aside class="secondary"><section class="section"><div class="sectiontop"><b>Hızlı görünüm</b><span class="muted" id="marketCount">Kontrat listesi hazırlanıyor</span></div><div class="stats"><div class="stat"><span>Seçili zaman</span><b id="tfStat">5 dakika</b></div><div class="stat"><span>Gösterilen mum</span><b id="barCount">—</b></div><div class="stat"><span>Veri kaynağı</span><b>OKX API</b></div></div></section>
+<section class="section"><div class="sectiontop"><b>OKX USDT Perpetual listesi</b><span class="muted" id="listCount">—</span></div><div id="coinList"><div class="muted loading">Aktif kontratlar yükleniyor…</div></div></section>
+<section class="section"><div class="sectiontop"><b>Bağlantı ve notlar</b><span class="muted">Sürüm 0.2</span></div><p class="notice" id="connectionNote">OKX herkese açık piyasa verisine bağlanılıyor. Bu ilk prototip yalnızca piyasa verisi okur; emir göndermez.</p></section></aside></div>
+</main>
+<nav class="nav"><button class="active" data-page="chart"><strong>⌁</strong>Grafik</button><button data-page="coins"><strong>☷</strong>Coinler</button><button data-page="alerts"><strong>♧</strong>Alarmlar</button><button data-page="settings"><strong>⚙</strong>Ayarlar</button></nav>
+<div class="modal hidden" id="modal"><div class="sheet"><button class="close" id="closeModal">Kapat ✕</button><h3>İndikatör yönetimi</h3><p class="notice">İlk sürümde EMA çizgilerini açıp kapatabilirsin. Alt panel indikatörleri, Pine Studio ve özel yerleşim sonraki geliştirme aşamasında eklenecek.</p><label><input type="checkbox" id="ema9check" checked> EMA 9</label><br><br><label><input type="checkbox" id="ema21check" checked> EMA 21</label><br><br><label><input type="checkbox" id="ema55check"> EMA 55</label><br><br><button id="saveIndicators">Kaydet</button></div></div>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));}
+const API='https://www.okx.com',WS='wss://ws.okx.com:8443/ws/v5/business';
+const TFS=[['1m','1 dakika'],['3m','3 dakika'],['5m','5 dakika'],['15m','15 dakika'],['30m','30 dakika'],['1H','1 saat'],['2H','2 saat'],['4H','4 saat'],['6H','6 saat'],['12H','12 saat'],['1D','1 gün'],['1W','1 hafta'],['1M','1 ay']];
+let instruments=[],current='BTC-USDT-SWAP',tf='5m',chart,candleSeries,emaSeries={},socket=null,reconnectTimer=null,barData=[];
+let enabled={ema9:true,ema21:true,ema55:false};const $=id=>document.getElementById(id);
+function setConnection(s,ok=false){$('connection').textContent=s;$('connection').style.color=ok?'var(--green)':'var(--gold)'}
+function fmt(v){if(!Number.isFinite(v))return '—';return v>=1000?v.toLocaleString('en-US',{maximumFractionDigits:2}):v>=1?v.toLocaleString('en-US',{maximumFractionDigits:4}):v.toPrecision(6)}
+function initChart(){if(!window.LightweightCharts){$('connectionNote').textContent='Grafik kütüphanesi yüklenemedi. İnternet bağlantını kontrol et.';return}
+chart=LightweightCharts.createChart($('chart'),{autoSize:true,layout:{background:{type:'solid',color:'#101a2a'},textColor:'#9eb0c7'},grid:{vertLines:{color:'#1b2a3e'},horzLines:{color:'#1b2a3e'}},rightPriceScale:{borderColor:'#2a3c53'},timeScale:{borderColor:'#2a3c53',timeVisible:true,secondsVisible:false},crosshair:{mode:0}});
+candleSeries=chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:'#22c58b',downColor:'#ff647c',borderUpColor:'#22c58b',borderDownColor:'#ff647c',wickUpColor:'#22c58b',wickDownColor:'#ff647c'});
+for(const [key,color] of [['ema9','#f4c46b'],['ema21','#6da9ff'],['ema55','#c28aff']])emaSeries[key]=chart.addSeries(LightweightCharts.LineSeries,{color,lineWidth:2,priceLineVisible:false,lastValueVisible:false,visible:enabled[key]})}
+function ema(data,period){let out=[],k=2/(period+1),prev=null;for(const d of data){prev=prev===null?d.close:d.close*k+prev*(1-k);out.push({time:d.time,value:prev})}return out}
+function renderIndicators(){if(!barData.length)return;for(const [key,p] of [['ema9',9],['ema21',21],['ema55',55]]){emaSeries[key].setData(ema(barData,p));emaSeries[key].applyOptions({visible:!!enabled[key]})}}
+function parseCandles(rows){return rows.map(r=>({time:Math.floor(Number(r[0])/1000),open:+r[1],high:+r[2],low:+r[3],close:+r[4],volume:+r[5],confirm:r[8]})).sort((a,b)=>a.time-b.time)}
+async function loadInstruments(){setConnection('OKX LİSTESİ');const r=await fetch(API+'/api/v5/public/instruments?instType=SWAP'),j=await r.json();if(j.code!=='0')throw new Error(j.msg||'OKX enstrüman listesi alınamadı');
+instruments=(j.data||[]).filter(x=>x.state==='live'&&x.settleCcy==='USDT'&&x.ctType==='linear').sort((a,b)=>a.instId.localeCompare(b.instId));$('marketCount').textContent=instruments.length+' aktif kontrat';$('listCount').textContent=instruments.length+' kontrat';renderSymbolOptions();renderCoinList();setConnection('OKX BAĞLI',true)}
+function renderSymbolOptions(filter=''){const list=instruments.filter(x=>x.instId.toLowerCase().includes(filter.toLowerCase()));$('symbol').innerHTML=list.map(x=>'<option value="'+x.instId+'" '+(x.instId===current?'selected':'')+'>'+x.instId+'</option>').join('')||'<option>Sonuç yok</option>';if(!list.some(x=>x.instId===current)&&list.length){current=list[0].instId;$('symbol').value=current;loadChartData()}}
+function renderCoinList(filter=''){const list=instruments.filter(x=>x.instId.toLowerCase().includes(filter.toLowerCase())).slice(0,150);$('coinList').innerHTML=list.map(x=>'<div class="coin" data-symbol="'+x.instId+'"><b>'+x.instId+'</b><span class="muted">USDT PERPETUAL　›</span></div>').join('')||'<div class="muted">Eşleşme bulunamadı.</div>';$('coinList').querySelectorAll('.coin').forEach(el=>el.addEventListener('click',()=>selectSymbol(el.dataset.symbol)))}
+async function loadChartData(){if(!candleSeries)return;$('chartTitle').textContent=current+' · '+tf;$('candleState').textContent='Mumlar yükleniyor…';$('tfStat').textContent=TFS.find(x=>x[0]===tf)?.[1]||tf;
+try{const url=API+'/api/v5/market/candles?instId='+encodeURIComponent(current)+'&bar='+encodeURIComponent(tf)+'&limit=300',r=await fetch(url),j=await r.json();if(j.code!=='0')throw new Error(j.msg||'Mum verisi alınamadı');barData=parseCandles(j.data||[]);candleSeries.setData(barData);renderIndicators();chart.timeScale().fitContent();$('barCount').textContent=barData.length;$('candleState').textContent='OKX mum verisi';if(barData.length){$('lastPrice').textContent=fmt(barData.at(-1).close);$('lastChange').textContent=current}subscribeCandles()
+}catch(e){$('candleState').textContent='Veri hatası';$('connectionNote').textContent='OKX veri hatası: '+e.message+' · Bölgesel API erişimi veya ağ kısıtı olabilir.'}}
+function subscribeCandles(){if(socket){try{socket.close()}catch{}}clearTimeout(reconnectTimer);socket=new WebSocket(WS);socket.onopen=()=>{socket.send(JSON.stringify({op:'subscribe',args:[{channel:'candle'+tf,instId:current}]}));setConnection('CANLI',true)};
+socket.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch{return}if(!m.data||!m.arg)return;for(const row of m.data){const c=parseCandles([row])[0];if(!c)continue;const idx=barData.findIndex(x=>x.time===c.time);if(idx>=0)barData[idx]=c;else{barData.push(c);barData.sort((a,b)=>a.time-b.time);if(barData.length>500)barData.shift()}candleSeries.update(c);renderIndicators();$('lastPrice').textContent=fmt(c.close);$('barCount').textContent=barData.length;$('candleState').textContent=c.confirm==='1'?'Mum kapandı':'Canlı mum'}};
+socket.onerror=()=>setConnection('WS HATASI');socket.onclose=()=>{setConnection('YENİDEN BAĞLANIYOR');reconnectTimer=setTimeout(()=>{if(document.visibilityState==='visible')subscribeCandles()},4000)}}
+function selectSymbol(s){current=s;$('symbol').value=s;loadChartData()}
+function setTf(t){tf=t;document.querySelectorAll('.tfrow button').forEach(b=>b.classList.toggle('active',b.dataset.tf===t));loadChartData()}
+function setupTF(){$('timeframes').innerHTML=TFS.map(x=>'<button data-tf="'+x[0]+'" class="'+(x[0]===tf?'active':'')+'">'+x[0]+'</button>').join('');$('timeframes').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>setTf(b.dataset.tf)))}
+$('symbol').addEventListener('change',e=>selectSymbol(e.target.value));$('search').addEventListener('input',e=>{renderSymbolOptions(e.target.value);renderCoinList(e.target.value)});
+$('refresh').addEventListener('click',async()=>{try{await loadInstruments();await loadChartData()}catch(e){$('connectionNote').textContent=e.message}});
+document.querySelectorAll('.chip[data-ind]').forEach(b=>b.addEventListener('click',()=>{enabled[b.dataset.ind]=!enabled[b.dataset.ind];b.classList.toggle('on',enabled[b.dataset.ind]);renderIndicators();syncChecks()}));
+function syncChecks(){for(const k of Object.keys(enabled))$(''+k+'check').checked=enabled[k]}
+$('manageIndicators').addEventListener('click',()=>{$('modal').classList.remove('hidden');syncChecks()});$('closeModal').addEventListener('click',()=>$('modal').classList.add('hidden'));$('modal').addEventListener('click',e=>{if(e.target===$('modal'))$('modal').classList.add('hidden')});
+$('saveIndicators').addEventListener('click',()=>{for(const k of Object.keys(enabled))enabled[k]=$(''+k+'check').checked;document.querySelectorAll('.chip[data-ind]').forEach(b=>b.classList.toggle('on',enabled[b.dataset.ind]));renderIndicators();$('modal').classList.add('hidden');localStorage.setItem('byLotusericIndicators',JSON.stringify(enabled))});
+document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');const p=b.dataset.page;if(p==='coins')$('coinList').scrollIntoView({behavior:'smooth'});else if(p==='alerts')alert('Alarm merkezi sonraki geliştirme aşamasında eklenecek.');else if(p==='settings')alert('Kişiselleştirme ve şablon ayarları sonraki geliştirme aşamasında eklenecek.');else window.scrollTo({top:0,behavior:'smooth'})}));
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&(!socket||socket.readyState>1))subscribeCandles()});
+(async()=>{try{const saved=localStorage.getItem('byLotusericIndicators');if(saved)enabled={...enabled,...JSON.parse(saved)};setupTF();initChart();await loadInstruments();if(!instruments.some(x=>x.instId===current))current=instruments[0]?.instId||current;renderSymbolOptions();await loadChartData()}catch(e){setConnection('BAĞLANTI HATASI');$('connectionNote').textContent='Başlatma hatası: '+e.message+'. OKX bölgesel erişimi veya internet bağlantısını kontrol et.'}})();
+</script>
+</body></html>
