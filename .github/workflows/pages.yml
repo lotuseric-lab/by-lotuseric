@@ -30,6 +30,11 @@ jobs:
           tar -xzf /tmp/lwc/lightweight-charts-5.0.8.tgz -C /tmp/lwc
           test -s /tmp/lwc/package/dist/lightweight-charts.standalone.production.js
           cp /tmp/lwc/package/dist/lightweight-charts.standalone.production.js vendor/
+          test -s vendor/lightweight-charts.standalone.production.js
+          grep -q "createChart" vendor/lightweight-charts.standalone.production.js
+          echo "Lightweight Charts bundle verified:"
+          wc -c vendor/lightweight-charts.standalone.production.js
+          sha256sum vendor/lightweight-charts.standalone.production.js
       - name: Configure Pages
         uses: actions/configure-pages@v5
         with:
