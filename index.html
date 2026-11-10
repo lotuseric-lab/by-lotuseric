@@ -154,7 +154,7 @@ function parseCandles(rows){return rows.map(r=>({time:Math.floor(Number(r[0])/10
 
 function renderSymbolOptions(filter=''){const list=instruments.filter(x=>x.instId.toLowerCase().includes(filter.toLowerCase()));$('symbol').innerHTML=list.map(x=>'<option value="'+x.instId+'" '+(x.instId===current?'selected':'')+'>'+x.instId+'</option>').join('')||'<option>Sonuç yok</option>';if(!list.some(x=>x.instId===current)&&list.length){current=list[0].instId;$('symbol').value=current;loadChartData()}}
 function renderCoinList(filter=''){const list=instruments.filter(x=>x.instId.toLowerCase().includes(filter.toLowerCase())).slice(0,150);$('coinList').innerHTML=list.map(x=>'<div class="coin" data-symbol="'+x.instId+'"><b>'+x.instId+'</b><span class="muted">USDT PERPETUAL　›</span></div>').join('')||'<div class="muted">Eşleşme bulunamadı.</div>';$('coinList').querySelectorAll('.coin').forEach(el=>el.addEventListener('click',()=>selectSymbol(el.dataset.symbol)))}
-async function loadChartData(){if(!candleSeries)return;$('chartTitle').textContent=current+' · '+tf;$('candleState').textContent='Mumlar yükleniyor…';$('tfStat').textContent=TFS.find(x=>x[0]===tf)?.[1]||tf;$('connectionNote').textContent=exchange.toUpperCase()+' mum verisi isteniyor…';
+async function loadChartData(){if(!candleSeries){$('candleState').textContent='GRAFİK MOTORU HAZIR DEĞİL';$('connectionNote').textContent='Grafik motoru başlatılamadığı için mum verisi yüklenemedi.';return;}$('chartTitle').textContent=current+' · '+tf;$('candleState').textContent='Mumlar yükleniyor…';$('tfStat').textContent=TFS.find(x=>x[0]===tf)?.[1]||tf;$('connectionNote').textContent=exchange.toUpperCase()+' mum verisi isteniyor…';
 try{if(socket){try{socket.close()}catch{}socket=null}barData=[];candleSeries.setData([]);for(const x of Object.values(emaSeries))x.setData([]);const rows=await fetchCandles(exchange,current,tf,300);if(!Array.isArray(rows)||rows.length<2)throw Error('Borsa boş mum listesi döndürdü.');barData=rows.filter(x=>[x.time,x.open,x.high,x.low,x.close].every(Number.isFinite)&&x.time>0&&x.high>=x.low);if(barData.length<2)throw Error('Mum verisi geçersiz veya eksik.');if(mainChartType==='candles')candleSeries.setData(barData);else setMainChartType(mainChartType);renderIndicators();renderSignal(barData);loadMTF();chart.priceScale('right').applyOptions({autoScale:true,mode:0});chart.timeScale().fitContent();chart.timeScale().scrollToRealTime();$('barCount').textContent=barData.length;$('candleState').textContent=exchange.toUpperCase()+' · '+barData.length+' mum';$('lastPrice').textContent=fmt(barData.at(-1).close);$('lastChange').textContent=current;setConnection(exchange.toUpperCase()+(exchange==='okx'?' CANLI':' REST'),true);$('connectionNote').textContent=exchange.toUpperCase()+' verisi başarıyla yüklendi.';if(exchange==='okx')subscribeCandles();}
 catch(e){barData=[];candleSeries.setData([]);for(const x of Object.values(emaSeries))x.setData([]);$('barCount').textContent='0';$('candleState').textContent='VERİ ALINAMADI';$('signalText').textContent='VERİ YOK';$('signalDetail').textContent='Grafik mum verisi alınamadı';$('signalHero').className='signalHero wait';$('mtfStatus').textContent='Veri yok';$('mtfGrid').innerHTML='<div class="notice">Borsa verisi alınamadı.</div>';$('connectionNote').textContent=exchange.toUpperCase()+' API hatası: '+e.message;setConnection('VERİ HATASI');}}
 function subscribeCandles(){if(socket){try{socket.close()}catch{}}clearTimeout(reconnectTimer);socket=new WebSocket(WS);socket.onopen=()=>{socket.send(JSON.stringify({op:'subscribe',args:[{channel:'candle'+tf,instId:current}]}));setConnection('CANLI',true)};
@@ -237,6 +237,31 @@ $('drawUndo').onclick=()=>{if(!drawUndo.length)return;const item=drawUndo.pop(),
 $('drawRedo').onclick=()=>{if(!drawRedo.length)return;const item=drawRedo.pop(),layer=item.layer;drawUndo.push({layer,before:JSON.stringify(drawItems(layer))});drawSave(layer,JSON.parse(item.before));drawRender()};
 drawSetCategory('lines');
 
-(async()=>{try{const saved=localStorage.getItem('byLotusericIndicators');if(saved)enabled={...enabled,...JSON.parse(saved)};setupTF();initChart();initChartTypePanel();await loadInstruments();if(!instruments.some(x=>x.instId===current))current=instruments[0]?.instId||current;renderSymbolOptions();await loadChartData()}catch(e){setConnection('BAĞLANTI HATASI');$('connectionNote').textContent='Başlatma hatası: '+e.message+'. OKX bölgesel erişimi veya internet bağlantısını kontrol et.'}})();
+async function ensureChartLibrary(){
+ if(window.LightweightCharts)return true;
+ const urls=['https://cdn.jsdelivr.net/npm/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js','https://cdnjs.cloudflare.com/ajax/libs/lightweight-charts/5.0.8/lightweight-charts.standalone.production.min.js'];
+ for(const src of urls){try{await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=src;sc.onload=resolve;sc.onerror=()=>reject(Error('CDN yüklenemedi: '+src));document.head.appendChild(sc)});if(window.LightweightCharts)return true}catch(e){console.warn(e.message)}}
+ return false;
+}
+async function startApp(){
+ try{
+  const libOK=await ensureChartLibrary();
+  if(!libOK){$('candleState').textContent='GRAFİK KÜTÜPHANESİ YÜKLENEMEDİ';$('connectionNote').textContent='Grafik motoru iki CDN üzerinden de yüklenemedi. İnternet veya içerik engelleyici bağlantıyı kesiyor olabilir.';setConnection('GRAFİK MOTORU YOK');}
+  const saved=localStorage.getItem('byLotusericIndicators');if(saved)enabled={...enabled,...JSON.parse(saved)};
+  setupTF();
+  if(libOK){initChart();initChartTypePanel();}
+  await loadInstruments();
+  if(!instruments.some(x=>x.instId===current))current=instruments[0]?.instId||current;
+  renderSymbolOptions();
+  if(libOK)await loadChartData();
+  else $('signalText').textContent='GRAFİK MOTORU YOK';
+ }catch(e){
+  console.error('By LOTUSERIC startup error',e);
+  setConnection('BAŞLATMA HATASI');
+  $('candleState').textContent='BAŞLATMA HATASI';
+  $('connectionNote').textContent='Başlatma hatası: '+e.message;
+ }
+}
+startApp();
 </script>
 </body></html>
