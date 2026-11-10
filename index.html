@@ -50,7 +50,46 @@ select,input,button{font:inherit;color:var(--text);background:var(--panel);borde
 #coinDrawer #coinList{max-height:none;min-height:80px;overflow:auto}
 #coinDrawer .coin{cursor:pointer;padding:11px 3px}
 @media(max-width:620px){.coinDrawer{right:8px;bottom:calc(132px + env(safe-area-inset-bottom));width:min(340px,calc(100vw - 16px))}}
-.drawToggle{font-size:11px;padding:7px 10px}.drawingPanel{display:none;padding:10px;background:#0c1625;border-top:1px solid var(--line)}.drawingPanel.open{display:block}.drawCategories,.drawTools,.drawActions{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0}.drawCategories button,.drawTools button,.drawActions button{font-size:11px;padding:7px 9px}.drawCategories button.active,.drawTools button.active{border-color:#6da9ff;color:#b9d7ff;background:#17304e}.drawLayers{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}.drawLayers input{width:auto}.drawingOverlay{position:absolute;inset:0;width:100%;height:100%;z-index:4;touch-action:none;cursor:crosshair;pointer-events:none}.drawingOverlay.active{pointer-events:auto}.drawingOverlay svg{width:100%;height:100%;pointer-events:none}</style>
+.drawToggle{font-size:11px;padding:7px 10px}.drawingPanel{display:none;padding:10px;background:#0c1625;border-top:1px solid var(--line)}.drawingPanel.open{display:block}.drawCategories,.drawTools,.drawActions{display:flex;gap:6px;flex-wrap:wrap;margin:7px 0}.drawCategories button,.drawTools button,.drawActions button{font-size:11px;padding:7px 9px}.drawCategories button.active,.drawTools button.active{border-color:#6da9ff;color:#b9d7ff;background:#17304e}.drawLayers{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:var(--muted)}.drawLayers input{width:auto}.drawingOverlay{position:absolute;inset:0;width:100%;height:100%;z-index:4;touch-action:none;cursor:crosshair;pointer-events:none}.drawingOverlay.active{pointer-events:auto}.drawingOverlay svg{width:100%;height:100%;pointer-events:none}
+/* Adaptive workspace sizing */
+html,body{min-height:100%;overscroll-behavior-x:none}
+@media (min-width:760px) and (max-width:1199px){
+  main{max-width:none;padding:10px 14px 18px}
+  header{padding-top:8px;padding-bottom:8px}
+  .brand b{font-size:17px}
+  .exchangeBar,.toolbar,.symbolrow{margin-bottom:6px}
+  .tfrow{padding-bottom:6px}
+  .workspace{grid-template-columns:minmax(0,1.65fr) minmax(260px,.85fr);gap:10px;align-items:start}
+  .secondary{position:static;max-height:calc(100dvh - 210px);overflow:auto;overscroll-behavior:contain}
+  #chart{height:clamp(280px,42dvh,440px)}
+  .section{margin-top:8px;padding:9px}
+  .sectiontop{margin-bottom:6px}
+  .signalHero,.trendHero{padding:9px;margin-bottom:6px}
+  .stat{padding:7px}
+  .mtfCell{padding:6px 3px}
+  .quick{padding:7px}
+  .charthead{padding:7px 10px}
+  .layoutBar{padding-bottom:6px}
+}
+@media (min-width:1200px){
+  .workspace{align-items:start}
+  .secondary{position:static;max-height:calc(100dvh - 190px);overflow:auto;overscroll-behavior:contain}
+  #chart{height:clamp(360px,55dvh,620px)}
+}
+main:fullscreen{width:100%;height:100dvh;max-width:none;margin:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom));overflow:auto;background:var(--bg)}
+main:fullscreen header{display:none}
+main:fullscreen .workspace{min-height:0}
+main:fullscreen .secondary{max-height:calc(100dvh - 205px);overflow:auto}
+main:fullscreen #chart{height:clamp(260px,45dvh,calc(100dvh - 300px))}
+body:has(main:fullscreen){padding:0;overflow:hidden}
+body:has(main:fullscreen) header,body:has(main:fullscreen) .nav{display:none!important}
+@media (max-width:759px){
+  main:fullscreen{padding:8px}
+  main:fullscreen #chart{height:42dvh;min-height:230px}
+  main:fullscreen .workspace{display:block}
+  main:fullscreen .secondary{max-height:none;overflow:visible}
+}
+</style>
 <script src="https://unpkg.com/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js">
 </script>
 </head>
@@ -160,8 +199,8 @@ function buildMultiCharts(n){
 function selectSymbol(s){if(!s||s===current)return;current=s;if(drawCtx){drawCtx.symbol=current;drawCtx.tf=tf;drawRender()}$('symbol').value=s;$('chartTitle').textContent=current+' · '+tf;$('coinDrawer').classList.add('hidden');if(chart){chart.priceScale('right').applyOptions({autoScale:true,mode:0});chart.timeScale().fitContent()}loadChartData()}
 function setTf(t){tf=t;if(drawCtx){drawCtx.tf=tf;drawRender()}document.querySelectorAll('.tfrow button').forEach(b=>b.classList.toggle('active',b.dataset.tf===t));loadChartData()}
 function setupTF(){$('timeframes').innerHTML=TFS.map(x=>'<button data-tf="'+x[0]+'" class="'+(x[0]===tf?'active':'')+'">'+x[0]+'</button>').join('');$('timeframes').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>setTf(b.dataset.tf)))}
-const savedTrend=localStorage.getItem('byLotusericTrendPrefs');if(savedTrend)try{trendPrefs={...trendPrefs,...JSON.parse(savedTrend)}}catch{}$('trendConfig').addEventListener('click',()=>{$('useEma').checked=trendPrefs.ema;$('useRsi').checked=trendPrefs.rsi;$('useMacd').checked=trendPrefs.macd;$('trendModal').classList.remove('hidden')});$('closeTrend').addEventListener('click',()=>$('trendModal').classList.add('hidden'));$('saveTrend').addEventListener('click',()=>{trendPrefs={ema:$('useEma').checked,rsi:$('useRsi').checked,macd:$('useMacd').checked};localStorage.setItem('byLotusericTrendPrefs',JSON.stringify(trendPrefs));$('trendModal').classList.add('hidden');loadMTF()});$('exchange').value=localStorage.getItem('byLotusericExchange')||'okx';exchange=$('exchange').value;updateExchangeLabels();$('exchange').addEventListener('change',async e=>{exchange=e.target.value;updateExchangeLabels();localStorage.setItem('byLotusericExchange',exchange);$('exchangeNote').textContent=exchange.toUpperCase()+' herkese açık verileri';try{await loadInstruments();current=instruments.some(x=>x.instId===current)?current:(instruments[0]?.instId||current);await loadChartData()}catch(err){setConnection('API HATASI');$('connectionNote').textContent=err.message}});document.querySelectorAll('[data-layout]').forEach(b=>b.addEventListener('click',()=>buildMultiCharts(+b.dataset.layout)));$('fullChart').addEventListener('click',()=>{const target=!$('multiCharts').classList.contains('hidden')?$('multiCharts'):$('mainChartCard');if(!document.fullscreenElement)target.requestFullscreen?.();else document.exitFullscreen?.()});
-document.addEventListener('fullscreenchange',()=>{$('fullChart').textContent=document.fullscreenElement?'⤢ Tam ekrandan çık':'⛶ Tam ekran';if(chart)requestAnimationFrame(()=>chart.timeScale().fitContent());miniInstances.forEach(x=>requestAnimationFrame(()=>x.chart.timeScale().fitContent()))});
+const savedTrend=localStorage.getItem('byLotusericTrendPrefs');if(savedTrend)try{trendPrefs={...trendPrefs,...JSON.parse(savedTrend)}}catch{}$('trendConfig').addEventListener('click',()=>{$('useEma').checked=trendPrefs.ema;$('useRsi').checked=trendPrefs.rsi;$('useMacd').checked=trendPrefs.macd;$('trendModal').classList.remove('hidden')});$('closeTrend').addEventListener('click',()=>$('trendModal').classList.add('hidden'));$('saveTrend').addEventListener('click',()=>{trendPrefs={ema:$('useEma').checked,rsi:$('useRsi').checked,macd:$('useMacd').checked};localStorage.setItem('byLotusericTrendPrefs',JSON.stringify(trendPrefs));$('trendModal').classList.add('hidden');loadMTF()});$('exchange').value=localStorage.getItem('byLotusericExchange')||'okx';exchange=$('exchange').value;updateExchangeLabels();$('exchange').addEventListener('change',async e=>{exchange=e.target.value;updateExchangeLabels();localStorage.setItem('byLotusericExchange',exchange);$('exchangeNote').textContent=exchange.toUpperCase()+' herkese açık verileri';try{await loadInstruments();current=instruments.some(x=>x.instId===current)?current:(instruments[0]?.instId||current);await loadChartData()}catch(err){setConnection('API HATASI');$('connectionNote').textContent=err.message}});document.querySelectorAll('[data-layout]').forEach(b=>b.addEventListener('click',()=>buildMultiCharts(+b.dataset.layout)));$('fullChart').addEventListener('click',()=>{const target=$('main');if(!document.fullscreenElement)target.requestFullscreen?.();else document.exitFullscreen?.()});
+document.addEventListener('fullscreenchange',()=>{$('fullChart').textContent=document.fullscreenElement?'⤢ Tam ekrandan çık':'⛶ Tam ekran';if(chart)requestAnimationFrame(()=>{chart.timeScale().fitContent();chart.applyOptions({width:$('chart').clientWidth,height:$('chart').clientHeight})});miniInstances.forEach(x=>requestAnimationFrame(()=>{x.chart.timeScale().fitContent();x.chart.applyOptions({width:x.box.querySelector('.miniPlot').clientWidth,height:x.box.querySelector('.miniPlot').clientHeight})}))});
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.fullscreenElement){document.exitFullscreen?.()}});
 $('closeCoinDrawer').addEventListener('click',()=>$('coinDrawer').classList.add('hidden'));
 $('coinSearch').addEventListener('input',e=>renderCoinList(e.target.value));
