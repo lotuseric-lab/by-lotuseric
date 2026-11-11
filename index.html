@@ -544,7 +544,7 @@ document.addEventListener('fullscreenchange',()=>{$('fullChart').textContent=doc
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&document.fullscreenElement){document.exitFullscreen?.()}});
 $('closeCoinDrawer').addEventListener('click',closeMarketPanel);$('openMarketPanel').addEventListener('click',openMarketPanel);$('marketPanelBackdrop').addEventListener('click',closeMarketPanel);
 $('coinSearch').addEventListener('input',e=>renderCoinList(e.target.value));
-document.addEventListener('click',e=>{if(!$('coinDrawer').classList.contains('hidden')&&!$('coinDrawer').contains(e.target)&&!e.target.closest('.nav [data-page=\"coins\"]'))$('coinDrawer').classList.add('hidden')});$('symbol').addEventListener('change',e=>selectSymbol(e.target.value));$('search').addEventListener('input',e=>{renderSymbolOptions(e.target.value);renderCoinList(e.target.value)});
+document.addEventListener('click',e=>{if(!$('coinDrawer').classList.contains('hidden')&&!$('coinDrawer').contains(e.target)&&!e.target.closest('.nav [data-page="coins"]')&&!e.target.closest('#openMarketPanel'))closeMarketPanel()});$('symbol').addEventListener('change',e=>selectSymbol(e.target.value));$('search').addEventListener('input',e=>{renderSymbolOptions(e.target.value);renderCoinList(e.target.value)});
 $('refresh').addEventListener('click',async()=>{try{await loadInstruments();await loadChartData()}catch(e){$('connectionNote').textContent=e.message}});
 document.querySelectorAll('.chip[data-ind]').forEach(b=>b.addEventListener('click',()=>{enabled[b.dataset.ind]=!enabled[b.dataset.ind];b.classList.toggle('on',enabled[b.dataset.ind]);renderIndicators();syncChecks()}));
 function syncChecks(){for(const k of Object.keys(enabled))$(''+k+'check').checked=enabled[k]}
