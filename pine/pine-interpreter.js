@@ -156,6 +156,7 @@
     function fullRma(src,len){const a=seriesValues(src),out=[];let prev=NA;const n=Math.trunc(num(value(len)));for(let i=0;i<a.length;i++){if(isNA(a[i])){out.push(NA);continue;}if(isNA(prev)){if(i+1>=n){const w=a.slice(i+1-n,i+1);if(!w.some(isNA))prev=w.reduce((z,x)=>z+num(x),0)/n;}}else prev=(prev*(n-1)+num(a[i]))/n;out.push(prev);}return out;}
     function pivot(src,left,right,highMode){const a=seriesValues(src),l=Math.max(1,Math.trunc(num(value(left)))),r=Math.max(1,Math.trunc(num(value(right)))),i=a.length-1-r;if(i<l||i<0)return NA;const w=a.slice(i-l,i+r+1);if(w.some(isNA))return NA;const v=a[i],ext=highMode?Math.max(...w.map(num)):Math.min(...w.map(num));return num(v)===ext?v:NA;}
     const makeArray=(size,initial,fallback)=>{const n=size===undefined?0:Math.trunc(num(value(size)));if(!Number.isFinite(n)||n<0||n>100000)throw new RangeError("Dizi boyutu 0..100000 arasında olmalı.");return Array.from({length:n},()=>initial===undefined?fallback:value(initial));};
+    const arrayIndex=(a,i)=>{const n=Math.trunc(num(value(i)));if(!Number.isFinite(n)||n<0||n>=a.length)throw new RangeError("Array index out of bounds: "+n);return n;};
     const array = {
       new:(size,initial)=>makeArray(size,initial,NA),
       new_float:(size,initial)=>makeArray(size,initial,NA),
@@ -164,7 +165,7 @@
       new_string:(size,initial)=>makeArray(size,initial,""),
       new_color:(size,initial)=>makeArray(size,initial,NA),new_line:(size,initial)=>makeArray(size,initial,NA),new_label:(size,initial)=>makeArray(size,initial,NA),new_box:(size,initial)=>makeArray(size,initial,NA),
       from:(...items)=>items.map(value),size:a=>a.length,push:(a,v)=>a.push(value(v)),pop:a=>a.pop(),shift:a=>a.shift(),unshift:(a,v)=>a.unshift(value(v)),remove:(a,i)=>a.splice(Math.trunc(num(value(i))),1)[0],
-      get:(a,i)=>a[Math.trunc(num(value(i)))],set:(a,i,v)=>{a[Math.trunc(num(value(i)))]=value(v);return a;},remove:(a,i)=>a.splice(Math.trunc(num(value(i))),1)[0],
+      get:(a,i)=>a[arrayIndex(a,i)],set:(a,i,v)=>{a[arrayIndex(a,i)]=value(v);return a;},remove:(a,i)=>a.splice(arrayIndex(a,i),1)[0],
       clear:a=>{a.length=0;},copy:a=>a.slice(),reverse:a=>a.reverse(),sort:(a)=>a.sort((x,y)=>num(x)-num(y)),
       sum:a=>a.reduce((z,x)=>z+num(x),0),avg:a=>a.length?a.reduce((z,x)=>z+num(x),0)/a.length:NA,
       min:a=>a.length?Math.min(...a.map(num)):NA,max:a=>a.length?Math.max(...a.map(num)):NA,
@@ -241,7 +242,7 @@
     const drawCfg=args=>args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});
     const lineNS={style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed",
       new:(x1,y1,x2,y2,...args)=>{const c=drawCfg(args),o={id:drawingId++,x1:value(x1),y1:value(y1),x2:value(x2),y2:value(y2),color:c.color||"#2962ff",width:c.width||2,style:c.style||"solid",extend:c.extend||"none",xloc:c.xloc||"bar_index"};outputs.lines.push(o);return o;},
-      set_x1:(o,v)=>o.x1=value(v),set_y1:(o,v)=>o.y1=value(v),set_x2:(o,v)=>o.x2=value(v),set_y2:(o,v)=>o.y2=value(v),set_color:(o,v)=>o.color=value(v),set_width:(o,v)=>o.width=value(v),set_style:(o,v)=>o.style=value(v),set_extend:(o,v)=>o.extend=value(v),delete:o=>{o.deleted=true;},get_price:(o,x)=>{const dx=num(o.x2)-num(o.x1);return dx===0?NA:num(o.y1)+(num(o.y2)-num(o.y1))*(num(value(x))-num(o.x1))/dx;}
+      set_x1:(o,v)=>o.x1=value(v),set_y1:(o,v)=>o.y1=value(v),set_x2:(o,v)=>o.x2=value(v),set_y2:(o,v)=>o.y2=value(v),set_color:(o,v)=>o.color=value(v),set_width:(o,v)=>o.width=value(v),set_style:(o,v)=>o.style=value(v),set_extend:(o,v)=>o.extend=value(v),delete:o=>{if(o)o.deleted=true;},get_price:(o,x)=>{const dx=num(o.x2)-num(o.x1);return dx===0?NA:num(o.y1)+(num(o.y2)-num(o.y1))*(num(value(x))-num(o.x1))/dx;}
     };
     const labelNS={style_none:"none",style_label_up:"label_up",style_label_down:"label_down",style_label_left:"label_left",style_label_right:"label_right",
       new:(x,y,txt,...args)=>{const c=drawCfg(args),o={id:drawingId++,x:value(x),y:value(y),text:String(value(txt)||""),color:c.color||"#2962ff",textcolor:c.textcolor||"#ffffff",style:c.style||"label_up",size:c.size||"normal",xloc:c.xloc||"bar_index",yloc:c.yloc||"price"};outputs.labels.push(o);return o;},
