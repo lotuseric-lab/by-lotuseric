@@ -213,7 +213,10 @@
     function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name]);}
     function envGet(scope,name){
       if(scope.has(name))return scope.get(name);
-      if(["open","high","low","close","volume","time"].includes(name))return series(name);\n      if(name==="hl2")return new SeriesRef(ctxBars.map(b=>(b.high+b.low)/2));\n      if(name==="hlc3")return new SeriesRef(ctxBars.map(b=>(b.high+b.low+b.close)/3));\n      if(name==="ohlc4")return new SeriesRef(ctxBars.map(b=>(b.open+b.high+b.low+b.close)/4));
+      if(["open","high","low","close","volume","time"].includes(name))return series(name);
+      if(name==="hl2")return new SeriesRef(ctxBars.map(b=>(b.high+b.low)/2));
+      if(name==="hlc3")return new SeriesRef(ctxBars.map(b=>(b.high+b.low+b.close)/3));
+      if(name==="ohlc4")return new SeriesRef(ctxBars.map(b=>(b.open+b.high+b.low+b.close)/4));
       if(name==="bar_index")return currentIndex;
       if(name==="true")return true;if(name==="false")return false;
       if(Object.prototype.hasOwnProperty.call(builtins,name))return builtins[name];
