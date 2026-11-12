@@ -395,6 +395,7 @@ result=runPine(supportAst,supportBars,{timeframe:"5m",symbol:"TEST-USDT",mintick
 assert.equal(result.metadata.title,"MONEY TRADER Destek/Direnç");
 assert.ok(result.inputDefs.length>=15,"Support/resistance input definitions should be exposed");
 assert.ok(result.lines.length>0,"Support/resistance levels should create chart lines");
+assert.ok(result.linefills.length>0,"Support/resistance channel should create line fills");
 assert.ok(result.labels.length>0,"Support/resistance levels should create price labels");
 assert.ok(result.shapes.length>0,"Support/resistance signals should be represented as shapes");
 
