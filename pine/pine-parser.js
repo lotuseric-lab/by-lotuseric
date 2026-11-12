@@ -209,7 +209,6 @@
           }
           if(node.type==="SwitchStatement"){node.cases=parseSwitchCases(line.indent);}
           if(node.type==="TypeDeclaration")node.fields=parseTypeFields(line.indent);
-        if(node.type==="FunctionDeclaration"&&lines[cursor]&&lines[cursor].indent>line.indent)node.bodyStatements=parseBlock(line.indent);
           if(node.type==="FunctionDeclaration"&&lines[cursor]&&lines[cursor].indent>line.indent)node.bodyStatements=parseBlock(line.indent);
           if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
             if(lines[cursor]&&lines[cursor].indent>line.indent)node.body=parseBlock(line.indent);
