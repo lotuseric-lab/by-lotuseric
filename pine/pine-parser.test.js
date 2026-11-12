@@ -66,4 +66,16 @@ else
 assert.deepEqual(elseIf.diagnostics,[]);
 assert.equal(elseIf.body[1].alternate[0].type,"IfStatement");
 assert.equal(elseIf.body[1].alternate[0].alternate[0].type,"AssignmentStatement");
+
+const blockFunction=parsePine(lexPine(`//@version=6
+indicator("Block function")
+calc(x) =>
+    y = x * 2
+    y + 1
+plot(calc(close))
+`).tokens);
+assert.deepEqual(blockFunction.diagnostics,[]);
+assert.equal(blockFunction.body[1].type,"FunctionDeclaration");
+assert.equal(blockFunction.body[1].bodyStatements.length,2);
+assert.equal(blockFunction.body[2].type,"ExpressionStatement");
 console.log("Pine parser tests: OK");
