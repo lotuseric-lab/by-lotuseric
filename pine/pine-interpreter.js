@@ -347,6 +347,7 @@
     }
     function assignTarget(target,v,scope,node){
       if(target.type==="Identifier"){scope.set(target.name,v);return;}
+      if(target.type==="MemberExpression"){const obj=evalExpr(target.object,scope);if(!obj||typeof obj!=="object")throw new PineExecutionError("UDT/nesne alanına atama yapılamıyor.",node);const key=target.computed?value(evalExpr(target.property,scope)):target.property.name;obj[key]=v;return;}
       if(target.type==="TupleExpression"||target.type==="ArrayExpression"){
         if(!Array.isArray(v))throw new PineExecutionError("Tuple atamasında dizi bekleniyor.",node);
         target.elements.forEach((t,i)=>assignTarget(t,v[i]===undefined?NA:v[i],scope,node));return;
@@ -367,9 +368,13 @@
           return initial;
         }
         case "AssignmentStatement":{
-          const old=scope.get(n.target.name),rhs=evalExpr(n.value,scope);let v=rhs;
+          const old=n.target.type==="Identifier"?scope.get(n.target.name):evalExpr(n.target,scope),rhs=evalExpr(n.value,scope);let v=rhs;
           if(n.operator!== "="&&n.operator!==":="){const a=value(old),b=value(rhs);const op=n.operator[0];v=op==="+"?num(a)+num(b):op==="-"?num(a)-num(b):op==="*"?num(a)*num(b):num(b)===0?NA:num(a)/num(b);}
-          scope.set(n.target.name,v);if(Object.prototype.hasOwnProperty.call(persistent,n.target.name))persistent[n.target.name]=value(v);return v;
+          assignTarget(n.target,v,scope,n);if(n.target.type==="Identifier"&&Object.prototype.hasOwnProperty.call(persistent,n.target.name))persistent[n.target.name]=value(v);return v;
+        }
+        case "TypeDeclaration":{
+          const ctor={new:(...args)=>{const object={__pineType:n.name};n.fields.forEach((field,i)=>{object[field.name]=args[i]===undefined?(field.defaultValue?value(evalExpr(field.defaultValue,scope)):NA):value(args[i]);});return object;}};
+          scope.define(n.name,ctor);return ctor;
         }
         case "DestructuringAssignment":{const v=evalExpr(n.value,scope);assignTarget(n.target,v,scope,n);return;}
         case "FunctionDeclaration":{
