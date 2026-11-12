@@ -356,26 +356,27 @@
     function execBlock(body,scope){
       for(const node of body){tick(node);execStatement(node,scope);}
     }
+    function execBlockValue(body,scope){let result=NA;for(const node of body){tick(node);result=execStatement(node,scope);}return result;}
     function execStatement(n,scope){
       switch(n.type){
-        case "ExpressionStatement":evalExpr(n.expression,scope);return;
+        case "ExpressionStatement":return evalExpr(n.expression,scope);
         case "TypedDeclarationStatement":case "DeclarationStatement":{
           const initial=evalExpr(n.value,scope);const q=n.qualifier||"";
           if(q==="var"||q==="varip"){if(!Object.prototype.hasOwnProperty.call(persistent,n.name))persistent[n.name]=value(initial);scope.define(n.name,persistent[n.name]);}
           else scope.define(n.name,initial);
-          return;
+          return initial;
         }
         case "AssignmentStatement":{
           const old=scope.get(n.target.name),rhs=evalExpr(n.value,scope);let v=rhs;
           if(n.operator!== "="&&n.operator!==":="){const a=value(old),b=value(rhs);const op=n.operator[0];v=op==="+"?num(a)+num(b):op==="-"?num(a)-num(b):op==="*"?num(a)*num(b):num(b)===0?NA:num(a)/num(b);}
-          scope.set(n.target.name,v);if(Object.prototype.hasOwnProperty.call(persistent,n.target.name))persistent[n.target.name]=value(v);return;
+          scope.set(n.target.name,v);if(Object.prototype.hasOwnProperty.call(persistent,n.target.name))persistent[n.target.name]=value(v);return v;
         }
         case "DestructuringAssignment":{const v=evalExpr(n.value,scope);assignTarget(n.target,v,scope,n);return;}
         case "FunctionDeclaration":{
-          functions[n.name]=( ...args )=>{const local=new Scope(scope);n.params.forEach((p,i)=>local.define(p.name,value(args[i])));return evalExpr(n.body,local);};return;
+          functions[n.name]=( ...args )=>{const local=new Scope(scope);n.params.forEach((p,i)=>local.define(p.name,value(args[i])));return n.bodyStatements&&n.bodyStatements.length?execBlockValue(n.bodyStatements,local):evalExpr(n.body,local);};return;
         }
-        case "IfStatement":if(truth(value(evalExpr(n.test,scope))))execBlock(n.body,new Scope(scope));else execBlock(n.alternate||[],new Scope(scope));return;
-        case "SwitchStatement":{const d=n.discriminant?value(evalExpr(n.discriminant,scope)):undefined;let chosen=null;for(const c of n.cases||[]){if(c.test===null){if(!chosen)chosen=c;continue;}const t=value(evalExpr(c.test,scope));if(n.discriminant?d===t:truth(t)){chosen=c;break;}}if(chosen)execBlock(chosen.body,new Scope(scope));return;}
+        case "IfStatement":return truth(value(evalExpr(n.test,scope)))?execBlockValue(n.body,new Scope(scope)):execBlockValue(n.alternate||[],new Scope(scope));
+        case "SwitchStatement":{const d=n.discriminant?value(evalExpr(n.discriminant,scope)):undefined;let chosen=null;for(const c of n.cases||[]){if(c.test===null){if(!chosen)chosen=c;continue;}const t=value(evalExpr(c.test,scope));if(n.discriminant?d===t:truth(t)){chosen=c;break;}}if(chosen)return execBlockValue(chosen.body,new Scope(scope));return NA;}
         case "WhileStatement":{let count=0;while(truth(value(evalExpr(n.test,scope)))){if(++count>10000)throw new PineExecutionError("while döngüsü sınırı aşıldı.",n);try{execBlock(n.body,new Scope(scope));}catch(e){if(e&&e.__pineBreak)break;if(e&&e.__pineContinue)continue;throw e;}}return;}
         case "ForRangeStatement":{
           const start=Math.trunc(num(value(evalExpr(n.start,scope)))),end=Math.trunc(num(value(evalExpr(n.end,scope)))),step=n.step?Math.trunc(num(value(evalExpr(n.step,scope)))):1;
