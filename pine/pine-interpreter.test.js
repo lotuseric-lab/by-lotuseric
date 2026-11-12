@@ -164,6 +164,18 @@ assert.equal(result.plots[0].values[0], 3);
 assert.equal(result.plots[0].values[1], 3);
 assert.equal(result.plots[1].values.at(-1), 3);
 
+const crossCloses=[10,9,8,7,8,9,10,11,12,13,14,15];
+const crossBars=crossCloses.map((close,i)=>({time:1700000000+i*300,open:close,high:close+1,low:close-1,close,volume:1000}));
+result=runPine(compile(`//@version=6
+indicator("EMA crossover regression")
+fast=ta.ema(close,3)
+slow=ta.ema(close,6)
+plotshape(ta.crossover(fast,slow),title="Cross up")
+plotshape(ta.crossunder(fast,slow),title="Cross down")
+`),crossBars,{timeframe:"5m",symbol:"TEST-USDT"});
+assert.ok(result.shapes.some(x=>x.title==="Cross up"&&x.value),"EMA crossover must detect scalar EMA series");
+assert.ok(result.shapes.some(x=>x.title==="Cross down"&&x.value),"EMA crossunder must detect scalar EMA series");
+
 result = runPine(compile(`//@version=6
 indicator("Format namespace")
 plot(close, str.tostring(close, format.mintick))
