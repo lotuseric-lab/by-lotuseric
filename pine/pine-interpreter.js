@@ -230,7 +230,9 @@
       plotbar:(o,h,l,c,...args)=>{const cfg=args.reduce((z,x)=>{if(x&&x.__named)z[x.name]=value(x.value);return z;},{});outputs.candles.push({type:"bar",bar:ctx.index,open:value(o),high:value(h),low:value(l),close:value(c),color:cfg.color||"#22c58b"});return null;},
       hline:(v,...args)=>{outputs.hlines.push({value:value(v),args:args.map(value)});return null;},
       alertcondition:(condition,title,message)=>{if(truth(value(condition)))outputs.alerts.push({bar:ctx.index,title:value(title)||"",message:value(message)||""});return null;}, alert:(message)=>{outputs.alerts.push({bar:ctx.index,message:String(value(message)||"")});return null;},
-      barcolor:()=>null, bgcolor:()=>null, fill:()=>null,
+      barcolor:()=>{throw new PineExecutionError("barcolor() görsel çıktısı henüz desteklenmiyor; kod sessizce atlanmadı.","barcolor","PINE_VISUAL_UNSUPPORTED");},
+      bgcolor:()=>{throw new PineExecutionError("bgcolor() görsel çıktısı henüz desteklenmiyor; kod sessizce atlanmadı.",null,"PINE_VISUAL_UNSUPPORTED");},
+      fill:()=>{throw new PineExecutionError("fill() görsel çıktısı henüz desteklenmiyor; kod sessizce atlanmadı.",null,"PINE_VISUAL_UNSUPPORTED");},
       nz: (v,r)=>isNA(value(v))?(r===undefined?0:value(r)):value(v),
       minval:x=>x, maxval:x=>x, timestamp:()=>NA, time:()=>ctx.bar?ctx.bar.time:NA, request:{security:()=>{throw new PineExecutionError("request.security doğrudan çağrılamaz; Pine çağrı düğümü bekleniyordu.",null,"PINE_MTF_UNAVAILABLE");},security_lower_tf:()=>{throw new PineExecutionError("request.security_lower_tf henüz desteklenmiyor.",null,"PINE_MTF_UNAVAILABLE");}}, barmerge:{gaps_off:"gaps_off",gaps_on:"gaps_on",lookahead_off:"lookahead_off",lookahead_on:"lookahead_on"}
     };
