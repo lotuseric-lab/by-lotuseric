@@ -358,6 +358,18 @@
           const obj=evalExpr(n.object,scope);
           if(n.computed){const idx=Math.trunc(num(value(evalExpr(n.property,scope))));if(obj instanceof SeriesRef)return obj.at(idx);if(Array.isArray(obj))return idx>=0&&idx<obj.length?obj[idx]:NA;let historicalExpr=n.object;while(historicalExpr&&historicalExpr.type==="GroupExpression")historicalExpr=historicalExpr.expression;if(historicalExpr&&historicalExpr.type==="CallExpression"&&Number.isInteger(idx)&&idx>=0){if(idx>currentIndex)return NA;const savedIndex=currentIndex;try{currentIndex=savedIndex-idx;return value(evalExpr(historicalExpr,scope));}finally{currentIndex=savedIndex;}}throw new PineExecutionError("Bu değer geçmiş/indeks erişimini desteklemiyor.",n);}
           if(obj==null)throw new PineExecutionError("Boş değer üzerinde alan erişimi.",n);
+          if(Array.isArray(obj)){
+            const methods={
+              size:()=>obj.length,push:v=>obj.push(value(v)),pop:()=>obj.pop(),shift:()=>obj.shift(),unshift:v=>obj.unshift(value(v)),
+              get:i=>obj[arrayIndex(obj,i)],set:(i,v)=>{obj[arrayIndex(obj,i)]=value(v);return null;},
+              remove:i=>obj.splice(arrayIndex(obj,i),1)[0],clear:()=>{obj.length=0;},reverse:()=>obj.reverse(),
+              sum:()=>obj.reduce((z,x)=>z+num(x),0),avg:()=>obj.length?obj.reduce((z,x)=>z+num(x),0)/obj.length:NA,
+              min:()=>obj.length?Math.min(...obj.map(num)):NA,max:()=>obj.length?Math.max(...obj.map(num)):NA,
+              includes:v=>obj.includes(value(v)),indexof:v=>obj.indexOf(value(v)),copy:()=>obj.slice(),
+              slice:(l,r)=>obj.slice(Math.trunc(num(value(l))),r===undefined?undefined:Math.trunc(num(value(r))))
+            };
+            if(n.property&&Object.prototype.hasOwnProperty.call(methods,n.property.name))return methods[n.property.name];
+          }
           if((typeof obj==="object"||typeof obj==="function")&&n.property&&Object.prototype.hasOwnProperty.call(obj,n.property.name))return obj[n.property.name];
           throw new PineExecutionError("Desteklenmeyen alan: "+(n.property&&n.property.name),n);
         }
