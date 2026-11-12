@@ -79,7 +79,7 @@
             while (/[0-9]/.test(text[i] || "")) { i++; column++; }
           }
           if (/[eE]/.test(text[i] || "")) {
-            const expStart = i;
+            const expStart = i, expColumn = column;
             i++; column++;
             if (/[+-]/.test(text[i] || "")) { i++; column++; }
             const digits = i;
