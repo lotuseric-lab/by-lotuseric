@@ -187,6 +187,26 @@ indicator("Bad")
 plot(unknownName)
 `), bars), e => e instanceof PineExecutionError && e.code === "PINE_UNDEFINED_IDENTIFIER");
 
+result = runPine(compile(`//@version=6
+indicator("Safe object deletion")
+var line missing = na
+line.delete(missing)
+var label missingLabel = na
+label.delete(missingLabel)
+var box missingBox = na
+box.delete(missingBox)
+var table missingTable = na
+table.delete(missingTable)
+plot(close)
+`), bars);
+assert.equal(result.plots[0].values.at(-1), bars.at(-1).close);
+
+assert.throws(() => runPine(compile(`//@version=6
+indicator("Array bounds")
+a = array.new_int(1)
+plot(array.get(a, 1))
+`), bars), /Array index out of bounds/);
+
 assert.throws(() => runPine(compile(`//@version=6
 indicator("Unsupported visual")
 barcolor(color.red)
