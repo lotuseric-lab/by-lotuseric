@@ -328,4 +328,11 @@ plot(isUp ? 1 : 0)
 assert.equal(result.plots[0].values[0], 1);
 assert.equal(result.plots[0].values[1], 1);
 
+const fiboSource=fs.readFileSync(path.join(__dirname,"fixtures","MONEY_TRADER_FIBO_TRADE_ARCHIVE.pine"),"utf8");
+const fiboAst=compile(fiboSource);
+const fiboBars=Array.from({length:260},(_,i)=>({time:1700000000+i*300,open:100+i*.1,high:102+i*.1,low:99+i*.1,close:101+i*.1,volume:1000+i*5}));
+result=runPine(fiboAst,fiboBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01});
+assert.ok(result.tables.length>0,"FIBO source should render its diagnostics table");
+assert.ok(result.lines.length>0,"FIBO source should create Fibonacci levels");
+
 console.log("Pine interpreter tests: OK");
