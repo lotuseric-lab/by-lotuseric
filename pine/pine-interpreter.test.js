@@ -162,4 +162,13 @@ indicator("Bad")
 plot(unknownName)
 `), bars), e => e instanceof PineExecutionError && e.code === "PINE_UNDEFINED_IDENTIFIER");
 
+assert.throws(() => runPine(compile(`//@version=6
+indicator("Unsupported visual")
+barcolor(color.red)
+`), bars), e => e instanceof PineExecutionError && e.code === "PINE_VISUAL_UNSUPPORTED");
+assert.throws(() => runPine(compile(`//@version=6
+indicator("Unsupported fill")
+fill(plot(close), plot(open))
+`), bars), e => e instanceof PineExecutionError && e.code === "PINE_VISUAL_UNSUPPORTED");
+
 console.log("Pine interpreter tests: OK");
