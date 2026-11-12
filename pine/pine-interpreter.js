@@ -196,6 +196,16 @@
       nz: (v,r)=>isNA(value(v))?(r===undefined?0:value(r)):value(v),
       minval:x=>x, maxval:x=>x, timestamp:()=>NA, time:()=>ctx.bar?ctx.bar.time:NA
     };
+    Object.assign(builtins.plot,{style_line:"line",style_stepline:"stepline",style_histogram:"histogram",style_columns:"columns",style_area:"area",style_circles:"circles",style_cross:"cross",style_linebr:"linebr"});
+    builtins.shape={circle:"shape.circle",square:"shape.square",diamond:"shape.diamond",triangleup:"shape.triangleup",triangledown:"shape.triangledown",cross:"shape.cross",xcross:"shape.xcross",flag:"shape.flag",arrowup:"shape.arrowup",arrowdown:"shape.arrowdown",labelup:"shape.labelup",labeldown:"shape.labeldown",none:"shape.none"};
+    builtins.location={abovebar:"abovebar",belowbar:"belowbar",top:"top",bottom:"bottom",absolute:"absolute"};
+    builtins.display={all:"all",none:"none",data_window:"data_window",status_line:"status_line",pane:"pane"};
+    builtins.size={tiny:"tiny",small:"small",normal:"normal",large:"large",huge:"huge",auto:"auto"};
+    builtins.extend={none:"none",left:"left",right:"right",both:"both"};
+    builtins.xloc={bar_index:"bar_index",bar_time:"bar_time"};
+    builtins.yloc={price:"price",abovebar:"abovebar",belowbar:"belowbar"};
+    builtins.line={style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed"};
+    builtins.hline={style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed"};
     return builtins;
   }
   function namedArg(name,v){return {__named:true,name,value:v};}
@@ -248,7 +258,7 @@
           const obj=evalExpr(n.object,scope);
           if(n.computed){const idx=Math.trunc(num(value(evalExpr(n.property,scope))));if(obj instanceof SeriesRef)return obj.at(idx);if(Array.isArray(obj))return idx>=0&&idx<obj.length?obj[idx]:NA;throw new PineExecutionError("Bu değer geçmiş/indeks erişimini desteklemiyor.",n);}
           if(obj==null)throw new PineExecutionError("Boş değer üzerinde alan erişimi.",n);
-          if(typeof obj==="object"&&n.property&&Object.prototype.hasOwnProperty.call(obj,n.property.name))return obj[n.property.name];
+          if((typeof obj==="object"||typeof obj==="function")&&n.property&&Object.prototype.hasOwnProperty.call(obj,n.property.name))return obj[n.property.name];
           throw new PineExecutionError("Desteklenmeyen alan: "+(n.property&&n.property.name),n);
         }
         case "CallExpression":{
