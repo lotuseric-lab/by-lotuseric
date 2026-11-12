@@ -108,7 +108,7 @@
         i++; column++;
         while (/[A-Za-z0-9_]/.test(text[i] || "")) { i++; column++; }
         const word = text.slice(start, i);
-        push(word === "true" || word === "false" ? "LITERAL" : "IDENTIFIER",
+        push(word === "true" || word === "false" ? "LITERAL" : (word === "and" || word === "or" || word === "not") ? "OPERATOR" : "IDENTIFIER",
           word, startLine, startColumn);
         continue;
       }
