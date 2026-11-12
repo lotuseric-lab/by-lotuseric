@@ -235,7 +235,16 @@
       alertcondition:(condition,title,message)=>{if(truth(value(condition)))outputs.alerts.push({bar:ctx.index,title:value(title)||"",message:value(message)||""});return null;}, alert:(message)=>{outputs.alerts.push({bar:ctx.index,message:String(value(message)||"")});return null;},
       barcolor:()=>{throw new PineExecutionError("barcolor() görsel çıktısı henüz desteklenmiyor; kod sessizce atlanmadı.","barcolor","PINE_VISUAL_UNSUPPORTED");},
       bgcolor:()=>{throw new PineExecutionError("bgcolor() görsel çıktısı henüz desteklenmiyor; kod sessizce atlanmadı.",null,"PINE_VISUAL_UNSUPPORTED");},
-      fill:()=>{throw new PineExecutionError("fill() görsel çıktısı henüz desteklenmiyor; kod sessizce atlanmadı.",null,"PINE_VISUAL_UNSUPPORTED");},
+      fill:(plot1,plot2,...args)=>{
+        const a=value(plot1),b=value(plot2);
+        if(!a||!b||a.__pinePlotRef!==true||b.__pinePlotRef!==true)
+          throw new PineExecutionError("fill() iki geçerli plot() referansı bekliyor.",null,"PINE_FILL_ARGUMENT");
+        const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});
+        const id=outputs._activeCallId;
+        if(id===undefined)throw new PineExecutionError("fill çağrı noktası belirlenemedi.",null,"PINE_FILL_CALLSITE");
+        outputs.fills.push({id,bar:ctx.index,plot1:a.id,plot2:b.id,color:cfg.color||"rgba(41,98,255,0.18)",title:cfg.title||""});
+        return null;
+      },
       nz: (v,r)=>isNA(value(v))?(r===undefined?0:value(r)):value(v),
       minval:x=>x, maxval:x=>x, timestamp:()=>NA, time:()=>ctx.bar?ctx.bar.time:NA, request:{security:()=>{throw new PineExecutionError("request.security doğrudan çağrılamaz; Pine çağrı düğümü bekleniyordu.",null,"PINE_MTF_UNAVAILABLE");},security_lower_tf:()=>{throw new PineExecutionError("request.security_lower_tf henüz desteklenmiyor.",null,"PINE_MTF_UNAVAILABLE");}}, barmerge:{gaps_off:"gaps_off",gaps_on:"gaps_on",lookahead_off:"lookahead_off",lookahead_on:"lookahead_on"}
     };
