@@ -108,6 +108,22 @@
     if([x,y,px,py].some(isNA))return false;
     return dir>0?num(x)>num(y)&&num(px)<=num(py):dir<0?num(x)<num(y)&&num(px)>=num(py):(num(x)>num(y)&&num(px)<=num(py))||(num(x)<num(y)&&num(px)>=num(py));
   }
+  function timeframeMs(tf){
+    const x=String(tf||"").trim().toUpperCase();
+    if(/^\\d+$/.test(x))return Number(x)*60000;
+    if(x==="D"||x==="1D")return 86400000;
+    if(x==="W"||x==="1W")return 604800000;
+    if(x==="M"||x==="1M")return 2592000000;
+    const m=x.match(/^(\\d+)(S|H|D|W)$/);if(!m)return NaN;
+    return Number(m[1])*({S:1000,H:3600000,D:86400000,W:604800000}[m[2]]);
+  }
+  function aggregateBars(bars,targetMs,baseMs){
+    const groups=new Map();
+    for(const b of bars){const bucket=Math.floor(b.time*1000/targetMs);let g=groups.get(bucket);if(!g){g={time:bucket*targetMs/1000,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.volume,count:0};groups.set(bucket,g);}else{g.high=Math.max(g.high,b.high);g.low=Math.min(g.low,b.low);g.close=b.close;g.volume+=b.volume;}g.count++;}
+    const out=[...groups.values()];
+    if(Number.isFinite(baseMs)&&targetMs>baseMs&&out.length){const expected=Math.round(targetMs/baseMs);if(out[out.length-1].count<expected)out.pop();}
+    return out;
+  }
   function createBuiltins(ctx, outputs, inputs, options) {
     const math = {
       abs:x=>Math.abs(num(value(x))), acos:x=>Math.acos(num(value(x))), asin:x=>Math.asin(num(value(x))),
@@ -196,7 +212,7 @@
       alertcondition:(condition,title,message)=>{if(truth(value(condition)))outputs.alerts.push({bar:ctx.index,title:value(title)||"",message:value(message)||""});return null;}, alert:(message)=>{outputs.alerts.push({bar:ctx.index,message:String(value(message)||"")});return null;},
       barcolor:()=>null, bgcolor:()=>null, fill:()=>null,
       nz: (v,r)=>isNA(value(v))?(r===undefined?0:value(r)):value(v),
-      minval:x=>x, maxval:x=>x, timestamp:()=>NA, time:()=>ctx.bar?ctx.bar.time:NA, request:{security:()=>{throw new PineExecutionError("request.security için hedef zaman dilimi verisi henüz bağlanmadı; yanlış sonuç üretmemek için çalışma durduruldu.",null,"PINE_MTF_UNAVAILABLE");},security_lower_tf:()=>{throw new PineExecutionError("request.security_lower_tf henüz desteklenmiyor.",null,"PINE_MTF_UNAVAILABLE");}}
+      minval:x=>x, maxval:x=>x, timestamp:()=>NA, time:()=>ctx.bar?ctx.bar.time:NA, request:{security:()=>{throw new PineExecutionError("request.security doğrudan çağrılamaz; Pine çağrı düğümü bekleniyordu.",null,"PINE_MTF_UNAVAILABLE");},security_lower_tf:()=>{throw new PineExecutionError("request.security_lower_tf henüz desteklenmiyor.",null,"PINE_MTF_UNAVAILABLE");}}, barmerge:{gaps_off:"gaps_off",gaps_on:"gaps_on",lookahead_off:"lookahead_off",lookahead_on:"lookahead_on"}
     };
     let drawingId=1;
     const drawCfg=args=>args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});
@@ -239,13 +255,14 @@
     if(!ast||ast.type!=="Program")throw new TypeError("Geçerli Pine AST bekleniyor.");
     if(ast.diagnostics&&ast.diagnostics.length)throw new PineExecutionError("Kaynakta parse hataları var: "+ast.diagnostics[0].message,ast.diagnostics[0],"PINE_PARSE_ERROR");
     const cleanBars=bars.map((b,i)=>{const o={};for(const k of ["open","high","low","close","volume","time"]){const n=Number(b[k]);if(!Number.isFinite(n))throw new PineExecutionError("Geçersiz "+k+" verisi ("+i+").");o[k]=n;}return Object.freeze(o);});
-    const outputs={plots:[],shapes:[],hlines:[],candles:[],labels:[],lines:[],boxes:[],tables:[],alerts:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
+    const outputs={plots:[],shapes:[],hlines:[],candles:[],expression:[],labels:[],lines:[],boxes:[],tables:[],alerts:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
     const inputValues=Object.assign(Object.create(null),opts.inputs||{});
     const global=new Scope();
     const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null);
     const builtins=createBuiltins({bars:cleanBars,get index(){return currentIndex;}},outputs,inputValues,opts);
     let currentIndex=-1,steps=0;
     const ctxBars=cleanBars;
+    const securityCache=new Map();
     const maxSteps=opts.maxSteps||100000;
     function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı.",node,"PINE_EXECUTION_LIMIT");}
     function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name]);}
@@ -287,6 +304,32 @@
           throw new PineExecutionError("Desteklenmeyen alan: "+(n.property&&n.property.name),n);
         }
         case "CallExpression":{
+          if(n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="request"&&n.callee.property.name==="security"){
+            const sym=n.arguments[0]?value(evalExpr(n.arguments[0],scope)):String(options.symbol||"");
+            const tf=n.arguments[1]?value(evalExpr(n.arguments[1],scope)):String(options.timeframe||"");
+            const exprNode=n.arguments[2]&&n.arguments[2].type==="NamedArgument"?n.arguments[2].value:n.arguments[2];
+            if(!exprNode)throw new PineExecutionError("request.security üçün ifade argümanı gerekli.",n);
+            const look=n.arguments.slice(3).find(a=>a.type==="NamedArgument"&&a.name==="lookahead");
+            if(look&&value(evalExpr(look.value,scope))==="lookahead_on")throw new PineExecutionError("lookahead_on yeniden boyama riski nedeniyle bu motorda desteklenmiyor.",n,"PINE_MTF_LOOKAHEAD");
+            const cacheKey=String(sym)+"|"+String(tf)+"|"+JSON.stringify(exprNode);
+            let mapped=securityCache.get(cacheKey);
+            if(!mapped){
+              const targetMs=timeframeMs(tf),baseMs=timeframeMs(options.timeframe||"5");
+              if(!Number.isFinite(targetMs)||!Number.isFinite(baseMs))throw new PineExecutionError("request.security zaman dilimi tanınmadı: "+tf,n,"PINE_MTF_UNSUPPORTED");
+              if(targetMs<baseMs)throw new PineExecutionError("Daha düşük zaman dilimi request.security henüz desteklenmiyor; security_lower_tf gerekir.",n,"PINE_MTF_LOWER_TF");
+              const mtfBars=targetMs===baseMs?cleanBars:aggregateBars(cleanBars,targetMs,baseMs);
+              const mini={type:"Program",body:[{type:"ExpressionStatement",expression:exprNode}],diagnostics:[]};
+              const res=runPine(mini,mtfBars,{...options,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityData:null});
+              const vals=res.expression||[];
+              mapped=cleanBars.map((bar,i)=>{
+                const closeTime=(bar.time*1000)+baseMs;let j=-1;
+                for(let k=0;k<mtfBars.length;k++)if((mtfBars[k].time*1000)+targetMs<=closeTime)j=k;else break;
+                return j<0?NA:(vals[j]===undefined?NA:vals[j]);
+              });
+              securityCache.set(cacheKey,mapped);
+            }
+            return new SeriesRef(mapped.slice(0,currentIndex+1));
+          }
           const fn=n.callee&&n.callee.type==="Identifier"&&n.callee.name==="na"?builtins.na:evalExpr(n.callee,scope);if(typeof fn!=="function")throw new PineExecutionError("Çağrılan ifade fonksiyon değil.",n);
           const args=n.arguments.map(a=>a.type==="NamedArgument"?namedArg(a.name,evalExpr(a.value,scope)):evalExpr(a,scope));
           return fn(...args);
@@ -347,7 +390,7 @@
       currentIndex=i;outputs._plotCallIndex=0;
       for(const k of barKeys){if(!vars[k])vars[k]=[];vars[k].push(cleanBars[i][k]);}
       const barScope=new Scope(global);
-      try{execBlock(ast.body,barScope);}
+      try{execBlock(ast.body,barScope);if(opts.captureExpression)outputs.expression.push(value(evalExpr(opts.captureExpression,barScope)));}
       catch(error){if(error&&error.__pineBreak)throw new PineExecutionError("break yalnızca döngü içinde kullanılabilir.");if(error&&error.__pineContinue)throw new PineExecutionError("continue yalnızca döngü içinde kullanılabilir.");if(error instanceof PineExecutionError)throw error;throw new PineExecutionError(error.message,null);}
       for(const p of outputs.plots){if(p.values.length<=i)p.values.push(NA);}
     }
