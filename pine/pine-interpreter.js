@@ -170,6 +170,19 @@
       min:a=>a.length?Math.min(...a.map(num)):NA,max:a=>a.length?Math.max(...a.map(num)):NA,
       indexof:(a,v)=>a.indexOf(value(v)),includes:(a,v)=>a.includes(value(v)),slice:(a,l,r)=>a.slice(Math.trunc(num(value(l))),r===undefined?undefined:Math.trunc(num(value(r))))
     };
+    const mapNS={
+      new:()=>new Map(),put:(m,k,v)=>{m.set(value(k),value(v));},get:(m,k,def)=>m.has(value(k))?m.get(value(k)):(def===undefined?NA:value(def)),
+      contains:(m,k)=>m.has(value(k)),remove:(m,k)=>m.delete(value(k)),keys:m=>[...m.keys()],values:m=>[...m.values()],size:m=>m.size,clear:m=>m.clear()
+    };
+    const matrixNS={
+      new:(rows,cols,initial)=>{const r=Math.max(0,Math.trunc(num(value(rows)))),c=Math.max(0,Math.trunc(num(value(cols))));if(r*c>100000)throw new RangeError("Matrix boyutu çok büyük.");return {rows:r,cols:c,data:Array.from({length:r},()=>Array(c).fill(initial===undefined?NA:value(initial)))};},
+      rows:m=>m.rows,columns:m=>m.cols,get:(m,r,c)=>m.data[Math.trunc(num(value(r)))]?.[Math.trunc(num(value(c)))],set:(m,r,c,v)=>{m.data[Math.trunc(num(value(r)))][Math.trunc(num(value(c)))]=value(v);},
+      add_row:(m,row)=>{m.data.push(row?row.slice():Array(m.cols).fill(NA));m.rows++;},add_col:(m,col)=>{for(let r=0;r<m.rows;r++)m.data[r].push(col?value(col[r]):NA);m.cols++;},
+      remove_row:(m,r)=>{m.data.splice(Math.trunc(num(value(r))),1);m.rows--;},remove_col:(m,c)=>{for(const row of m.data)row.splice(Math.trunc(num(value(c))),1);m.cols--;},
+      fill:(m,v)=>{for(const row of m.data)row.fill(value(v));},copy:m=>({rows:m.rows,cols:m.cols,data:m.data.map(r=>r.slice())}),
+      transpose:m=>({rows:m.cols,cols:m.rows,data:Array.from({length:m.cols},(_,c)=>Array.from({length:m.rows},(_,r)=>m.data[r][c]))}),
+      sum:m=>m.data.flat().reduce((z,x)=>z+num(x),0)
+    };
     const str = {
       tostring:(v)=>isNA(value(v))?"NaN":String(value(v)),length:v=>String(value(v)||"").length,
       lower:v=>String(value(v)||"").toLowerCase(),upper:v=>String(value(v)||"").toUpperCase(),
@@ -208,7 +221,7 @@
     const color = {new:(c,t)=>{const raw=String(value(c)||"#2962ff");const alpha=1-clamp(num(value(t)||0),0,100)/100;return /^#[0-9a-f]{6}$/i.test(raw)?raw+Math.round(alpha*255).toString(16).padStart(2,"0"):raw;},rgb:(r,g,b,t)=>"rgba("+[r,g,b].map(x=>clamp(Math.round(num(value(x))),0,255)).join(",") + ","+(1-clamp(num(value(t)||0),0,100)/100)+")",red:"#f23645",lime:"#089981",green:"#089981",blue:"#2962ff",orange:"#ff9800",yellow:"#fdd835",purple:"#9c27b0",white:"#ffffff",black:"#000000",gray:"#787b86",grey:"#787b86",teal:"#00897b",aqua:"#00bcd4",fuchsia:"#e040fb",silver:"#bdbdbd",maroon:"#880e4f",navy:"#000080",transparent:"rgba(0,0,0,0)"};
     const builtins = {
       na:()=>NA, nafn:()=>NA, nz:(x,repl)=>isNA(value(x))?(repl===undefined?0:value(repl)):value(x),
-      math, ta, input, color, array, str, barstate, timeframe:{period:String(options.timeframe||""),isweekly:/^(1W|1w|W|w)$/.test(String(options.timeframe||"")),isdaily:/^(1D|1d|D|d)$/.test(String(options.timeframe||"")),isintraday:/^([1-9]\d*|[1-9]\d*[m])$/.test(String(options.timeframe||""))}, syminfo:{ticker:String(options.symbol||""),tickerid:String(options.symbol||""),mintick:Number(options.mintick||0.00000001),basecurrency:"",currency:""},
+      math, ta, input, color, array, map:mapNS, matrix:matrixNS, str, barstate, timeframe:{period:String(options.timeframe||""),isweekly:/^(1W|1w|W|w)$/.test(String(options.timeframe||"")),isdaily:/^(1D|1d|D|d)$/.test(String(options.timeframe||"")),isintraday:/^([1-9]\d*|[1-9]\d*[m])$/.test(String(options.timeframe||"")),ismonthly:/^(1M|M)$/.test(String(options.timeframe||""))}, syminfo:{ticker:String(options.symbol||""),tickerid:String(options.symbol||""),mintick:Number(options.mintick||0.00000001),basecurrency:"",currency:""},
       indicator:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Indicator";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;}, study:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Study";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;},
       plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=outputs._plotCallIndex++;let p=outputs.plots[k];if(!p){p={title:cfg.title||"Plot "+(k+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:[]};outputs.plots[k]=p;}p.values.push(value(v));return null;},
       plotshape:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",style:cfg.style||"shape.triangleup",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
