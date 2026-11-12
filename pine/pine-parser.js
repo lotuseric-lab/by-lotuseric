@@ -55,6 +55,7 @@
       while(this.index<this.end){const t=this.peek();
         if(t.value==="."){this.take();const p=this.take();if(!p||p.type!=="IDENTIFIER")throw new PineParseError("Nokta sonrasında alan adı bekleniyor.",p||t);n={type:"MemberExpression",object:n,property:{type:"Identifier",name:p.value,loc:loc(p)},computed:false,loc:loc(t)};}
         else if(t.value==="["){this.take();const p=this.parseExpression(0);this.expect("]");n={type:"MemberExpression",object:n,property:p,computed:true,loc:loc(t)};}
+        else if(t.value==="<"){let depth=0,close=-1;for(let j=this.index;j<this.end;j++){if(this.tokens[j].value==="<")depth++;else if(this.tokens[j].value===">"&&--depth===0){close=j;break;}}if(close>=0&&this.tokens[close+1]&&this.tokens[close+1].value==="("){this.index=close+1;}else break;}
         else if(t.value==="("){this.take();const args=[];if(!this.match(")")){do{if(this.peek()&&this.peek().value===")")break;const k=this.peek();if(k&&k.type==="IDENTIFIER"&&this.peek(1)&&this.peek(1).value==="="){this.take();this.take();args.push({type:"NamedArgument",name:k.value,value:this.parseExpression(0),loc:loc(k)});}else args.push(this.parseExpression(0));}while(this.match(","));this.expect(")");}n={type:"CallExpression",callee:n,arguments:args,loc:loc(t)};}
         else break;
       }return n;
