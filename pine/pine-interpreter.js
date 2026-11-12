@@ -317,7 +317,9 @@
             if(!mapped){
               const targetMs=timeframeMs(tf),baseMs=timeframeMs(opts.timeframe||"5");
               if(!Number.isFinite(targetMs)||!Number.isFinite(baseMs))throw new PineExecutionError("request.security zaman dilimi tanınmadı: "+tf,n,"PINE_MTF_UNSUPPORTED");
-              if(targetMs<baseMs)throw new PineExecutionError("Daha düşük zaman dilimi request.security henüz desteklenmiyor; security_lower_tf gerekir.",n,"PINE_MTF_LOWER_TF");\n              if(targetMs%baseMs!==0)throw new PineExecutionError("İstenen zaman dilimi grafik zaman diliminin tam katı olmalı.",n,"PINE_MTF_ALIGNMENT");\n              if(String(sym)!==String(opts.symbol||""))throw new PineExecutionError("Harici sembol request.security henüz desteklenmiyor: "+sym,n,"PINE_MTF_SYMBOL");
+              if(targetMs<baseMs)throw new PineExecutionError("Daha düşük zaman dilimi request.security henüz desteklenmiyor; security_lower_tf gerekir.",n,"PINE_MTF_LOWER_TF");
+              if(targetMs%baseMs!==0)throw new PineExecutionError("İstenen zaman dilimi grafik zaman diliminin tam katı olmalı.",n,"PINE_MTF_ALIGNMENT");
+              if(String(sym)!==String(opts.symbol||""))throw new PineExecutionError("Harici sembol request.security henüz desteklenmiyor: "+sym,n,"PINE_MTF_SYMBOL");
               const mtfBars=targetMs===baseMs?cleanBars:aggregateBars(cleanBars,targetMs,baseMs);
               const mini={type:"Program",body:[{type:"ExpressionStatement",expression:exprNode}],diagnostics:[]};
               const res=runPine(mini,mtfBars,{...opts,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityData:null});
