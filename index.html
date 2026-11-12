@@ -612,7 +612,7 @@ function runCustomPine(showMessage=true){
   const ast=ByLotusericPineParser.parsePine(front.tokens);
   if(ast.diagnostics.length)throw Object.assign(new Error(ast.diagnostics[0].message),ast.diagnostics[0]);
   if(report.calls['strategy']||Object.keys(report.calls).some(k=>k.startsWith('strategy.')))throw new Error('strategy.* emir ve strateji komutları indikatör motorunda desteklenmez.');
-  const output=ByLotusericPineInterpreter.runPine(ast,barData,{inputs:customPineInputs});
+  const output=ByLotusericPineInterpreter.runPine(ast,barData,{inputs:customPineInputs,timeframe:tf,symbol:current});
   if(customPineSettingsCode!==code){renderCustomPineSettings(output.inputDefs);customPineSettingsCode=code;}
   if(customPineChartState)customPineChartState.clear();
   const addForTarget=(target,type,options)=>{
