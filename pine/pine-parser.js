@@ -118,7 +118,11 @@
       if(assign===1&&first.type==="IDENTIFIER"){
         return {type:"AssignmentStatement",operator:ts[1].value,target:{type:"Identifier",name:first.value,loc:loc(first)},value:expression(ts,2),...base};
       }
-      if(assign===3&&first.value==="var"&&TYPES.has(ts[1].value)&&ts[2].type==="IDENTIFIER"){
+      if(first.value==="var"&&ts[1]&&TYPES.has(ts[1].value)&&ts[2]&&ts[2].value==="<"){
+        const close=ts.findIndex((t,i)=>i>2&&t.value===">");
+        if(close>2&&close+1<assign&&ts[close+1].type==="IDENTIFIER")return {type:"TypedDeclarationStatement",qualifier:"var",valueType:ts.slice(1,close+1).map(t=>t.value).join(""),name:ts[close+1].value,value:expression(ts,assign+1),...base};
+      }
+      if(first.value==="var"&&TYPES.has(ts[1].value)&&ts[2].type==="IDENTIFIER"&&assign===3){
         return {type:"TypedDeclarationStatement",qualifier:"var",valueType:ts[1].value,name:ts[2].value,value:expression(ts,4),...base};
       }
       if(assign===2&&TYPES.has(first.value)&&ts[1].type==="IDENTIFIER"){
