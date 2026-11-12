@@ -74,6 +74,17 @@ assert.equal(result.boxes.length, bars.length);
 assert.equal(result.tables.length, 1);
 assert.equal(result.tables[0].cells["0:0"].text, "Ready");
 
+result = runPine(compile(`//@version=6
+indicator("Switch test")
+switch close > open
+    true => plot(close, "Bull")
+    false => plot(open, "Bear")
+`), bars);
+assert.equal(result.plots.length, 1);
+assert.equal(result.plots[0].values.length, bars.length);
+assert.equal(result.plots[0].values.at(-1), bars.at(-1).close);
+
+
 
 
 result = runPine(compile(`//@version=6
