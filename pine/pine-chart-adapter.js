@@ -17,7 +17,7 @@
   function remove(state){
     if(!state)return;
     for(const s of state.series||[]){try{s.chart.removeSeries(s.series)}catch{}}
-    if(state.fillSvg)try{state.fillSvg.remove()}catch{}if(state.svg)try{state.svg.remove()}catch{}for(const el of state.tableEls||[])try{el.remove()}catch{}for(const p of state.panes||[]){try{p.chart.remove()}catch{}try{p.wrap.remove()}catch{}}
+    if(state.fillSvg)try{state.fillSvg.remove()}catch{}if(state.svg)try{state.svg.remove()}catch{}for(const m of state.markers||[])try{m.detach()}catch{}for(const el of state.tableEls||[])try{el.remove()}catch{}for(const p of state.panes||[]){try{p.chart.remove()}catch{}try{p.wrap.remove()}catch{}}
   }
   function mount(config){
     const {chart,addChartSeries,bars,output,host,drawingHost,priceSeries}=config;
@@ -100,9 +100,17 @@
       series.setData(data);state.series.push({chart:target,series});
     }
     if(overlay&&output.shapes?.length){
-      const markerSeries=addChartSeries.call(null,target,"LineSeries",{color:"#ffffff",lineVisible:false,pointMarkersVisible:true,pointMarkersRadius:5,priceLineVisible:false,lastValueVisible:false});
-      const points=output.shapes.filter(x=>x.value&&bars[x.bar]).map(x=>({time:bars[x.bar].time,value:bars[x.bar].close,color:x.color||"#2962ff"}));
-      markerSeries.setData(points);state.series.push({chart:target,series:markerSeries});
+      const visible=output.shapes.filter(x=>x.value&&bars[x.bar]);
+      if(priceSeries&&typeof LightweightCharts.createSeriesMarkers==="function"){
+        const shapeMap={"shape.triangleup":"arrowUp","shape.arrowup":"arrowUp","shape.triangledown":"arrowDown","shape.arrowdown":"arrowDown","shape.square":"square","shape.circle":"circle"};
+        const sizeMap={tiny:1,small:1,normal:2,large:3,huge:4};
+        const markers=visible.map(x=>({time:bars[x.bar].time,position:x.location==="belowbar"||x.location==="bottom"?"belowBar":x.location==="abovebar"||x.location==="top"?"aboveBar":"inBar",color:x.color||"#2962ff",shape:shapeMap[x.style]||"circle",text:x.text||"",size:sizeMap[x.size]||2}));
+        state.markers.push(LightweightCharts.createSeriesMarkers(priceSeries,markers));
+      }else{
+        const markerSeries=addChartSeries.call(null,target,"LineSeries",{color:"#ffffff",lineVisible:false,pointMarkersVisible:true,pointMarkersRadius:5,priceLineVisible:false,lastValueVisible:false});
+        const points=visible.map(x=>({time:bars[x.bar].time,value:bars[x.bar].close,color:x.color||"#2962ff"}));
+        markerSeries.setData(points);state.series.push({chart:target,series:markerSeries});
+      }
     }
     state.clear=()=>remove(state);
     return state;
