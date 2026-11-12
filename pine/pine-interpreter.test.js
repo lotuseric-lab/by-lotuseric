@@ -59,6 +59,22 @@ assert.equal(result.plots[0].values.at(-1), bars.length);
 assert.equal(result.plots[1].values.at(-1), bars.length-2);
 assert.ok(Number.isFinite(result.plots[2].values.at(-1)));
 
+result = runPine(compile(`//@version=6
+indicator("Drawing test", overlay=true)
+line.new(bar_index[2], low[2], bar_index, high, color=color.blue, width=2, style=line.style_dashed)
+label.new(bar_index, close, "Test label", textcolor=color.white)
+box.new(bar_index[2], high, bar_index, low, bgcolor=color.new(color.green, 80))
+if barstate.islast
+    t = table.new(position.top_right, 2, 1)
+    table.cell(t, 0, 0, "Ready")
+`), bars);
+assert.equal(result.lines.length, bars.length);
+assert.equal(result.labels.length, bars.length);
+assert.equal(result.boxes.length, bars.length);
+assert.equal(result.tables.length, 1);
+assert.equal(result.tables[0].cells["0:0"].text, "Ready");
+
+
 
 result = runPine(compile(`//@version=6
 indicator("History and conditions")
