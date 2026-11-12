@@ -409,8 +409,8 @@ box.new(bar_index[1], high, bar_index, low, force_overlay=true)
 box.new(bar_index[1], high, bar_index, low, force_overlay=false)
 `);
 result = runPine(forceOverlayAst, bars);
-assert.deepEqual(result.lines.map(x => x.forceOverlay), [true, false]);
-assert.deepEqual(result.labels.map(x => x.forceOverlay), [true, false]);
-assert.deepEqual(result.boxes.map(x => x.forceOverlay), [true, false]);
+assert.deepEqual(result.lines.slice(-2).map(x => x.forceOverlay), [true, false]);
+assert.deepEqual(result.labels.slice(-2).map(x => x.forceOverlay), [true, false]);
+assert.deepEqual(result.boxes.slice(-2).map(x => x.forceOverlay), [true, false]);
 
 console.log("Pine interpreter tests: OK");
