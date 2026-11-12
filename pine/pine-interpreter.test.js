@@ -155,6 +155,21 @@ plot(na(close) ? 1 : 0, "NA check")
 `), bars);
 assert.equal(result.plots[0].values.at(-1), 0);
 
+result = runPine(compile(`//@version=6
+indicator("True range series")
+plot(ta.tr, "TR")
+plot(ta.rma(ta.tr, 14), "ATR base")
+`), bars);
+assert.equal(result.plots[0].values[0], 3);
+assert.equal(result.plots[0].values[1], 3);
+assert.equal(result.plots[1].values.at(-1), 3);
+
+result = runPine(compile(`//@version=6
+indicator("Format namespace")
+plot(close, str.tostring(close, format.mintick))
+`), bars, {mintick:0.01});
+assert.equal(result.plots[0].title, "Plot 1");
+
 assert.throws(() => runPine(compile(`//@version=6
 indicator("Bad")
 plot(unknownName)
