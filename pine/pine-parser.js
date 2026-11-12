@@ -88,6 +88,7 @@
       const ts=line.tokens,first=ts[0],base={loc:loc(first),indent:line.indent};
       if(first.value==="else")return {type:"ElseMarker",...base};
       if(first.value==="break"||first.value==="continue")return {type:first.value==="break"?"BreakStatement":"ContinueStatement",...base};
+      if(first.value==="switch")return {type:"SwitchStatement",discriminant:ts.length>1?expression(ts,1):null,cases:[],...base};
       if(first.value==="if"||first.value==="while"){
         const test=expression(ts,1);
         return {type:first.value==="if"?"IfStatement":"WhileStatement",test,body:[],alternate:[],...base};
@@ -148,6 +149,20 @@
         else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else bloğu boş.",line:line.line,column:line.indent});
       }
     }
+    function parseSwitchCases(parentIndent){
+      const cases=[];
+      while(cursor<lines.length&&lines[cursor].indent>parentIndent){
+        const line=lines[cursor++],ts=line.tokens,arrow=ts.findIndex(t=>t.value==="=>");
+        if(arrow<0){diagnostics.push({code:"PINE_PARSE_SWITCH_CASE",message:"switch kolunda => bekleniyor.",line:line.line,column:line.indent});continue;}
+        const test=arrow===0?null:expression(ts,0,arrow);
+        let body=[];
+        if(arrow+1<ts.length)body=[{type:"ExpressionStatement",expression:expression(ts,arrow+1),loc:loc(ts[arrow+1]),indent:line.indent}];
+        else if(lines[cursor]&&lines[cursor].indent>line.indent)body=parseBlock(line.indent);
+        else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"switch case gövdesi boş.",line:line.line,column:line.indent});
+        cases.push({test,body,loc:loc(ts[arrow])});
+      }
+      return cases;
+    }
     function parseBlock(parentIndent) {
       const body=[];
       while(cursor<lines.length){
@@ -163,7 +178,7 @@
             else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else bloğu boş.",line:line.line,column:line.indent});
             continue;
           }
-          if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
+          if(node.type==="SwitchStatement"){node.cases=parseSwitchCases(line.indent);}\n          if(node.type==="SwitchStatement"){node.cases=parseSwitchCases(line.indent);}\n        if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
             if(lines[cursor]&&lines[cursor].indent>line.indent)node.body=parseBlock(line.indent);
             else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"Kontrol bloğu için girintili gövde bekleniyor.",line:line.line,column:line.indent});
             if(node.type==="IfStatement")attachElseChain(node,line.indent);
