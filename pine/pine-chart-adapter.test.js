@@ -29,3 +29,55 @@ assert.equal(detached,true);
 if(previousLwc===undefined)delete global.LightweightCharts;else global.LightweightCharts=previousLwc;
 
 console.log("Pine chart adapter tests: OK");
+
+// Drawing routing: overlay=false drawings stay in the oscillator pane unless forceOverlay=true.
+{
+  const previousDocument=global.document;
+  const previousLwc=global.LightweightCharts;
+  class FakeElement {
+    constructor(tag){this.tagName=tag;this.children=[];this.style={};this.attributes={};this.parentNode=null;this.clientWidth=600;this.removed=false;}
+    append(...els){for(const el of els){el.parentNode=this;this.children.push(el);}}
+    appendChild(el){this.append(el);return el;}
+    setAttribute(k,v){this.attributes[k]=String(v);if(k==="class")this.className=String(v);}
+    addEventListener(){}
+    remove(){this.removed=true;if(this.parentNode)this.parentNode.children=this.parentNode.children.filter(x=>x!==this);}
+    getBoundingClientRect(){return {width:600};}
+  }
+  global.document={
+    createElement(tag){return new FakeElement(tag);},
+    createElementNS(_ns,tag){return new FakeElement(tag);}
+  };
+  const makeChart=()=>({
+    timeScale(){return {timeToCoordinate(t){return Number(t)*2;}};},
+    priceScale(){return {priceToCoordinate(v){return Number(v)*10;}};},
+    remove(){}
+  });
+  global.LightweightCharts={createChart:makeChart};
+  const mainChart=makeChart(), priceHost=new FakeElement("div"), paneHost=new FakeElement("div");
+  const routeState=mount({
+    chart:mainChart,host:paneHost,drawingHost:priceHost,
+    addChartSeries(){throw new Error("No series expected in drawing-only test");},
+    bars:[{time:10,close:2},{time:20,close:3}],
+    output:{
+      metadata:{overlay:false,title:"Routing test"},
+      lines:[
+        {id:1,x1:0,y1:1,x2:1,y2:2,color:"#00ff00",forceOverlay:false},
+        {id:2,x1:0,y1:2,x2:1,y2:3,color:"#ff0000",forceOverlay:true}
+      ],
+      boxes:[],labels:[],linefills:[]
+    }
+  });
+  const priceSvg=priceHost.children.find(x=>x.tagName==="svg");
+  const pane= paneHost.children.find(x=>x.className?.includes("oscPane"));
+  const paneSvg=pane.children.find(x=>x.className==="oscPaneChart").children.find(x=>x.tagName==="svg");
+  assert.ok(priceSvg,"forceOverlay drawing should be rendered on the price chart");
+  assert.ok(paneSvg,"ordinary drawing should be rendered in the oscillator pane");
+  assert.equal(priceSvg.children.length,1);
+  assert.equal(paneSvg.children.length,1);
+  routeState.clear();
+  assert.equal(priceSvg.removed,true,"price drawing SVG should be cleaned up");
+  assert.equal(paneSvg.removed,true,"pane drawing SVG should be cleaned up");
+  if(previousDocument===undefined)delete global.document;else global.document=previousDocument;
+  if(previousLwc===undefined)delete global.LightweightCharts;else global.LightweightCharts=previousLwc;
+}
+

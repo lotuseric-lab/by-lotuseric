@@ -1,0 +1,66 @@
+name: Pine engine candidate benchmark
+
+on:
+  pull_request:
+    branches:
+      - feature/pine-editor-chart-integration
+    paths:
+      - "pine/fixtures/**"
+      - "pine/engine-comparison/**"
+      - ".github/workflows/pine-engine-candidate-benchmark.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resin-fixture-smoke:
+    name: Resin compile and runtime smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout BY LOTUSERIC experiment
+        uses: actions/checkout@v4
+        with:
+          path: by-lotuseric
+      - name: Checkout Resin
+        uses: actions/checkout@v4
+        with:
+          repository: nullarch/resin
+          ref: main
+          path: resin
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.18.0"
+      - name: Report pinned candidate revision
+        run: |
+          git -C resin rev-parse HEAD
+          node --version
+      - name: Prepare verified fixture set (exclude malformed PROJECT-X extraction)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark-fixtures benchmark-output
+          for file in by-lotuseric/pine/fixtures/*.pine; do
+            [[ "$file" == *"MONEY_TRADER_PROJEX.pine" ]] && continue
+            cp "$file" benchmark-fixtures/
+          done
+      - name: Compile all verified Money Trader Pine fixtures
+        run: node resin/bin/resin.mjs check benchmark-fixtures
+      - name: Execute every verified fixture on deterministic bars and capture viz
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in benchmark-fixtures/*.pine; do
+            name="$(basename "$file" .pine)"
+            echo "=== $name ==="
+            node resin/bin/resin.mjs run "$file" --bars 500 --viz "benchmark-output/$name.viz.json"
+          done
+      - name: Audit force_overlay routing metadata
+        run: node by-lotuseric/pine/engine-comparison/audit-force-overlay.mjs benchmark-output/MONEY_TRADER_ADX.viz.json
+      - name: Upload candidate outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: resin-money-trader-smoke-results
+          path: benchmark-output/
+          if-no-files-found: error
