@@ -224,6 +224,7 @@
     builtins.extend={none:"none",left:"left",right:"right",both:"both"};
     builtins.xloc={bar_index:"bar_index",bar_time:"bar_time"};
     builtins.yloc={price:"price",abovebar:"abovebar",belowbar:"belowbar"};
+    builtins.position={top_left:"top_left",top_center:"top_center",top_right:"top_right",middle_left:"middle_left",middle_center:"middle_center",middle_right:"middle_right",bottom_left:"bottom_left",bottom_center:"bottom_center",bottom_right:"bottom_right"};
     builtins.line=lineNS;builtins.label=labelNS;builtins.box=boxNS;builtins.table=tableNS;
     builtins.hline={style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed"};
     return builtins;
