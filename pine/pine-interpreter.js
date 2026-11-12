@@ -208,7 +208,8 @@
     const global=new Scope();
     const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null);
     const builtins=createBuiltins({bars:cleanBars,get index(){return currentIndex;}},outputs,inputValues,opts);
-    let currentIndex=-1,steps=0;\n    const ctxBars=cleanBars;
+    let currentIndex=-1,steps=0;
+    const ctxBars=cleanBars;
     const maxSteps=opts.maxSteps||100000;
     function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı.",node,"PINE_EXECUTION_LIMIT");}
     function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name]);}
