@@ -251,9 +251,12 @@ assert.throws(() => runPine(compile(`//@version=6
 indicator("Unsupported visual")
 barcolor(color.red)
 `), bars), e => e instanceof PineExecutionError && e.code === "PINE_VISUAL_UNSUPPORTED");
-assert.throws(() => runPine(compile(`//@version=6
-indicator("Unsupported fill")
-fill(plot(close), plot(open))
-`), bars), e => e instanceof PineExecutionError && e.code === "PINE_VISUAL_UNSUPPORTED");
+result = runPine(compile(`//@version=6
+indicator("Fill handles")
+a = plot(close)
+b = plot(open)
+fill(a, b, color=color.new(color.blue, 70))
+`), bars);
+assert.equal(result.fills.length, bars.length);
 
 console.log("Pine interpreter tests: OK");
