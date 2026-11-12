@@ -288,4 +288,15 @@ plot(hourClose,"Confirmed hourly close")
 assert.equal(result.plots[0].values.at(-1),null,
   "An unfinished higher-timeframe candle must not leak into confirmed lookahead-off values");
 
+const fs = require("node:fs");
+const path = require("node:path");
+const adxSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_ADX.pine"), "utf8");
+const adxAst = compile(adxSource);
+result = runPine(adxAst, bars, {timeframe:"5m",symbol:"TEST-USDT",mintick:0.01});
+assert.equal(result.metadata.title, "MONEY TRADER - ADX DI Kesişim [MACD + RSI ONAYLI]");
+assert.ok(result.plots.length >= 3);
+assert.ok(result.hlines.length >= 5);
+assert.ok(result.fills.length > 0);
+assert.ok(result.tables.length > 0);
+
 console.log("Pine interpreter tests: OK");
