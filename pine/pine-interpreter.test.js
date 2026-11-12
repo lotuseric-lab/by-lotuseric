@@ -312,4 +312,12 @@ assert.equal(result.shapes[0].location, "belowbar");
 assert.equal(result.shapes[0].color, "#089981");
 assert.ok(result.tables.length > 0);
 
+
+const projexSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_PROJEX.pine"), "utf8");
+const projexAst = compile(projexSource);
+result = runPine(projexAst, bars, {timeframe:"5m",symbol:"TEST-USDT",mintick:0.01});
+assert.equal(result.metadata.title, "MONEY TRADER - TAVAN ADAYI + PROJE-X");
+assert.ok(result.lines.length > 0);
+assert.ok(result.labels.length > 0);
+
 console.log("Pine interpreter tests: OK");
