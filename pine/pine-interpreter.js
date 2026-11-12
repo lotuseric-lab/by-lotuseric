@@ -110,12 +110,12 @@
   }
   function timeframeMs(tf){
     const raw=String(tf||"").trim(),x=raw.toUpperCase();
-    if(/^\\d+$/.test(x))return Number(x)*60000;
-    if(/^\\d+m$/.test(raw))return Number(raw.slice(0,-1))*60000;
+    if(/^\d+$/.test(x))return Number(x)*60000;
+    if(/^\d+m$/.test(raw))return Number(raw.slice(0,-1))*60000;
     if(x==="D"||x==="1D")return 86400000;
     if(x==="W"||x==="1W")return 604800000;
     if(x==="M"||x==="1M")return 2592000000;
-    const m=x.match(/^(\\d+)(S|H|D|W)$/);if(!m)return NaN;
+    const m=x.match(/^(\d+)(S|H|D|W)$/);if(!m)return NaN;
     return Number(m[1])*({S:1000,H:3600000,D:86400000,W:604800000}[m[2]]);
   }
   function aggregateBars(bars,targetMs,baseMs){
@@ -175,7 +175,7 @@
       lower:v=>String(value(v)||"").toLowerCase(),upper:v=>String(value(v)||"").toUpperCase(),
       contains:(a,b)=>String(value(a)).includes(String(value(b))),startswith:(a,b)=>String(value(a)).startsWith(String(value(b))),
       endswith:(a,b)=>String(value(a)).endsWith(String(value(b))),substring:(a,start,end)=>String(value(a)).slice(Math.trunc(num(value(start))),end===undefined?undefined:Math.trunc(num(value(end)))),
-      format:(fmt,...args)=>{let i=0;return String(value(fmt)).replace(/\\{(\\d+)\\}/g,(m,n)=>args[Number(n)]===undefined?m:String(value(args[Number(n)])));}
+      format:(fmt,...args)=>{let i=0;return String(value(fmt)).replace(/\\{(\d+)\\}/g,(m,n)=>args[Number(n)]===undefined?m:String(value(args[Number(n)])));}
     };
     ta.macd=(src,fast,slow,signal)=>{const f=fullEma(src,fast),sl=fullEma(src,slow),m=f.map((x,i)=>isNA(x)||isNA(sl[i])?NA:x-sl[i]),sig=fullEma(new SeriesRef(m),signal),i=m.length-1;return [m[i]===undefined?NA:m[i],sig[i]===undefined?NA:sig[i],m[i]===undefined||isNA(sig[i])?NA:m[i]-sig[i]];};
     ta.bb=(src,len,mult)=>{const basis=sma(src,len),sd=rolling(src,len,w=>{const m=w.reduce((z,x)=>z+num(x),0)/w.length;return Math.sqrt(w.reduce((z,x)=>z+(num(x)-m)**2,0)/w.length);}),k=mult===undefined?2:num(value(mult));return [basis,isNA(sd)?NA:basis+k*sd,isNA(sd)?NA:basis-k*sd];};
@@ -202,7 +202,7 @@
     const color = {new:(c,t)=>{const raw=String(value(c)||"#2962ff");const alpha=1-clamp(num(value(t)||0),0,100)/100;return /^#[0-9a-f]{6}$/i.test(raw)?raw+Math.round(alpha*255).toString(16).padStart(2,"0"):raw;},rgb:(r,g,b,t)=>"rgba("+[r,g,b].map(x=>clamp(Math.round(num(value(x))),0,255)).join(",") + ","+(1-clamp(num(value(t)||0),0,100)/100)+")",red:"#f23645",lime:"#089981",green:"#089981",blue:"#2962ff",orange:"#ff9800",yellow:"#fdd835",purple:"#9c27b0",white:"#ffffff",black:"#000000",gray:"#787b86",grey:"#787b86",teal:"#00897b",aqua:"#00bcd4",fuchsia:"#e040fb",silver:"#bdbdbd",maroon:"#880e4f",navy:"#000080",transparent:"rgba(0,0,0,0)"};
     const builtins = {
       na:()=>NA, nafn:()=>NA, nz:(x,repl)=>isNA(value(x))?(repl===undefined?0:value(repl)):value(x),
-      math, ta, input, color, array, str, barstate, timeframe:{period:String(options.timeframe||""),isweekly:/^(1W|1w|W|w)$/.test(String(options.timeframe||"")),isdaily:/^(1D|1d|D|d)$/.test(String(options.timeframe||"")),isintraday:/^([1-9]\\d*|[1-9]\\d*[m])$/.test(String(options.timeframe||""))}, syminfo:{ticker:String(options.symbol||""),tickerid:String(options.symbol||""),mintick:Number(options.mintick||0.00000001),basecurrency:"",currency:""},
+      math, ta, input, color, array, str, barstate, timeframe:{period:String(options.timeframe||""),isweekly:/^(1W|1w|W|w)$/.test(String(options.timeframe||"")),isdaily:/^(1D|1d|D|d)$/.test(String(options.timeframe||"")),isintraday:/^([1-9]\d*|[1-9]\d*[m])$/.test(String(options.timeframe||""))}, syminfo:{ticker:String(options.symbol||""),tickerid:String(options.symbol||""),mintick:Number(options.mintick||0.00000001),basecurrency:"",currency:""},
       indicator:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Indicator";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;}, study:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Study";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;},
       plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=outputs._plotCallIndex++;let p=outputs.plots[k];if(!p){p={title:cfg.title||"Plot "+(k+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:[]};outputs.plots[k]=p;}p.values.push(value(v));return null;},
       plotshape:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",style:cfg.style||"shape.triangleup",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
