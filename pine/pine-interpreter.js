@@ -121,9 +121,26 @@
   }
   function aggregateBars(bars,targetMs,baseMs){
     const groups=new Map();
-    for(const b of bars){const bucket=Math.floor(b.time*1000/targetMs);let g=groups.get(bucket);if(!g){g={time:bucket*targetMs/1000,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.volume,count:0};groups.set(bucket,g);}else{g.high=Math.max(g.high,b.high);g.low=Math.min(g.low,b.low);g.close=b.close;g.volume+=b.volume;}g.count++;}
+    for(const b of bars){
+      const bucket=Math.floor(b.time*1000/targetMs);
+      let g=groups.get(bucket);
+      if(!g){
+        g={time:bucket*targetMs/1000,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.volume};
+        groups.set(bucket,g);
+      }else{
+        g.high=Math.max(g.high,b.high);
+        g.low=Math.min(g.low,b.low);
+        g.close=b.close;
+        g.volume+=b.volume;
+      }
+    }
     const out=[...groups.values()];
-    if(Number.isFinite(baseMs)&&targetMs>baseMs&&out.length){const expected=Math.round(targetMs/baseMs);if(out[out.length-1].count<expected)out.pop();}
+    // A higher-timeframe candle is usable only after its time bucket has closed.
+    // Do not infer completeness from candle counts: feeds can contain legitimate gaps.
+    if(Number.isFinite(baseMs)&&targetMs>baseMs&&bars.length){
+      const lastBaseClose=bars[bars.length-1].time*1000+baseMs;
+      while(out.length&&out[out.length-1].time*1000+targetMs>lastBaseClose)out.pop();
+    }
     return out;
   }
   function createBuiltins(ctx, outputs, inputs, options) {
