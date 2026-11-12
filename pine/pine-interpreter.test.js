@@ -341,4 +341,18 @@ result=runPine(wizardAst,fiboBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.0
 assert.equal(result.metadata.title,"Money Trader — Otomatik Destek/Direnç");
 assert.ok(result.inputDefs.length>=10,"Wizzard source input definitions should be exposed");
 
+const sessionBars=[
+ {time:Date.UTC(2024,0,1,9,30)/1000,open:1,high:2,low:0,close:1,volume:10},
+ {time:Date.UTC(2024,0,1,10,30)/1000,open:1,high:2,low:0,close:1,volume:10}
+];
+result=runPine(compile(`//@version=6
+indicator("Session filter")
+sessionInput=input.session("0900-1000","Test Session")
+inside=not na(time(timeframe.period,sessionInput,"UTC"))
+plot(inside?1:0)
+`),sessionBars,{timeframe:"5m",symbol:"TEST"});
+assert.equal(result.plots[0].values[0],1);
+assert.equal(result.plots[0].values[1],0);
+assert.equal(result.inputDefs[0].type,"session");
+
 console.log("Pine interpreter tests: OK");
