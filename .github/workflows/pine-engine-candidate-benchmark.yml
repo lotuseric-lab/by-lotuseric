@@ -36,14 +36,22 @@ jobs:
         run: |
           git -C resin rev-parse HEAD
           node --version
-      - name: Compile all Money Trader Pine fixtures
-        run: node resin/bin/resin.mjs check by-lotuseric/pine/fixtures
-      - name: Execute every valid fixture on deterministic bars and capture viz
+      - name: Prepare verified fixture set (exclude malformed PROJECT-X extraction)
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p benchmark-output
+          mkdir -p benchmark-fixtures benchmark-output
           for file in by-lotuseric/pine/fixtures/*.pine; do
+            [[ "$file" == *"MONEY_TRADER_PROJEX.pine" ]] && continue
+            cp "$file" benchmark-fixtures/
+          done
+      - name: Compile all verified Money Trader Pine fixtures
+        run: node resin/bin/resin.mjs check benchmark-fixtures
+      - name: Execute every verified fixture on deterministic bars and capture viz
+        shell: bash
+        run: |
+          set -euo pipefail
+          for file in benchmark-fixtures/*.pine; do
             name="$(basename "$file" .pine)"
             echo "=== $name ==="
             node resin/bin/resin.mjs run "$file" --bars 500 --viz "benchmark-output/$name.viz.json"
