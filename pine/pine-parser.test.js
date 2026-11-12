@@ -33,6 +33,7 @@ const ast=parsePine(lexPine(source).tokens);
 assert.deepEqual(ast.diagnostics,[]);
 assert.equal(ast.body[1].type,"TypedDeclarationStatement");
 assert.equal(ast.body[2].type,"TypedDeclarationStatement");
+assert.equal(parsePine(lexPine(`//@version=6\nvar upper_draw = array.new<draw>()`).tokens).body[0].type,"DeclarationStatement");
 assert.equal(ast.body[3].type,"FunctionDeclaration");
 assert.equal(ast.body[4].type,"IfStatement");
 assert.equal(ast.body[4].body[1].type,"IfStatement");
