@@ -106,7 +106,8 @@
         for(let j=1;j<ts.length;j++){if(ts[j].value==="(")depth++;if(ts[j].value===")"&&--depth===0){close=j;break;}}
         if(close>0&&ts[close+1]&&ts[close+1].value==="=>"){
           const params=[];for(let j=2;j<close;j++)if(ts[j].type==="IDENTIFIER"&&(j===2||ts[j-1].value===","))params.push({type:"Identifier",name:ts[j].value,loc:loc(ts[j])});
-          return {type:"FunctionDeclaration",name:first.value,params,body:expression(ts,close+2),...base};
+          const hasInlineBody=close+2<ts.length;
+          return {type:"FunctionDeclaration",name:first.value,params,body:hasInlineBody?expression(ts,close+2):null,bodyStatements:[],...base};
         }
       }
       // Tuple destructuring assignment: [a, b] = expression
@@ -179,6 +180,8 @@
             continue;
           }
           if(node.type==="SwitchStatement"){node.cases=parseSwitchCases(line.indent);}
+        if(node.type==="FunctionDeclaration"&&lines[cursor]&&lines[cursor].indent>line.indent)node.bodyStatements=parseBlock(line.indent);
+          if(node.type==="FunctionDeclaration"&&lines[cursor]&&lines[cursor].indent>line.indent)node.bodyStatements=parseBlock(line.indent);
           if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
             if(lines[cursor]&&lines[cursor].indent>line.indent)node.body=parseBlock(line.indent);
             else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"Kontrol bloğu için girintili gövde bekleniyor.",line:line.line,column:line.indent});
