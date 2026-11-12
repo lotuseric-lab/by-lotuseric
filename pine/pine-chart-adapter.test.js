@@ -12,4 +12,17 @@ assert.deepEqual(added[3].data,[{time:10,open:1,high:3,low:0,close:2,color:undef
 assert.deepEqual(added[4].data,[{time:20,value:3,color:"#ff0000"}]);
 state.clear();
 assert.ok(added.every(x=>x.removed));
+const previousLwc=global.LightweightCharts;
+let markerConfig=null,detached=false;
+global.LightweightCharts={createSeriesMarkers(series,markers){markerConfig={series,markers};return {detach(){detached=true;}};}};
+const priceSeries={id:"price"};
+const markerState=mount({chart,addChartSeries,bars,priceSeries,output:{metadata:{overlay:true},plots:[],shapes:[{value:true,bar:1,color:"#00ff00",style:"shape.triangleup",location:"belowbar",text:"AL"}]}});
+assert.equal(markerConfig.series,priceSeries);
+assert.equal(markerConfig.markers[0].shape,"arrowUp");
+assert.equal(markerConfig.markers[0].position,"belowBar");
+assert.equal(markerConfig.markers[0].text,"AL");
+markerState.clear();
+assert.equal(detached,true);
+if(previousLwc===undefined)delete global.LightweightCharts;else global.LightweightCharts=previousLwc;
+
 console.log("Pine chart adapter tests: OK");
