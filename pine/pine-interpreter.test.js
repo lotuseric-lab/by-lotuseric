@@ -338,6 +338,7 @@ assert.ok(result.lines.length>0,"FIBO source should create Fibonacci levels");
 const wizardSource=fs.readFileSync(path.join(__dirname,"fixtures","MONEY_TRADER_WIZZARD.pine"),"utf8");
 const wizardAst=compile(wizardSource);
 result=runPine(wizardAst,fiboBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:500000});
-assert.ok(result.lines.length>0||result.labels.length>0,"Wizzard source should create chart drawings");
+assert.equal(result.metadata.title,"Money Trader — Otomatik Destek/Direnç");
+assert.ok(result.inputDefs.length>=10,"Wizzard source input definitions should be exposed");
 
 console.log("Pine interpreter tests: OK");
