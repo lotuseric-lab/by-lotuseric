@@ -360,7 +360,7 @@ indicator("Boolean series history")
 above=close>open
 plot(above[1]?1:0)
 `),bars);
-assert.equal(result.plots[0].values[0],null);
+assert.equal(result.plots[0].values[0],0);
 assert.equal(result.plots[0].values[1],1);
 
 console.log("Pine interpreter tests: OK");
