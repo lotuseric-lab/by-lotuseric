@@ -13,7 +13,9 @@ const lexed = lexPine(sample);
 assert.equal(lexed.diagnostics.length, 0);
 assert.ok(lexed.tokens.some(t => t.type === "DIRECTIVE" && t.value.includes("6")));
 assert.ok(lexed.tokens.some(t => t.type === "STRING" && t.value === "Test"));
-assert.ok(lexed.tokens.some(t => t.value === "=>") === false);\nassert.ok(lexed.tokens.some(t => t.type === "OPERATOR" && t.value === "and"));\nassert.ok(lexed.tokens.some(t => t.type === "NUMBER" && t.value === "1e+3"));
+assert.ok(lexed.tokens.some(t => t.value === "=>") === false);
+assert.ok(lexed.tokens.some(t => t.type === "OPERATOR" && t.value === "and"));
+assert.ok(lexed.tokens.some(t => t.type === "NUMBER" && t.value === "1e+3"));
 
 const report = analyzePineSource(sample);
 assert.equal(report.version, 6);
