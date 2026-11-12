@@ -302,4 +302,11 @@ assert.ok(result.hlines.length >= 5);
 assert.ok(result.fills.length > 0);
 assert.ok(result.tables.length > 0);
 
+const roseSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_GOLDEN_ROSE.pine"), "utf8");
+const roseAst = compile(roseSource);
+result = runPine(roseAst, bars, {timeframe:"5m",symbol:"TEST-USDT",mintick:0.01});
+assert.equal(result.metadata.title, "MONEY TRADER PURPLE ROSE [CANLI TRADE - NO REPAINT]");
+assert.ok(result.shapes.length > 0);
+assert.ok(result.tables.length > 0);
+
 console.log("Pine interpreter tests: OK");
