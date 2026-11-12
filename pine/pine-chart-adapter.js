@@ -34,7 +34,7 @@
       const plot=document.createElement("div");plot.className="oscPaneChart";
       wrap.append(head,plot);host.append(wrap);
       target=LightweightCharts.createChart(plot,{autoSize:true,layout:{background:{type:"solid",color:"#101a2a"},textColor:"#9eb0c7",fontSize:10},grid:{vertLines:{color:"#1b2a3e"},horzLines:{color:"#1b2a3e"}},rightPriceScale:{borderColor:"#2a3c53",autoScale:true},timeScale:{visible:false}});
-      state.panes.push({chart:target,wrap});
+      state.panes.push({chart:target,wrap,plot});
       close.addEventListener("click",()=>remove(state));
     }
     for(const p of output.plots||[]){
@@ -43,6 +43,34 @@
       const series=addChartSeries.call(null,target,histogram?"HistogramSeries":"LineSeries",histogram?{color,priceLineVisible:false}:{color,lineWidth:Math.max(1,Math.min(4,Number(p.linewidth)||2)),priceLineVisible:false,lastValueVisible:true});
       series.setData(makeData(p.values,bars));
       state.series.push({chart:target,series});
+    }
+    if(output.fills?.length){
+      const plotById=new Map((output.plots||[]).map(p=>[p.id,p]));
+      const host=overlay?drawingHost:state.panes[0]?.plot;
+      const priceScale=target.priceScale("right");
+      if(host&&priceScale&&typeof priceScale.priceToCoordinate==="function"){
+        const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+        svg.setAttribute("class","pineFillOverlay");
+        Object.assign(svg.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none",overflow:"visible",zIndex:"1"});
+        if(!host.style.position)host.style.position="relative";
+        host.append(svg);state.fillSvg=svg;
+        const groups=new Map();
+        for(const f of output.fills){if(!groups.has(f.id))groups.set(f.id,[]);groups.get(f.id)[f.bar]=f;}
+        for(const records of groups.values()){
+          const first=records.find(Boolean);if(!first)continue;
+          const a=plotById.get(first.plot1),b=plotById.get(first.plot2);if(!a||!b)continue;
+          for(let i=0;i<bars.length-1;i++){
+            const f=records[i]||records[i+1],a1=a.values[i],a2=a.values[i+1],b1=b.values[i],b2=b.values[i+1];
+            if(!f||!f.color||![a1,a2,b1,b2].every(v=>typeof v==="number"&&Number.isFinite(v)))continue;
+            const x1=target.timeScale().timeToCoordinate(bars[i].time),x2=target.timeScale().timeToCoordinate(bars[i+1].time);
+            const y11=priceScale.priceToCoordinate(a1),y12=priceScale.priceToCoordinate(a2),y21=priceScale.priceToCoordinate(b1),y22=priceScale.priceToCoordinate(b2);
+            if([x1,x2,y11,y12,y21,y22].some(v=>v==null))continue;
+            const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
+            poly.setAttribute("points",[[x1,y11],[x2,y12],[x2,y22],[x1,y21]].map(p=>p.join(",")).join(" "));
+            poly.setAttribute("fill",f.color);poly.setAttribute("stroke","none");svg.append(poly);
+          }
+        }
+      }
     }
     const seenHlines=new Set();for(const h of output.hlines||[]){if(seenHlines.has(h.value))continue;seenHlines.add(h.value);
       if(typeof h.value!=="number"||!Number.isFinite(h.value))continue;
