@@ -190,7 +190,7 @@
         case "NumericLiteral":case "StringLiteral":return n.value;
         case "Literal":return n.value;
         case "GroupExpression":return evalExpr(n.expression,scope);
-        case "Identifier":return envGet(scope,n.name);
+        case "Identifier":return n.name==="na"?NA:envGet(scope,n.name);
         case "ArrayExpression":return n.elements.map(x=>value(evalExpr(x,scope)));
         case "TupleExpression":return n.elements.map(x=>value(evalExpr(x,scope)));
         case "UnaryExpression":{const a=value(evalExpr(n.argument,scope));if(n.operator==="-")return -num(a);if(n.operator==="+")return num(a);if(n.operator==="not")return !truth(a);break;}
@@ -210,7 +210,7 @@
           throw new PineExecutionError("Desteklenmeyen alan: "+(n.property&&n.property.name),n);
         }
         case "CallExpression":{
-          const fn=evalExpr(n.callee,scope);if(typeof fn!=="function")throw new PineExecutionError("Çağrılan ifade fonksiyon değil.",n);
+          const fn=n.callee&&n.callee.type==="Identifier"&&n.callee.name==="na"?builtins.na:evalExpr(n.callee,scope);if(typeof fn!=="function")throw new PineExecutionError("Çağrılan ifade fonksiyon değil.",n);
           const args=n.arguments.map(a=>a.type==="NamedArgument"?namedArg(a.name,evalExpr(a.value,scope)):evalExpr(a,scope));
           return fn(...args);
         }
