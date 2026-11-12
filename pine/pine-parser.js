@@ -71,7 +71,7 @@
       if(t.type==="NEWLINE"){
         if(depth>0)continue;
         const prev=current[current.length-1];
-        if(prev&&[",","+","-","*","/","%","=",":=","?","and","or"].includes(prev.value))continue;
+        if(prev&&prev.type==="OPERATOR"&&[",","+","-","*","/","%","=",":=","?","and","or"].includes(prev.value))continue;
         flush();continue;
       }
       if(!first)first=t;
