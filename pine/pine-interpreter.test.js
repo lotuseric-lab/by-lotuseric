@@ -318,4 +318,14 @@ assert.ok(result.tables.length > 0);
 
 
 
+result = runPine(compile(`//@version=6
+indicator("Switch expression")
+isUp = switch close > open
+    true => true
+    false => false
+plot(isUp ? 1 : 0)
+`), bars);
+assert.equal(result.plots[0].values[0], 1);
+assert.equal(result.plots[0].values[1], 1);
+
 console.log("Pine interpreter tests: OK");
