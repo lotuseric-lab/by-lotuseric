@@ -109,8 +109,9 @@
     return dir>0?num(x)>num(y)&&num(px)<=num(py):dir<0?num(x)<num(y)&&num(px)>=num(py):(num(x)>num(y)&&num(px)<=num(py))||(num(x)<num(y)&&num(px)>=num(py));
   }
   function timeframeMs(tf){
-    const x=String(tf||"").trim().toUpperCase();
+    const raw=String(tf||"").trim(),x=raw.toUpperCase();
     if(/^\\d+$/.test(x))return Number(x)*60000;
+    if(/^\\d+m$/.test(raw))return Number(raw.slice(0,-1))*60000;
     if(x==="D"||x==="1D")return 86400000;
     if(x==="W"||x==="1W")return 604800000;
     if(x==="M"||x==="1M")return 2592000000;
