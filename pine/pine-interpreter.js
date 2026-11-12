@@ -325,6 +325,7 @@
           functions[n.name]=( ...args )=>{const local=new Scope(scope);n.params.forEach((p,i)=>local.define(p.name,value(args[i])));return evalExpr(n.body,local);};return;
         }
         case "IfStatement":if(truth(value(evalExpr(n.test,scope))))execBlock(n.body,new Scope(scope));else execBlock(n.alternate||[],new Scope(scope));return;
+        case "SwitchStatement":{const d=n.discriminant?value(evalExpr(n.discriminant,scope)):undefined;let chosen=null;for(const c of n.cases||[]){if(c.test===null){if(!chosen)chosen=c;continue;}const t=value(evalExpr(c.test,scope));if(n.discriminant?d===t:truth(t)){chosen=c;break;}}if(chosen)execBlock(chosen.body,new Scope(scope));return;}
         case "WhileStatement":{let count=0;while(truth(value(evalExpr(n.test,scope)))){if(++count>10000)throw new PineExecutionError("while döngüsü sınırı aşıldı.",n);try{execBlock(n.body,new Scope(scope));}catch(e){if(e&&e.__pineBreak)break;if(e&&e.__pineContinue)continue;throw e;}}return;}
         case "ForRangeStatement":{
           const start=Math.trunc(num(value(evalExpr(n.start,scope)))),end=Math.trunc(num(value(evalExpr(n.end,scope)))),step=n.step?Math.trunc(num(value(evalExpr(n.step,scope)))):1;
