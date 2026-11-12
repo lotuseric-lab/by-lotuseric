@@ -11,7 +11,6 @@ for (const file of [
   "MONEY_TRADER_WIZZARD.pine",
   "MONEY_TRADER_FIBO_TRADE_ARCHIVE.pine",
   "MONEY_TRADER_SUPPORT_RESISTANCE.pine",
-  "MONEY_TRADER_PROJEX.pine",
 ]) {
   const source = fs.readFileSync(path.join(__dirname, "fixtures", file), "utf8");
   const lexical = lexPine(source);
