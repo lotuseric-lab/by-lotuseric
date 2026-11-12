@@ -26,3 +26,17 @@ Bu aşama **Pine kodunu henüz çalıştırmaz**. Parser, tip/seri sistemi, bar-
 - `request.security` gibi çoklu zaman dilimi çağrıları doğru veri bağlamı kurulmadan desteklenmiş sayılmaz.
 - Kaynak kodun v5/v6 olması tek başına tam uyumluluk kanıtı değildir.
 - Desteklenmeyen sözdizimi/komut için dosya adı, satır ve sütunla açık hata verilir.
+
+## Kaynak paketi denetimi
+
+`SOURCE_AUDIT.md` içinde ZIP envanteri ve özellik sayımları bulunur. İlk denetimde 50 Pine kaynağı (25 v5, 25 v6), 49 gösterge ve kapsam dışı bırakılan 1 strategy kaynağı bulundu. İki Tavan Adayı dosyasının SHA-256 değerleri birebir aynı; başka hiçbir kaynak yalnızca ad benzerliğine göre birleştirilmedi.
+
+## Test
+
+Node.js 20 veya üzeri ile:
+
+```sh
+node pine/pine-frontend.test.js
+```
+
+GitHub Actions, bu klasördeki değişikliklerde aynı testi çalıştırır.
