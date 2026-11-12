@@ -370,6 +370,20 @@ assert.equal(result.plots[0].values[0],0);
 assert.equal(result.plots[0].values[1],1);
 
 
+
+result=runPine(compile(`//@version=6
+indicator("Color channel and chart namespace")
+dark = color.r(chart.bg_color) < 128
+plot(color.r(chart.bg_color),"Red")
+plot(color.g(chart.bg_color),"Green")
+plot(color.b(chart.bg_color),"Blue")
+plot(dark?1:0,"Dark")
+`),bars,{chartBgColor:"#131722"});
+assert.equal(result.plots[0].values.at(-1),19);
+assert.equal(result.plots[1].values.at(-1),23);
+assert.equal(result.plots[2].values.at(-1),34);
+assert.equal(result.plots[3].values.at(-1),1);
+
 const supportSource=fs.readFileSync(path.join(__dirname,"fixtures","MONEY_TRADER_SUPPORT_RESISTANCE.pine"),"utf8");
 const supportAst=compile(supportSource);
 const supportBars=Array.from({length:180},(_,i)=>{
