@@ -13,6 +13,7 @@
   const isNA = v => v === null || v === undefined || (typeof v === "number" && Number.isNaN(v));
   const num = v => isNA(v) ? NaN : Number(v);
   const truth = v => !isNA(v) && !!v;
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
   
   class PineExecutionError extends Error {
     constructor(message, node, code) {
