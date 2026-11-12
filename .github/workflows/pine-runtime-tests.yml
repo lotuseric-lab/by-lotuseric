@@ -9,6 +9,7 @@ on:
       - "index.html"
       - ".github/workflows/pine-runtime-tests.yml"
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "pine/**"
       - "index.html"
