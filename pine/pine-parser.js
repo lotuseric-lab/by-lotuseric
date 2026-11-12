@@ -126,7 +126,17 @@
           this.take();
           const args = [];
           if (!this.match(")")) {
-            do { args.push(this.parseExpression(0)); } while (this.match(","));
+            do {
+              const key = this.peek();
+              if (key && key.type === "IDENTIFIER" && this.peek(1) && this.peek(1).value === "=") {
+                this.take();
+                this.take();
+                args.push({ type: "NamedArgument", name: key.value,
+                  value: this.parseExpression(0), loc: loc(key) });
+              } else {
+                args.push(this.parseExpression(0));
+              }
+            } while (this.match(","));
             this.expect(")");
           }
           node = { type: "CallExpression", callee: node, arguments: args, loc: loc(token) };
