@@ -415,7 +415,7 @@
           const initial=evalExpr(n.value,scope);
           if(scope===activeBarScope&&!(initial&&typeof initial==="object")){
             const a=vars[n.name]||(vars[n.name]=[]);while(a.length<currentIndex)a.push(NA);if(a.length===currentIndex)a.push(value(initial));else a[currentIndex]=value(initial);
-            seriesVarNames.add(n.name);const ref=new SeriesRef(a);scope.define(n.name,ref);return ref;
+            seriesVarNames.add(n.name);const ref=new SeriesRef(a,()=>currentIndex);scope.define(n.name,ref);return ref;
           }
           scope.define(n.name,initial);return initial;
         }
