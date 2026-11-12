@@ -42,7 +42,13 @@ result = runPine(compile(`//@version=6
 indicator("Signals")
 plotshape(ta.crossover(ta.ema(close, 3), ta.ema(close, 8)), title="Cross")
 `), bars);
-assert.equal(result.shapes.length, bars.length);\n\nresult = runPine(compile(`//@version=6\nindicator("NA test")\nplot(na(close) ? 1 : 0, "NA check")\n`), bars);\nassert.equal(result.plots[0].values.at(-1), 0);
+assert.equal(result.shapes.length, bars.length);
+
+result = runPine(compile(`//@version=6
+indicator("NA test")
+plot(na(close) ? 1 : 0, "NA check")
+`), bars);
+assert.equal(result.plots[0].values.at(-1), 0);
 
 assert.throws(() => runPine(compile(`//@version=6
 indicator("Bad")
