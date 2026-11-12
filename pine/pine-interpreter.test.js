@@ -159,7 +159,7 @@ if bar_index == 0
 `), bars);
 assert.equal(result.plots[0].values[0], 1);
 assert.equal(result.plots[0].values[1], 0);
-assert.equal(result.plots[1].values[1], null);
+assert.equal(result.plots[1].values[1], 0);
 assert.equal(result.plots[1].values[2], 0);
 
 result = runPine(compile(`//@version=6
