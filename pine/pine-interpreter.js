@@ -185,11 +185,11 @@
     const color = {new:(c,t)=>{const raw=String(value(c)||"#2962ff");const alpha=1-clamp(num(value(t)||0),0,100)/100;return /^#[0-9a-f]{6}$/i.test(raw)?raw+Math.round(alpha*255).toString(16).padStart(2,"0"):raw;},rgb:(r,g,b,t)=>"rgba("+[r,g,b].map(x=>clamp(Math.round(num(value(x))),0,255)).join(",") + ","+(1-clamp(num(value(t)||0),0,100)/100)+")",red:"#f23645",lime:"#089981",green:"#089981",blue:"#2962ff",orange:"#ff9800",yellow:"#fdd835",purple:"#9c27b0",white:"#ffffff",black:"#000000",gray:"#787b86",grey:"#787b86",teal:"#00897b",aqua:"#00bcd4",fuchsia:"#e040fb",silver:"#bdbdbd",maroon:"#880e4f",navy:"#000080",transparent:"rgba(0,0,0,0)"};
     const builtins = {
       na:()=>NA, nafn:()=>NA, nz:(x,repl)=>isNA(value(x))?(repl===undefined?0:value(repl)):value(x),
-      math, ta, input, color, array, str, barstate, timeframe:{period:String(options.timeframe||"")}, syminfo:{ticker:String(options.symbol||""),tickerid:String(options.symbol||""),basecurrency:"",currency:""},
+      math, ta, input, color, array, str, barstate, timeframe:{period:String(options.timeframe||""),isweekly:/^(1W|1w|W|w)$/.test(String(options.timeframe||"")),isdaily:/^(1D|1d|D|d)$/.test(String(options.timeframe||"")),isintraday:/^([1-9]\\d*|[1-9]\\d*[m])$/.test(String(options.timeframe||""))}, syminfo:{ticker:String(options.symbol||""),tickerid:String(options.symbol||""),mintick:Number(options.mintick||0.00000001),basecurrency:"",currency:""},
       indicator:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Indicator";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;}, study:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Study";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;},
       plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=outputs._plotCallIndex++;let p=outputs.plots[k];if(!p){p={title:cfg.title||"Plot "+(k+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:[]};outputs.plots[k]=p;}p.values.push(value(v));return null;},
       plotshape:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",style:cfg.style||"shape.triangleup",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
-      plotchar:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",char:cfg.char||"•",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
+      plotchar:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",char:cfg.char||"•",location:cfg.location||"abovebar",text:cfg.text||""});return null;},\n      plotcandle:(o,h,l,c,...args)=>{const cfg=args.reduce((z,x)=>{if(x&&x.__named)z[x.name]=value(x.value);return z;},{});outputs.candles.push({bar:ctx.index,open:value(o),high:value(h),low:value(l),close:value(c),color:cfg.color||"#22c58b",wickcolor:cfg.wickcolor||cfg.color||"#22c58b",bordercolor:cfg.bordercolor||cfg.color||"#22c58b"});return null;},\n      plotbar:(o,h,l,c,...args)=>{const cfg=args.reduce((z,x)=>{if(x&&x.__named)z[x.name]=value(x.value);return z;},{});outputs.candles.push({bar:ctx.index,open:value(o),high:value(h),low:value(l),close:value(c),color:cfg.color||"#22c58b"});return null;},
       hline:(v,...args)=>{outputs.hlines.push({value:value(v),args:args.map(value)});return null;},
       alertcondition:(condition,title,message)=>{if(truth(value(condition)))outputs.alerts.push({bar:ctx.index,title:value(title)||"",message:value(message)||""});return null;}, alert:(message)=>{outputs.alerts.push({bar:ctx.index,message:String(value(message)||"")});return null;},
       barcolor:()=>null, bgcolor:()=>null, fill:()=>null,
@@ -228,7 +228,7 @@
     builtins.line=lineNS;builtins.label=labelNS;builtins.box=boxNS;builtins.table=tableNS;
     Object.defineProperty(lineNS,"all",{get:()=>outputs.lines.filter(x=>!x.deleted)});Object.defineProperty(labelNS,"all",{get:()=>outputs.labels.filter(x=>!x.deleted)});Object.defineProperty(boxNS,"all",{get:()=>outputs.boxes.filter(x=>!x.deleted)});
     Object.assign(labelNS,{style_label_left:"label_left",style_label_right:"label_right",style_label_up:"label_up",style_label_down:"label_down",style_none:"none"});
-    builtins.hline={style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed"};
+    Object.assign(builtins.hline,{style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed"});
     return builtins;
   }
   function namedArg(name,v){return {__named:true,name,value:v};}
@@ -237,7 +237,7 @@
     if(!ast||ast.type!=="Program")throw new TypeError("Geçerli Pine AST bekleniyor.");
     if(ast.diagnostics&&ast.diagnostics.length)throw new PineExecutionError("Kaynakta parse hataları var: "+ast.diagnostics[0].message,ast.diagnostics[0],"PINE_PARSE_ERROR");
     const cleanBars=bars.map((b,i)=>{const o={};for(const k of ["open","high","low","close","volume","time"]){const n=Number(b[k]);if(!Number.isFinite(n))throw new PineExecutionError("Geçersiz "+k+" verisi ("+i+").");o[k]=n;}return Object.freeze(o);});
-    const outputs={plots:[],shapes:[],hlines:[],labels:[],lines:[],boxes:[],tables:[],alerts:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
+    const outputs={plots:[],shapes:[],hlines:[],candles:[],labels:[],lines:[],boxes:[],tables:[],alerts:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
     const inputValues=Object.assign(Object.create(null),opts.inputs||{});
     const global=new Scope();
     const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null);
