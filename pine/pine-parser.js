@@ -87,6 +87,7 @@
     function parseStatement(line) {
       const ts=line.tokens,first=ts[0],base={loc:loc(first),indent:line.indent};
       if(first.value==="else")return {type:"ElseMarker",...base};
+      if(first.value==="type"&&ts[1]&&ts[1].type==="IDENTIFIER")return {type:"TypeDeclaration",name:ts[1].value,fields:[],...base};
       if(first.value==="break"||first.value==="continue")return {type:first.value==="break"?"BreakStatement":"ContinueStatement",...base};
       if(first.value==="switch")return {type:"SwitchStatement",discriminant:ts.length>1?expression(ts,1):null,cases:[],...base};
       if(first.value==="if"||first.value==="while"){
@@ -120,6 +121,9 @@
       if(assign===1&&first.type==="IDENTIFIER"){
         return {type:"AssignmentStatement",operator:ts[1].value,target:{type:"Identifier",name:first.value,loc:loc(first)},value:expression(ts,2),...base};
       }
+      if(assign>1&&first.type==="IDENTIFIER"&&ts[1].value==="."){
+        return {type:"AssignmentStatement",operator:ts[assign].value,target:expression(ts,0,assign),value:expression(ts,assign+1),...base};
+      }
       if(first.value==="var"&&ts[1]&&TYPES.has(ts[1].value)&&ts[2]&&ts[2].value==="<"){
         const close=ts.findIndex((t,i)=>i>2&&t.value===">");
         if(close>2&&close+1<assign&&ts[close+1].type==="IDENTIFIER")return {type:"TypedDeclarationStatement",qualifier:"var",valueType:ts.slice(1,close+1).map(t=>t.value).join(""),name:ts[close+1].value,value:expression(ts,assign+1),...base};
@@ -149,6 +153,18 @@
         if(lines[cursor]&&lines[cursor].indent>indent)node.alternate=parseBlock(indent);
         else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else bloğu boş.",line:line.line,column:line.indent});
       }
+    }
+    function parseTypeFields(parentIndent){
+      const fields=[];
+      while(cursor<lines.length&&lines[cursor].indent>parentIndent){
+        const line=lines[cursor++],ts=line.tokens;
+        if(!ts[0]||!TYPES.has(ts[0].value)||!ts[1]||ts[1].type!=="IDENTIFIER"){
+          diagnostics.push({code:"PINE_PARSE_TYPE_FIELD",message:"UDT alanı için tür ve alan adı bekleniyor.",line:line.line,column:line.indent});continue;
+        }
+        const eq=ts.findIndex(t=>t.value==="=");
+        fields.push({name:ts[1].value,valueType:ts[0].value,defaultValue:eq>1?expression(ts,eq+1):null,loc:loc(ts[0])});
+      }
+      return fields;
     }
     function parseSwitchCases(parentIndent){
       const cases=[];
@@ -180,6 +196,7 @@
             continue;
           }
           if(node.type==="SwitchStatement"){node.cases=parseSwitchCases(line.indent);}
+          if(node.type==="TypeDeclaration")node.fields=parseTypeFields(line.indent);
         if(node.type==="FunctionDeclaration"&&lines[cursor]&&lines[cursor].indent>line.indent)node.bodyStatements=parseBlock(line.indent);
           if(node.type==="FunctionDeclaration"&&lines[cursor]&&lines[cursor].indent>line.indent)node.bodyStatements=parseBlock(line.indent);
           if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
@@ -199,6 +216,7 @@
         const node=parseStatement(line);
         if(node.type==="ElseMarker"){diagnostics.push({code:"PINE_PARSE_ORPHAN_ELSE",message:"else için eşleşen if bulunamadı.",line:line.line,column:line.indent});continue;}
         if(node.type==="SwitchStatement"){node.cases=parseSwitchCases(line.indent);}
+        if(node.type==="TypeDeclaration")node.fields=parseTypeFields(line.indent);
         if(node.type==="FunctionDeclaration"&&lines[cursor]&&lines[cursor].indent>line.indent)node.bodyStatements=parseBlock(line.indent);
         if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
           if(lines[cursor]&&lines[cursor].indent>line.indent)node.body=parseBlock(line.indent);
