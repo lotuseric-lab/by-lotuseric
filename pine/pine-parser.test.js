@@ -89,4 +89,14 @@ theme = switch close > open
 assert.deepEqual(switchExpr.diagnostics,[]);
 assert.equal(switchExpr.body[1].value.type,"SwitchExpression");
 assert.equal(switchExpr.body[1].value.cases.length,2);
+
+const nestedLabel=parsePine(lexPine(`//@version=6
+indicator("Nested label update")
+if close > open
+    if not na(close)
+        string slPctUpd = str.tostring(close, "#.##") + "%"
+        label.set_text(lbSL, "Orijinal SL " + str.tostring(close, format.mintick) + " (−" + slPctUpd + ")")
+        label.set_color(lbSL, color.new(color.red, 75))
+`).tokens);
+assert.deepEqual(nestedLabel.diagnostics,[]);
 console.log("Pine parser tests: OK");
