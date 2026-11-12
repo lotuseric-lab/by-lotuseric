@@ -13,8 +13,7 @@
   const isNA = v => v === null || v === undefined || (typeof v === "number" && Number.isNaN(v));
   const num = v => isNA(v) ? NaN : Number(v);
   const truth = v => !isNA(v) && !!v;
-  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
-
+  
   class PineExecutionError extends Error {
     constructor(message, node, code) {
       super(message);
@@ -118,7 +117,7 @@
       round:(x,p)=>{const k=Math.pow(10,p===undefined?0:num(value(p)));return Math.round(num(value(x))*k)/k;},
       sign:x=>Math.sign(num(value(x))), sin:x=>Math.sin(num(value(x))), sqrt:x=>Math.sqrt(num(value(x))),
       tan:x=>Math.tan(num(value(x))), toDegrees:x=>num(value(x))*180/Math.PI,
-      toRadians:x=>num(value(x))*Math.PI/180
+      toRadians:x=>num(value(x))*Math.PI/180, PI:Math.PI, E:Math.E, PHI:(1+Math.sqrt(5))/2
     };
     const ta = {
       sma, ema, rma, wma:(s,l)=>rolling(s,l,w=>w.reduce((z,x,i)=>z+num(x)*(i+1),0)/(w.length*(w.length+1)/2)),
@@ -139,25 +138,24 @@
     for(const kind of ["int","float","bool","string","source","color","timeframe","symbol"]){
       input[kind]=(def, ...rest)=>{
         const cfg=rest.reduce((o,x)=>{if(x&&typeof x==="object"&&!Array.isArray(x))Object.assign(o,x);return o;},{});
-        const title=cfg.title||cfg.tooltip||"";
+        const title=cfg.title||(typeof rest[0]==="string"?rest[0]:"")||cfg.tooltip||"";
         const key=String(title||("input_"+Object.keys(inputs).length));
         if(!Object.prototype.hasOwnProperty.call(inputs,key))inputs[key]=def;
         return inputs[key];
       };
     }
     const color = {red:"#f23645",lime:"#089981",green:"#089981",blue:"#2962ff",orange:"#ff9800",yellow:"#fdd835",purple:"#9c27b0",white:"#ffffff",black:"#000000",gray:"#787b86",grey:"#787b86",teal:"#00897b",aqua:"#00bcd4",fuchsia:"#e040fb",silver:"#bdbdbd",maroon:"#880e4f",navy:"#000080",transparent:"rgba(0,0,0,0)"};
-    let plotCallIndex=0;
     const builtins = {
       na:()=>NA, nafn:()=>NA, nz:(x,repl)=>isNA(value(x))?(repl===undefined?0:value(repl)):value(x),
       math, ta, input, color,
       indicator:()=>null, study:()=>null,
-      plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=plotCallIndex++;let p=outputs.plots[k];if(!p){p={title:cfg.title||"Plot "+(k+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:[]};outputs.plots[k]=p;}p.values.push(value(v));return null;},
-      plotshape:(v,...args)=>{outputs.shapes.push({value:truth(value(v)),bar:ctx.index,args:args.map(value)});return null;},
-      plotchar:(v,...args)=>{outputs.shapes.push({value:truth(value(v)),bar:ctx.index,args:args.map(value),char:true});return null;},
+      plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=outputs._plotCallIndex++;let p=outputs.plots[k];if(!p){p={title:cfg.title||"Plot "+(k+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:[]};outputs.plots[k]=p;}p.values.push(value(v));return null;},
+      plotshape:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",style:cfg.style||"shape.triangleup",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
+      plotchar:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",char:cfg.char||"•",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
       hline:(v,...args)=>{outputs.hlines.push({value:value(v),args:args.map(value)});return null;},
       alertcondition:()=>null, alert:()=>null,
       barcolor:()=>null, bgcolor:()=>null, fill:()=>null,
-      na: v=>isNA(value(v)), nz: (v,r)=>isNA(value(v))?(r===undefined?0:value(r)):value(v),
+      nz: (v,r)=>isNA(value(v))?(r===undefined?0:value(r)):value(v),
       minval:x=>x, maxval:x=>x, timestamp:()=>NA, time:()=>ctx.bar?ctx.bar.time:NA
     };
     return builtins;
@@ -181,7 +179,6 @@
       if(scope.has(name))return scope.get(name);
       if(["open","high","low","close","volume","time"].includes(name))return series(name);
       if(name==="bar_index")return currentIndex;
-      if(name==="na")return NA;
       if(name==="true")return true;if(name==="false")return false;
       if(Object.prototype.hasOwnProperty.call(builtins,name))return builtins[name];
       if(Object.prototype.hasOwnProperty.call(functions,name))return functions[name];
@@ -269,13 +266,14 @@
     // Install OHLCV series progressively; each bar is evaluated in source order.
     const barKeys=["open","high","low","close","volume","time"];
     for(let i=0;i<cleanBars.length;i++){
-      currentIndex=i;plotCallIndex=0;
+      currentIndex=i;outputs._plotCallIndex=0;
       for(const k of barKeys){if(!vars[k])vars[k]=[];vars[k].push(cleanBars[i][k]);}
       const barScope=new Scope(global);
       try{execBlock(ast.body,barScope);}
       catch(error){if(error&&error.__pineBreak)throw new PineExecutionError("break yalnızca döngü içinde kullanılabilir.");if(error&&error.__pineContinue)throw new PineExecutionError("continue yalnızca döngü içinde kullanılabilir.");if(error instanceof PineExecutionError)throw error;throw new PineExecutionError(error.message,null);}
       for(const p of outputs.plots){if(p.values.length<=i)p.values.push(NA);}
     }
+    delete outputs._plotCallIndex;
     outputs.inputs=inputValues;
     outputs.barCount=cleanBars.length;
     outputs.metadata=opts.metadata||{};
