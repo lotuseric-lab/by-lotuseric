@@ -81,3 +81,26 @@ For every fixture record:
 `.github/workflows/pine-engine-candidate-benchmark.yml` checks out the Resin repository, records its exact commit SHA, compiles every checked-in MONEY TRADER fixture, executes each fixture over 500 deterministic bars, and uploads the visualization JSON. This is an integration smoke test only: deterministic synthetic bars prove that the candidate runs and emits output, not that its numbers or drawings match TradingView.
 
 The next gate is to run the same real OHLCV export through TradingView, Resin and PineTS/Vela and compare every bar. For SMART LINES v3, the exact source and matching TradingView data/export are required; similar indicator names are not substitutes.
+
+
+## First measured findings (2026-11-12)
+
+- Resin was checked out at commit `fa683a0ce81bf54832805f3e386c504c144d451a` in CI (Node 22.18.0).
+- The first broad compile correctly failed on the known malformed `MONEY_TRADER_PROJEX.pine` extraction: Resin reported 6/7 compiled and pinpointed `unexpected indented block (L111:1)`. This fixture was already excluded from the previous interpreter fixture set because the Word extraction is damaged.
+- After excluding only that damaged extraction, all six verified MONEY TRADER fixtures compiled, ran for 500 deterministic bars, and emitted visualization JSON. CI run: https://github.com/lotuseric-lab/by-lotuseric/actions/runs/43295490040
+- The artifact contains plot outputs and captured drawing objects. The ADX fixture emitted 4 plots (DI+, DI-, ADX, RSI), 6 hlines, 1 fill, 3 shapes, and a table plus line/label drawings. Support/Resistance emitted line/label objects. This proves runtime execution and model capture, not chart parity.
+
+### Critical screenshot-specific gap discovered
+
+The user's reference ADX script declares `overlay=false` but uses `force_overlay=true` on price-chart labels and drawings. Resin's captured drawing records in this smoke artifact do not include a `force_overlay` field. Therefore, even though the runtime executes the ADX script and captures its drawings, a renderer cannot reliably route those drawings to the main price pane while keeping DI+/DI- in the separate pane. This is a concrete explanation for a key part of the screenshot mismatch.
+
+PineTS documents `force_overlay` synchronization for line/box/label drawing objects (changelog 0.9.9). PineTS/Vela is therefore the better feature-completeness reference for this exact case, but the PineTS + Vela-PineTS packages are AGPL-3.0 and require a commercial license or AGPL-compatible product distribution before shipping in BY LOTUSERIC.
+
+### Strongest clean-room architecture to pursue
+
+- Vela chart core/workspace: Apache-2.0, owns the canonical bars, pane routing, chart rendering and a public `ScriptingEngine` port.
+- Resin runtime: Apache-2.0, adapted behind the Vela port, with a BY LOTUSERIC-owned patch for `force_overlay` metadata and other proven gaps.
+- Live execution: do not advertise streaming until tick rollback / confirmed-bar semantics are implemented and tested. Start with deterministic historical runs; then implement a persistent session or safe full replay on ticks, followed by profiling.
+- Keep the current Lightweight Charts page as a fallback until Vela + Resin passes visual acceptance on mobile.
+
+This is not a claim of TradingView equivalence. It is the lowest-license-risk path to a stronger, testable Pine-compatible system. If Vela's integration cost or mobile performance fails, retain the current chart adapter and build the same runtime improvements behind it.
