@@ -80,9 +80,26 @@ switch close > open
     true => plot(close, "Bull")
     false => plot(open, "Bear")
 `), bars);
-assert.equal(result.plots.length, 1);
+assert.equal(result.plots.length, 2);
 assert.equal(result.plots[0].values.length, bars.length);
+assert.equal(result.plots[1].values.length, bars.length);
 assert.equal(result.plots[0].values.at(-1), bars.at(-1).close);
+assert.equal(result.plots[1].values.at(-1), null);
+
+result = runPine(compile(`//@version=6
+indicator("Conditional plot alignment")
+if bar_index % 2 == 0
+    plot(close, "Even bars")
+else
+    plot(open, "Odd bars")
+`), bars);
+assert.equal(result.plots.length, 2);
+assert.equal(result.plots[0].values[0], bars[0].close);
+assert.equal(result.plots[0].values[1], null);
+assert.equal(result.plots[1].values[0], null);
+assert.equal(result.plots[1].values[1], bars[1].open);
+assert.equal(result.plots[0].values.length, bars.length);
+assert.equal(result.plots[1].values.length, bars.length);
 
 result = runPine(compile(`//@version=6
 indicator("Multiline function")
