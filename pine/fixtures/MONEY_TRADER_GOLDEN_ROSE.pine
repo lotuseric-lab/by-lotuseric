@@ -1,0 +1,138 @@
+//@version=5
+indicator("MONEY TRADER PURPLE ROSE [CANLI TRADE - NO REPAINT]", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ============ AYARLAR ============
+grp_general = "Genel Ayarlar"
+pivotLen    = input.int(5, "Pivot Uzunluğu", minval=1, group=grp_general)
+showSR      = input.bool(true, "Ara Destek/Direnç Çizgilerini Göster", group=grp_general)
+requireBodyBreak = input.bool(true, "Sadece Gövde Kırılımı (İğne Sayılmaz)", group=grp_general)
+
+grp_filters = "️ Filtreler"
+useWickFilter = input.bool(true, "İğne (Spike) Filtresi", group=grp_filters)
+maxWickRatio = input.float(2.0, "Max Fitil/Gövde Oranı", minval=1.0, step=0.5, group=grp_filters)
+useVolumeFilter = input.bool(true, "Hacim Filtresi", group=grp_filters)
+volumePeriod = input.int(20, "Hacim Ortalama Periyodu", group=grp_filters)
+minVolumeMult = input.float(0.8, "Min Hacim Çarpanı", group=grp_filters)
+
+grp_colors = "Renkler"
+bullCol     = input.color(#00c853, "AL Etiketi Rengi", group=grp_colors)
+bearCol     = input.color(#ff1744, "SAT Etiketi Rengi", group=grp_colors)
+stopBullCol = input.color(#2962ff, "AL Stop Çizgisi", group=grp_colors)
+stopBearCol = input.color(#ff1744, "SAT Stop Çizgisi", group=grp_colors)
+srBullCol   = input.color(color.new(#2962ff,55), "Ara Destek", group=grp_colors)
+srBearCol   = input.color(color.new(#ff1744,55), "Ara Direnç", group=grp_colors)
+
+// ============ PIVOT TESPİTİ ============
+ph = ta.pivothigh(high, pivotLen, pivotLen)
+pl = ta.pivotlow(low, pivotLen, pivotLen)
+
+// SABİTLENMİŞ PİVOT SEVİYELERİ (Repaint Önleme)
+var float lockedPH = na      // Kilitlenmiş direnç seviyesi
+var int   lockedPHBar = na   // Kilitlenme barı
+var float lockedPL = na      // Kilitlenmiş destek seviyesi
+var int   lockedPLBar = na   // Kilitlenme barı
+var int   trend = 0          // 1 = Long, -1 = Short, 0 = Yok
+
+// Çizgi objeleri
+var line lastBullLine = na
+var line lastBearLine = na
+var line lastSRLowLine = na
+var line lastSRHighLine = na
+
+// YENİ PİVOT BULUNDUĞUNDA - Seviyeyi sabitle
+if not na(ph)
+    lockedPH := ph
+    lockedPHBar := bar_index - pivotLen
+    line.delete(lastSRHighLine)
+    if showSR
+        lastSRHighLine := line.new(lockedPHBar, lockedPH, bar_index, lockedPH, extend=extend.right, color=srBearCol, style=line.style_solid, width=1)
+
+if not na(pl)
+    lockedPL := pl
+    lockedPLBar := bar_index - pivotLen
+    line.delete(lastSRLowLine)
+    if showSR
+        lastSRLowLine := line.new(lockedPLBar, lockedPL, bar_index, lockedPL, extend=extend.right, color=srBullCol, style=line.style_solid, width=1)
+
+// ============ FİLTRELER ============
+// İğne (Spike) Filtresi
+upperWick = high - math.max(open, close)
+lowerWick = math.min(open, close) - low
+candleBody = math.abs(close - open)
+isSpikeLong = useWickFilter and (upperWick > (candleBody * maxWickRatio)) and candleBody > 0
+isSpikeShort = useWickFilter and (lowerWick > (candleBody * maxWickRatio)) and candleBody > 0
+
+// Hacim Filtresi
+volumeSMA = ta.sma(volume, volumePeriod)
+volumeOk = not useVolumeFilter or volume >= volumeSMA * minVolumeMult
+
+// ============ SİNYAL KOŞULLARI (REPAIN-FREE) ============
+// Sadece mum kapandığında ve gövde kırılımı varsa sinyal ver
+buySignal = false
+sellSignal = false
+
+// LONG SİNYALİ: Fiyat direnci gövde ile kırdı + İğne değil + Hacim yeterli
+if not na(lockedPH) and barstate.isconfirmed
+    bodyBreak = requireBodyBreak ? (math.min(open, close) > lockedPH) : (close > lockedPH)
+    if bodyBreak and not isSpikeLong and volumeOk and trend != 1
+        buySignal := true
+
+// SHORT SİNYALİ: Fiyat desteği gövde ile kırdı + İğne değil + Hacim yeterli
+if not na(lockedPL) and barstate.isconfirmed
+    bodyBreak = requireBodyBreak ? (math.max(open, close) < lockedPL) : (close < lockedPL)
+    if bodyBreak and not isSpikeShort and volumeOk and trend != -1
+        sellSignal := true
+
+// ============ SİNYAL ÇİZİMLERİ ============
+if buySignal
+    trend := 1
+    // Eski çizgileri sil
+    line.delete(lastBullLine)
+    line.delete(lastBearLine)
+    
+    // AL etiketi ve stop çizgisi (destek seviyesine)
+    string buyText = "DİP\n" + str.tostring(lockedPL, format.mintick)
+    label.new(lockedPLBar, lockedPL, buyText, style=label.style_label_up, color=bullCol, textcolor=color.white, size=size.small)
+    lastBullLine := line.new(lockedPLBar, lockedPL, bar_index, lockedPL, extend=extend.right, color=stopBullCol, style=line.style_solid, width=2)
+    
+    // Yeni direnç seviyesini güncelle (breakout sonrası)
+    lockedPH := na  // Eski direnç kırıldı, yeni pivot bekle
+
+if sellSignal
+    trend := -1
+    // Eski çizgileri sil
+    line.delete(lastBearLine)
+    line.delete(lastBullLine)
+    
+    // SAT etiketi ve stop çizgisi (direnç seviyesine)
+    string sellText = "ZİRVE\n" + str.tostring(lockedPH, format.mintick)
+    label.new(lockedPHBar, lockedPH, sellText, style=label.style_label_down, color=bearCol, textcolor=color.white, size=size.small)
+    lastBearLine := line.new(lockedPHBar, lockedPH, bar_index, lockedPH, extend=extend.right, color=stopBearCol, style=line.style_solid, width=2)
+    
+    // Yeni destek seviyesini güncelle (breakdown sonrası)
+    lockedPL := na  // Eski destek kırıldı, yeni pivot bekle
+
+// Çizgileri güncelle (extend için)
+if not na(lastBullLine)
+    line.set_x2(lastBullLine, bar_index)
+if not na(lastBearLine)
+    line.set_x2(lastBearLine, bar_index)
+if not na(lastSRLowLine)
+    line.set_x2(lastSRLowLine, bar_index)
+if not na(lastSRHighLine)
+    line.set_x2(lastSRHighLine, bar_index)
+
+// ============ GÖRSEL UYARILAR ============
+plotshape(buySignal, "AL SİNYALİ", shape.triangleup, location.belowbar, color.green, size=size.normal)
+plotshape(sellSignal, "SAT SİNYALİ", shape.triangledown, location.abovebar, color.red, size=size.normal)
+
+
+// Bilgi etiketleri
+var table infoTable = table.new(position.top_right, 2, 3, bgcolor=color.new(color.black, 80))
+if barstate.islast
+    table.cell(infoTable, 0, 0, "Direnç:", text_color=color.white)
+    table.cell(infoTable, 1, 0, not na(lockedPH) ? str.tostring(lockedPH, format.mintick) : "Belirsiz", text_color=color.red)
+    table.cell(infoTable, 0, 1, "Destek:", text_color=color.white)
+    table.cell(infoTable, 1, 1, not na(lockedPL) ? str.tostring(lockedPL, format.mintick) : "Belirsiz", text_color=color.green)
+    table.cell(infoTable, 0, 2, "Trend:", text_color=color.white)
+    table.cell(infoTable, 1, 2, trend == 1 ? "LONG" : trend == -1 ? "SHORT" : "NÖTR", text_color=trend == 1 ? color.green : trend == -1 ? color.red : color.gray)

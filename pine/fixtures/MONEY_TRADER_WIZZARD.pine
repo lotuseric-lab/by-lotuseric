@@ -1,0 +1,388 @@
+//@version=5
+indicator("Money Trader — Otomatik Destek/Direnç", "Money Trader Wizzard", overlay = true, max_lines_count = 500, max_labels_count = 500, max_bars_back = 500)
+
+//──────────────────── GİRDİLER ────────────────────
+grpG = "⚙️ Genel Ayarlar"
+pivotLen    = input.int(5, "Pivot Hassasiyeti (sol/sağ bar)", minval = 2, maxval = 30, group = grpG,
+     tooltip = "Bir tepe/dibin kademe sayılması için iki yanında kaç mum olmalı?\nKüçük (3-4) → çok ve hassas kademe\nBüyük (8-15) → sadece ana kademeler")
+atrLen      = input.int(14, "ATR Periyodu", minval = 5, maxval = 100, group = grpG)
+maxDestek   = input.int(3, "Maks. Destek (Kırmızı) Adedi", minval = 1, maxval = 10, group = grpG)
+maxDirenc   = input.int(3, "Maks. Direnç (Beyaz) Adedi", minval = 1, maxval = 10, group = grpG)
+kirilanSil  = input.bool(true, "Kırılan Kademeleri Sil", group = grpG)
+rolDegistir = input.bool(false, "Kırılan Kademe Rol Değiştirsin (D↔R)", group = grpG)
+birlestir   = input.bool(true, "Yakın Kademeleri Birleştir", group = grpG)
+minMesafe   = input.float(0.5, "Min. Kademe Arası Mesafe (ATR katı)", minval = 0.0, step = 0.1, group = grpG)
+
+grpT = "🔨 Tokoz (Çekiç) Filtresi"
+tokozFiltre = input.bool(false, "Sadece Tokoz Mumları Kademe Olsun", group = grpT)
+fitilGovde  = input.float(1.5, "Fitil ÷ Gövde (en az)", minval = 0.5, step = 0.1, group = grpT)
+fitilMum    = input.float(0.40, "Fitil ÷ Mum Aralığı (en az)", minval = 0.10, maxval = 0.90, step = 0.05, group = grpT)
+tokozIsaret = input.bool(false, "Tokoz Mumlarını Grafikte İşaretle", group = grpT)
+
+grpH = "📊 Hacim Filtresi (Kırılım Mumu)"
+hacimFiltre  = input.bool(true, "Kırılımda Hacim Onayı Ara", group = grpH,
+     tooltip = "Kırılım mumunun hacmi, ortalamanın üzerinde olmalı.")
+hacimMod     = input.string("Sadece Sinyal İçin Gerekli", "Hacim Modu", options = ["Sadece Sinyal İçin Gerekli", "Kırılım + Sinyal İçin Gerekli"], group = grpH,
+     tooltip = "Sadece Sinyal: kademe fiyatla kırılınca silinir/gri olur ama AL/SAT ancak hacimli mumda gelir.\n\nKırılım + Sinyal: hacimsiz kırılım GEÇERSİZ sayılır — kademe yerinde kalır,\nhacim onaylı ilk kırılım mumunda hem sinyal gelir hem kademe işlenir.\n(Fiyat seviyeye geri dönerse bekleme durumu sıfırlanır.)")
+hacimPeriyot = input.int(20, "Hacim Ortalama Periyodu (SMA)", minval = 5, maxval = 200, group = grpH)
+hacimKat     = input.float(1.5, "Min. Hacim × Ortalama", minval = 0.5, step = 0.1, group = grpH,
+     tooltip = "Kırılım mumu hacmi ≥ ortalama × bu çarpan olmalı.\n1.5 = ortalamanın 1.5 katı")
+hacimEtiket  = input.bool(true, "Sinyal Etiketinde Hacim Katını Göster", group = grpH)
+
+grpV = "🎨 Görünüm"
+destekRenk = input.color(#f23645, "Destek Çizgi Rengi", group = grpV)
+destekYazi = input.color(color.white, "Destek Etiket Yazısı", group = grpV)
+direncRenk = input.color(color.white, "Direnç Çizgi Rengi", group = grpV)
+direncYazi = input.color(color.black, "Direnç Etiket Yazısı", group = grpV)
+kirikRenk  = input.color(color.gray, "Kırılan Kademe Rengi", group = grpV)
+kalinlik   = input.int(1, "Çizgi Kalınlığı", minval = 1, maxval = 5, group = grpV)
+etiketAcik = input.bool(true, "Sağ Kenarda Fiyat Etiketi", group = grpV)
+etiketStr  = input.string("small", "Etiket Boyutu", options = ["tiny", "small", "normal"], group = grpV)
+
+grpS = "🚦 AL/SAT Sinyalleri"
+sinyalOn    = input.bool(true, "AL/SAT Etiketlerini Göster", group = grpS)
+anindaTetik = input.bool(true, "Sinyali Kapanışı Beklemeden Ver (Fitil Kırılımı)", group = grpS,
+     tooltip = "AÇIK → high/low ile anında tetik (geri alınamaz → repaint YOK).\nKAPALI → sadece onaylanmış mum kapanışında.")
+minMumAL    = input.int(10, "AL Sinyalleri Arası Min. Mum", minval = 0, maxval = 500, group = grpS)
+minMumSAT   = input.int(10, "SAT Sinyalleri Arası Min. Mum", minval = 0, maxval = 500, group = grpS)
+alRenk      = input.color(color.green, "AL Rengi", group = grpS)
+satRenk     = input.color(#f23645, "SAT Rengi", group = grpS)
+sinyalBoyut = input.string("normal", "Sinyal Etiket Boyutu", options = ["tiny", "small", "normal"], group = grpS)
+
+grpP = "🎯 Hedef Projeksiyonları (Olası İşlem Yönü)"
+projOn     = input.bool(true, "Hedef Projeksiyonlarını Göster", group = grpP)
+projYontem = input.string("Otomatik (Son Sinyale Göre)", "Yön", options = ["Otomatik (Son Sinyale Göre)", "Sadece Long (Yukarı)", "Sadece Short (Aşağı)", "Her İkisi"], group = grpP)
+longRenk   = input.color(#26a69a, "Long (Yukarı) Rengi", group = grpP)
+shortRenk  = input.color(#d1d4dc, "Short (Aşağı) Rengi", group = grpP)
+
+eBoyut = etiketStr == "tiny" ? size.tiny : etiketStr == "normal" ? size.normal : size.small
+sBoyut = sinyalBoyut == "tiny" ? size.tiny : sinyalBoyut == "normal" ? size.normal : size.small
+atr = ta.atr(atrLen)
+
+//──────────────────── HACİM ────────────────────
+hacimOrt   = ta.sma(volume, hacimPeriyot)
+hacimOrani = hacimOrt > 0 ? volume / hacimOrt : 0.0
+volOK      = not hacimFiltre or hacimOrani >= hacimKat
+modKirilim = hacimMod == "Kırılım + Sinyal İçin Gerekli"
+
+//──────────────────── SİNYAL DEĞİŞKENLERİ ────────────────────
+var int sonALBar  = na
+var int sonSATBar = na
+var int sonYon    = 0
+bool  alSinyal  = false
+bool  satSinyal = false
+
+// REPAINT KİLİDİ
+onayli = anindaTetik or barstate.isconfirmed
+
+//──────────────────── TOKOZ MUMU TESPİTİ ────────────────────
+f_tokozAlt(off) =>
+    rng   = high[off] - low[off]
+    govde = math.abs(close[off] - open[off])
+    fitil = math.min(open[off], close[off]) - low[off]
+    rng > 0 and fitil >= govde * fitilGovde and fitil >= rng * fitilMum
+
+f_tokozUst(off) =>
+    rng   = high[off] - low[off]
+    govde = math.abs(close[off] - open[off])
+    fitil = high[off] - math.max(open[off], close[off])
+    rng > 0 and fitil >= govde * fitilGovde and fitil >= rng * fitilMum
+
+plotshape(tokozIsaret and f_tokozAlt(0), "Tokoz (Dip)", style = shape.triangleup, location = location.belowbar, color = color.new(color.teal, 0), size = size.tiny)
+plotshape(tokozIsaret and f_tokozUst(0), "Ters Tokoz (Tepe)", style = shape.triangledown, location = location.abovebar, color = color.new(color.orange, 0), size = size.tiny)
+
+//──────────────────── KADEME DEPOSU ────────────────────
+// Bayrak dizisi: false = temiz, true = fiyat kırdı ama hacim onayı bekliyor (Kırılım+Sinyal modu)
+var dFiyat  = array.new_float()
+var dBar    = array.new_int()
+var dCizgi  = array.new<line>()
+var dEtiket = array.new<label>()
+var dBekliyor = array.new_bool()
+
+var rFiyat  = array.new_float()
+var rBar    = array.new_int()
+var rCizgi  = array.new<line>()
+var rEtiket = array.new<label>()
+var rBekliyor = array.new_bool()
+
+//──────────────────── KADEME EKLEME ────────────────────
+f_ekle(fA, bA, cA, eA, kB, lvl, pb, renk, yazi, maxAdet) =>
+    yakin = false
+    if birlestir and minMesafe > 0 and array.size(fA) > 0
+        for i = 0 to array.size(fA) - 1
+            if math.abs(array.get(fA, i) - lvl) <= atr * minMesafe
+                yakin := true
+    if not yakin
+        ln = line.new(pb, lvl, bar_index, lvl, extend = extend.right, color = renk, width = kalinlik)
+        label lb = na
+        if etiketAcik
+            lb := label.new(bar_index + 5, lvl, str.tostring(lvl, format.mintick), style = label.style_label_left, color = renk, textcolor = yazi, size = eBoyut)
+        array.push(fA, lvl)
+        array.push(bA, pb)
+        array.push(cA, ln)
+        array.push(eA, lb)
+        array.push(kB, false)
+        if array.size(fA) > maxAdet
+            line.delete(array.get(cA, 0))
+            lbEski = array.get(eA, 0)
+            if not na(lbEski)
+                label.delete(lbEski)
+            array.shift(fA)
+            array.shift(bA)
+            array.shift(cA)
+            array.shift(eA)
+            array.shift(kB)
+
+//──────────────────── PİVOT (KADEME) TESPİTİ ────────────────────
+ph = ta.pivothigh(pivotLen, pivotLen)
+pl = ta.pivotlow(pivotLen, pivotLen)
+
+if not na(ph)
+    pb = bar_index - pivotLen
+    uygun = not tokozFiltre or f_tokozUst(pivotLen) or f_tokozUst(pivotLen - 1) or f_tokozUst(pivotLen + 1)
+    if uygun
+        f_ekle(rFiyat, rBar, rCizgi, rEtiket, rBekliyor, ph, pb, direncRenk, direncYazi, maxDirenc)
+
+if not na(pl)
+    pb = bar_index - pivotLen
+    uygun = not tokozFiltre or f_tokozAlt(pivotLen) or f_tokozAlt(pivotLen - 1) or f_tokozAlt(pivotLen + 1)
+    if uygun
+        f_ekle(dFiyat, dBar, dCizgi, dEtiket, dBekliyor, pl, pb, destekRenk, destekYazi, maxDestek)
+
+//──────────────────── KIRILIM KONTROLÜ + AL/SAT (HACİMLİ) ────────────────────
+bool dKirildi = false
+bool rKirildi = false
+kirD  = array.new_float()
+kirDb = array.new_int()
+kirR  = array.new_float()
+kirRb = array.new_int()
+
+// DESTEK KIRILIMI → SAT
+if onayli and array.size(dFiyat) > 0
+    i = array.size(dFiyat) - 1
+    while i >= 0
+        lvl = array.get(dFiyat, i)
+        kirildiAn = anindaTetik ? low < lvl : close < lvl
+        if kirildiAn
+            dKirildi := true
+            if volOK
+                // Hacim onaylı kırılım
+                ilkKirilim = modKirilim ? not array.get(dBekliyor, i) : (anindaTetik ? low[1] >= lvl : close[1] >= lvl)
+                if ilkKirilim and (na(sonSATBar) or bar_index - sonSATBar >= minMumSAT)
+                    satSinyal := true
+                    sonSATBar := bar_index
+                    sonYon    := -1
+                ln = array.get(dCizgi, i)
+                lb = array.get(dEtiket, i)
+                if kirilanSil
+                    line.delete(ln)
+                    if not na(lb)
+                        label.delete(lb)
+                    if rolDegistir
+                        array.push(kirD, lvl)
+                        array.push(kirDb, array.get(dBar, i))
+                    array.remove(dFiyat, i)
+                    array.remove(dBar, i)
+                    array.remove(dCizgi, i)
+                    array.remove(dEtiket, i)
+                    array.remove(dBekliyor, i)
+                else
+                    line.set_color(ln, kirikRenk)
+                    line.set_style(ln, line.style_dashed)
+                    if not na(lb)
+                        label.set_color(lb, kirikRenk)
+                    array.set(dBekliyor, i, true)   // tekrar sinyal verme
+            else if modKirilim
+                // Hacimsiz kırılım → geçersiz: kademe durur, hacim onayı beklenir
+                array.set(dBekliyor, i, true)
+            else
+                // Sadece Sinyal modu: kademe hacimsiz de işlenir
+                ln = array.get(dCizgi, i)
+                lb = array.get(dEtiket, i)
+                if kirilanSil
+                    line.delete(ln)
+                    if not na(lb)
+                        label.delete(lb)
+                    if rolDegistir
+                        array.push(kirD, lvl)
+                        array.push(kirDb, array.get(dBar, i))
+                    array.remove(dFiyat, i)
+                    array.remove(dBar, i)
+                    array.remove(dCizgi, i)
+                    array.remove(dEtiket, i)
+                    array.remove(dBekliyor, i)
+                else
+                    line.set_color(ln, kirikRenk)
+                    line.set_style(ln, line.style_dashed)
+                    if not na(lb)
+                        label.set_color(lb, kirikRenk)
+                    array.set(dBekliyor, i, true)
+        else
+            // Fiyat seviyenin üstüne geri döndüyse hacim bekleme durumunu sıfırla
+            if modKirilim and array.get(dBekliyor, i) and (anindaTetik ? close > lvl : close >= lvl)
+                array.set(dBekliyor, i, false)
+        i -= 1
+
+// DİRENÇ KIRILIMI → AL
+if onayli and array.size(rFiyat) > 0
+    i = array.size(rFiyat) - 1
+    while i >= 0
+        lvl = array.get(rFiyat, i)
+        kirildiAn = anindaTetik ? high > lvl : close > lvl
+        if kirildiAn
+            rKirildi := true
+            if volOK
+                ilkKirilim = modKirilim ? not array.get(rBekliyor, i) : (anindaTetik ? high[1] <= lvl : close[1] <= lvl)
+                if ilkKirilim and (na(sonALBar) or bar_index - sonALBar >= minMumAL)
+                    alSinyal := true
+                    sonALBar := bar_index
+                    sonYon   := 1
+                ln = array.get(rCizgi, i)
+                lb = array.get(rEtiket, i)
+                if kirilanSil
+                    line.delete(ln)
+                    if not na(lb)
+                        label.delete(lb)
+                    if rolDegistir
+                        array.push(kirR, lvl)
+                        array.push(kirRb, array.get(rBar, i))
+                    array.remove(rFiyat, i)
+                    array.remove(rBar, i)
+                    array.remove(rCizgi, i)
+                    array.remove(rEtiket, i)
+                    array.remove(rBekliyor, i)
+                else
+                    line.set_color(ln, kirikRenk)
+                    line.set_style(ln, line.style_dashed)
+                    if not na(lb)
+                        label.set_color(lb, kirikRenk)
+                    array.set(rBekliyor, i, true)
+            else if modKirilim
+                array.set(rBekliyor, i, true)
+            else
+                ln = array.get(rCizgi, i)
+                lb = array.get(rEtiket, i)
+                if kirilanSil
+                    line.delete(ln)
+                    if not na(lb)
+                        label.delete(lb)
+                    if rolDegistir
+                        array.push(kirR, lvl)
+                        array.push(kirRb, array.get(rBar, i))
+                    array.remove(rFiyat, i)
+                    array.remove(rBar, i)
+                    array.remove(rCizgi, i)
+                    array.remove(rEtiket, i)
+                    array.remove(rBekliyor, i)
+                else
+                    line.set_color(ln, kirikRenk)
+                    line.set_style(ln, line.style_dashed)
+                    if not na(lb)
+                        label.set_color(lb, kirikRenk)
+                    array.set(rBekliyor, i, true)
+        else
+            if modKirilim and array.get(rBekliyor, i) and (anindaTetik ? close < lvl : close <= lvl)
+                array.set(rBekliyor, i, false)
+        i -= 1
+
+//──────────────────── ROL DEĞİŞİMİ ────────────────────
+if rolDegistir
+    if array.size(kirD) > 0
+        for j = 0 to array.size(kirD) - 1
+            f_ekle(rFiyat, rBar, rCizgi, rEtiket, rBekliyor, array.get(kirD, j), array.get(kirDb, j), direncRenk, direncYazi, maxDirenc)
+    if array.size(kirR) > 0
+        for j = 0 to array.size(kirR) - 1
+            f_ekle(dFiyat, dBar, dCizgi, dEtiket, dBekliyor, array.get(kirR, j), array.get(kirRb, j), destekRenk, destekYazi, maxDestek)
+
+//──────────────────── AL / SAT ETİKETLERİ (FİYAT + HACİM) ────────────────────
+hTxt = hacimFiltre and hacimEtiket ? "  " + str.tostring(hacimOrani, "#.#") + "x" : ""
+if sinyalOn and alSinyal
+    label.new(bar_index, na, "AL  " + str.tostring(close, format.mintick) + hTxt, yloc = yloc.belowbar, style = label.style_label_up, color = alRenk, textcolor = color.white, size = sBoyut)
+if sinyalOn and satSinyal
+    label.new(bar_index, na, "SAT  " + str.tostring(close, format.mintick) + hTxt, yloc = yloc.abovebar, style = label.style_label_down, color = satRenk, textcolor = color.white, size = sBoyut)
+
+plotshape(alSinyal,  "AL",  shape.triangleup,   location.belowbar, color = alRenk,  size = size.small)
+plotshape(satSinyal, "SAT", shape.triangledown, location.abovebar, color = satRenk, size = size.small)
+
+//──────────────────── ETİKETLERİ SAĞ KENARA TAŞI ────────────────────
+if barstate.islast and etiketAcik
+    if array.size(dEtiket) > 0
+        for i = 0 to array.size(dEtiket) - 1
+            lb = array.get(dEtiket, i)
+            if not na(lb)
+                label.set_x(lb, bar_index + 5)
+    if array.size(rEtiket) > 0
+        for i = 0 to array.size(rEtiket) - 1
+            lb = array.get(rEtiket, i)
+            if not na(lb)
+                label.set_x(lb, bar_index + 5)
+
+//──────────────────── HEDEF PROJEKSİYONLARI ────────────────────
+var projC = array.new<line>()
+var projE = array.new<label>()
+var projO = array.new<label>()
+
+f_projTemizle(cA, eA, oA) =>
+    if array.size(cA) > 0
+        for i = 0 to array.size(cA) - 1
+            line.delete(array.get(cA, i))
+        array.clear(cA)
+    if array.size(eA) > 0
+        for i = 0 to array.size(eA) - 1
+            label.delete(array.get(eA, i))
+        array.clear(eA)
+    if array.size(oA) > 0
+        for i = 0 to array.size(oA) - 1
+            label.delete(array.get(oA, i))
+        array.clear(oA)
+
+f_projCiz(cA, eA, oA, hedef, yukari) =>
+    fark   = hedef - close
+    yuzde  = 100 * fark / close
+    tickS  = fark / syminfo.mintick
+    isaret = fark >= 0 ? "+" : ""
+    txt    = isaret + str.tostring(fark, format.mintick) + " (" + isaret + str.tostring(yuzde, "#.##") + "%) " + isaret + str.tostring(tickS, "#")
+    renk   = yukari ? longRenk : shortRenk
+    ln = line.new(bar_index + 6, close, bar_index + 6, hedef, color = color.new(renk, 25), width = 1, style = line.style_dotted)
+    ok = label.new(bar_index + 6, math.avg(close, hedef), "", style = yukari ? label.style_arrowup : label.style_arrowdown, color = color.new(renk, 15), size = size.small)
+    tx = label.new(bar_index + 6, hedef, txt, style = label.style_label_right, color = color.new(#1e222d, 10), textcolor = color.white, size = size.small)
+    array.push(cA, ln)
+    array.push(oA, ok)
+    array.push(eA, tx)
+
+if barstate.islast and projOn
+    f_projTemizle(projC, projE, projO)
+    otomatik = projYontem == "Otomatik (Son Sinyale Göre)"
+    longGoster  = projYontem == "Sadece Long (Yukarı)"  or projYontem == "Her İkisi" or (otomatik and sonYon >= 0)
+    shortGoster = projYontem == "Sadece Short (Aşağı)" or projYontem == "Her İkisi" or (otomatik and sonYon <= 0)
+    if longGoster and array.size(rFiyat) > 0
+        for i = 0 to array.size(rFiyat) - 1
+            hedef = array.get(rFiyat, i)
+            if hedef > close + syminfo.mintick
+                f_projCiz(projC, projE, projO, hedef, true)
+    if shortGoster and array.size(dFiyat) > 0
+        for i = 0 to array.size(dFiyat) - 1
+            hedef = array.get(dFiyat, i)
+            if hedef < close - syminfo.mintick
+                f_projCiz(projC, projE, projO, hedef, false)
+
+//──────────────────── ALARMLAR ────────────────────
+bool dTemas = false
+bool rTemas = false
+if array.size(dFiyat) > 0
+    for i = 0 to array.size(dFiyat) - 1
+        lvl = array.get(dFiyat, i)
+        if low <= lvl and close >= lvl
+            dTemas := true
+if array.size(rFiyat) > 0
+    for i = 0 to array.size(rFiyat) - 1
+        lvl = array.get(rFiyat, i)
+        if high >= lvl and close <= lvl
+            rTemas := true
+
+alertcondition(alSinyal,  "🟢 AL — Hacimli Direnç Kırılımı",  "Direnç hacim onaylı kırıldı → AL")
+alertcondition(satSinyal, "🔴 SAT — Hacimli Destek Kırılımı", "Destek hacim onaylı kırıldı → SAT")
+alertcondition(dTemas,    "🔨 Destek Teması (Tokoz Bölgesi)", "Fiyat destek kademesine temas etti")
+alertcondition(rTemas,    "⛔ Direnç Teması", "Fiyat direnç kademesine temas etti")
+alertcondition(dKirildi,  "💥 Destek Kırıldı", "Fiyat bir destek kademesinin altına geçti")
+alertcondition(rKirildi,  "💥 Direnç Kırıldı", "Fiyat bir direnç kademesinin üstüne geçti")

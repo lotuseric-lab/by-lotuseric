@@ -1,0 +1,288 @@
+//@version=6
+indicator("MONEY TRADER - ADX DI Kesişim [MACD + RSI ONAYLI]", overlay=false, max_lines_count=500, max_labels_count=500)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 1. GİRDİLER (INPUTS)
+// ═══════════════════════════════════════════════════════════════════════════════
+grpTemel = "Temel Ayarlar"
+adxLevel     = input.float(50.0, "Kesişim Seviyesi 1 (DI+ AL)", step=1, group=grpTemel)
+adxLevel2    = input.float(35.0, "Kesişim Seviyesi 2 (DI- SAT)", step=1, group=grpTemel)
+minMumAralik = input.int(40, "Aynı Sinyal Arası Min. Mum Sayısı", minval=0, group=grpTemel, tooltip="Aynı türden (AL-AL veya SAT-SAT) sinyaller arasında olması gereken minimum mum sayısı.")
+
+grpFiltre = "🛡️ Fake Sinyal Filtreleri"
+useAdxFilter = input.bool(false, "ADX Trend Filtresini Kullan", group=grpFiltre, tooltip="ADX belirli seviyenin altındaysa sinyal üretme")
+adxMinLevel  = input.float(25.0, "Min. ADX Seviyesi", minval=10, maxval=50, step=1, group=grpFiltre)
+minDiGap     = input.float(5.0, "Min. DI+ / DI- Mesafesi", minval=0, step=0.5, group=grpFiltre, tooltip="DI+ ve DI- arasındaki fark bu değerden küçükse sinyal geçersiz")
+tersSinyalBekleme = input.int(5, "Ters Sinyal Bekleme Süresi (Mum)", minval=0, group=grpFiltre)
+useHacimFilter = input.bool(true, "Hacim Onayı", group=grpFiltre, tooltip="Sinyal anında hacim ortalamanın üzerinde olmalı")
+hacimPer     = input.int(20, "Hacim Ortalama Periyodu", minval=5, group=grpFiltre)
+hacimCarpan  = input.float(1.2, "Hacim Çarpanı", minval=0.5, step=0.1, group=grpFiltre)
+
+// 🆕 YENİ: MACD AYARLARI (Momentum Onayı İçin)
+grpMACD = "🚀 MACD Filtresi (Kırılım Onayı)"
+useMACDFilter = input.bool(true, "MACD Onayını Kullan (Önerilen)", group=grpMACD, tooltip="AL için MACD > Sinyal, SAT için MACD < Sinyal olmalıdır.")
+macdFast = input.int(12, "MACD Hızlı EMA", group=grpMACD)
+macdSlow = input.int(26, "MACD Yavaş EMA", group=grpMACD)
+macdSignal = input.int(9, "MACD Sinyal", group=grpMACD)
+
+grpDI = "DI+ ve DI- Ayarları"
+diLen = input.int(14, "DI Hesaplama Periyodu", group=grpDI)
+showDI = input.bool(true, "DI+ ve DI- Çizgilerini Göster", group=grpDI)
+diLineWidth = input.int(2, "DI Çizgi Kalınlığı", minval=1, maxval=4, group=grpDI)
+diPlusColor = input.color(#00e676, "DI+ Çizgi Rengi", group=grpDI)
+diMinusColor = input.color(#ff1744, "DI- Çizgi Rengi", group=grpDI)
+diRefLevel = input.float(6.0, "DI Referans Seviyesi", step=1.0, group=grpDI)
+showDIRefLevel = input.bool(true, "DI Referans Seviyesini Göster", group=grpDI)
+
+grpRSI = "RSI Ayarları (Dip Onayı)"
+rsiLen = input.int(14, "RSI Periyodu", minval=2, maxval=50, group=grpRSI)
+showRSI = input.bool(true, "RSI Çizgisini Göster", group=grpRSI)
+rsiColor = input.color(#bc8cff, "RSI Çizgi Rengi", group=grpRSI)
+rsiLineWidth = input.int(2, "RSI Çizgi Kalınlığı", minval=1, maxval=4, group=grpRSI)
+rsiOverbought = input.float(70.0, "RSI Aşırı Alım Seviyesi", step=5.0, group=grpRSI)
+rsiOversold = input.float(30.0, "RSI Aşırı Satım Seviyesi", step=5.0, group=grpRSI)
+rsiMiddle = input.float(50.0, "RSI Orta Seviye", step=10.0, group=grpRSI)
+showRSILevels = input.bool(true, "RSI Seviye Çizgilerini Göster", group=grpRSI)
+// 🆕 YENİ: Dip Al için RSI Maksimum Seviyesi (Düşen bıçağı tutmamak için)
+rsiMaxForDip = input.float(45.0, "DİP AL için Maks. RSI Değeri", step=1.0, group=grpRSI, tooltip="DİP AL sinyali için RSI bu değerin altında olmalıdır.")
+
+grpCizgi = "Yatay Çizgiler (Ana Grafik)"
+plusTepeCiz  = input.bool(true, "DI+ Tepe → Fiyat Tepesi", group=grpCizgi)
+minusTepeCiz = input.bool(true, "DI- Tepe → Fiyat Dibi", group=grpCizgi)
+plusDipCiz   = input.bool(true, "DI+ Dip → Fiyat Dibi (Destek)", group=grpCizgi)
+minusDipCiz  = input.bool(true, "DI- Dip → Fiyat Tepesi (Direnç)", group=grpCizgi)
+pivotSol     = input.int(5, "Pivot Sol Bar", minval=1, group=grpCizgi)
+pivotSag     = input.int(3, "Pivot Sağ Bar", minval=1, group=grpCizgi)
+cizgiStil    = input.string("Düz", "Çizgi Stili", options=["Düz", "Kesikli", "Noktalı"], group=grpCizgi)
+cizgiKalinlik= input.int(1, "Çizgi Kalınlığı", minval=1, maxval=4, group=grpCizgi)
+sadeceSon    = input.bool(true, "Her Türde Sadece Son Çizgiyi Tut", group=grpCizgi)
+maksCizgi    = input.int(10, "Maks. Çizgi Sayısı", minval=1, maxval=100, group=grpCizgi)
+etiketGoster = input.bool(true, "Sağ Kenarda Fiyat Etiketi", group=grpCizgi)
+tipGoster    = input.bool(true, "Etiketlerde TEPE/DİP/DESTEK/DİRENÇ Yazısı", group=grpCizgi)
+
+grpGorsel = "Görsel"
+showAdxLine   = input.bool(false, "ADX Çizgisini Alt Panele Ekle", group=grpGorsel)
+showDashboard = input.bool(true, "Dashboard Göster", group=grpGorsel)
+alRenk  = input.color(#00e676, "AL Rengi", group=grpGorsel)
+satRenk = input.color(#ff1744, "SAT Rengi", group=grpGorsel)
+adxRenk = input.color(#ffea00, "ADX Rengi", group=grpGorsel)
+dipAlRenk = input.color(#00ff88, "DİP AL Rengi", group=grpGorsel)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 2. VERİ İŞLEME (DATA PROCESSING LAYER)
+// ═══════════════════════════════════════════════════════════════════════════════
+upMove   = ta.change(high)
+downMove = -ta.change(low)
+
+plusDM  = na(upMove) ? na : (upMove > downMove and upMove > 0 ? upMove : 0.0)
+minusDM = na(downMove) ? na : (downMove > upMove and downMove > 0 ? downMove : 0.0)
+
+trur    = ta.rma(ta.tr, diLen)
+plusDI  = 100.0 * ta.rma(plusDM, diLen) / trur
+minusDI = 100.0 * ta.rma(minusDM, diLen) / trur
+
+dx  = 100 * math.abs(plusDI - minusDI) / (plusDI + minusDI)
+adx = ta.rma(dx, diLen)
+
+// RSI Hesaplaması
+rsi = ta.rsi(close, rsiLen)
+
+// 🆕 YENİ: MACD Hesaplaması
+[macdLine, signalLine, histLine] = ta.macd(close, macdFast, macdSlow, macdSignal)
+
+// Hacim ortalaması
+hacimOrt = ta.sma(volume, hacimPer)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 3. SİNYAL SİSTEMİ VE FİLTRELER (DECISION LAYER)
+// ═══════════════════════════════════════════════════════════════════════════════
+// Ham sinyaller
+bool rawAl  = ta.crossover(plusDI, adxLevel)
+bool rawSat = ta.crossover(minusDI, adxLevel2)
+bool rawDipAl = ta.crossover(plusDI, diRefLevel)
+
+// Son sinyalın oluştuğu mumu hafızada tut
+var int lastAlBar    = na
+var int lastSatBar   = na
+var int lastDipAlBar = na
+
+// Filtre kontrolleri
+bool adxOk      = not useAdxFilter or adx > adxMinLevel
+bool diGapOk    = math.abs(plusDI - minusDI) >= minDiGap
+bool hacimOk    = not useHacimFilter or volume > hacimOrt * hacimCarpan
+bool tersSinyalOkAl  = na(lastSatBar) or (bar_index - lastSatBar >= tersSinyalBekleme)
+bool tersSinyalOkSat = na(lastAlBar)  or (bar_index - lastAlBar  >= tersSinyalBekleme)
+
+bool ayniSinyalOkAl    = na(lastAlBar)    or (bar_index - lastAlBar    >= minMumAralik)
+bool ayniSinyalOkSat   = na(lastSatBar)   or (bar_index - lastSatBar   >= minMumAralik)
+bool ayniSinyalOkDipAl = na(lastDipAlBar) or (bar_index - lastDipAlBar >= minMumAralik)
+
+// 🆕 YENİ: MACD ve RSI Mantıksal Onayları
+bool macdOkAl  = not useMACDFilter or (macdLine > signalLine) // AL için MACD boğa olmalı
+bool macdOkSat = not useMACDFilter or (macdLine < signalLine) // SAT için MACD ayı olmalı
+bool rsiDipOk  = rsi < rsiMaxForDip // DİP AL için RSI'ın aşırı şişmemiş olması gerekir
+
+// Tüm filtreleri birleştir (Yüksek Başarı Oranlı Sinyaller)
+bool alSinyal    = rawAl    and adxOk and diGapOk and hacimOk and tersSinyalOkAl  and ayniSinyalOkAl and macdOkAl
+bool satSinyal   = rawSat   and adxOk and diGapOk and hacimOk and tersSinyalOkSat and ayniSinyalOkSat and macdOkSat
+bool dipAlSinyal = rawDipAl and adxOk and diGapOk and hacimOk and ayniSinyalOkDipAl and rsiDipOk
+
+// Sinyal oluştuğunda son bar indeksini güncelle
+if alSinyal
+    lastAlBar := bar_index
+if satSinyal
+    lastSatBar := bar_index
+if dipAlSinyal
+    lastDipAlBar := bar_index
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 4. PİVOT SEVİYELERİ
+// ═══════════════════════════════════════════════════════════════════════════════
+float plusTepeD  = ta.pivothigh(plusDI, pivotSol, pivotSag)
+float minusTepeD = ta.pivothigh(minusDI, pivotSol, pivotSag)
+float plusDipD   = ta.pivotlow(plusDI, pivotSol, pivotSag)
+float minusDipD  = ta.pivotlow(minusDI, pivotSol, pivotSag)
+
+var float tepeSeviye   = na
+var float dipSeviye    = na
+var float destekSeviye = na
+var float direncSeviye = na
+
+if not na(plusTepeD)
+    tepeSeviye := high[pivotSag]
+if not na(minusTepeD)
+    dipSeviye := low[pivotSag]
+if not na(plusDipD)
+    destekSeviye := low[pivotSag]
+if not na(minusDipD)
+    direncSeviye := high[pivotSag]
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 5. GÖRSEL KATMAN - ÇİZGİLER (VISUALIZATION LAYER)
+// ═══════════════════════════════════════════════════════════════════════════════
+stil = cizgiStil == "Düz" ? line.style_solid : cizgiStil == "Kesikli" ? line.style_dashed : line.style_dotted
+
+var array<line>  ptCizgi  = array.new<line>()
+var array<label> ptEtiket = array.new<label>()
+var array<line>  mtCizgi  = array.new<line>()
+var array<label> mtEtiket = array.new<label>()
+var array<line>  pdCizgi  = array.new<line>()
+var array<label> pdEtiket = array.new<label>()
+var array<line>  mdCizgi  = array.new<line>()
+var array<label> mdEtiket = array.new<label>()
+
+cizgiCiz(array<line> cArr, array<label> lArr, bool sinyal, float fiyat, color renk, string onEk) =>
+    if sinyal
+        if sadeceSon
+            while array.size(cArr) > 0
+                line.delete(array.pop(cArr))
+            while array.size(lArr) > 0
+                label.delete(array.pop(lArr))
+        string metin = (tipGoster ? onEk + "  " : "") + str.tostring(fiyat, format.mintick)
+        array.push(cArr, line.new(bar_index - pivotSag, fiyat, bar_index, fiyat, color=renk, width=cizgiKalinlik, style=stil, extend=extend.right, force_overlay=true))
+        if etiketGoster
+            array.push(lArr, label.new(bar_index, fiyat, metin, style=label.style_label_left, color=renk, textcolor=color.white, size=size.small, force_overlay=true))
+        if not sadeceSon and array.size(cArr) > maksCizgi
+            line.delete(array.shift(cArr))
+            if array.size(lArr) > 0
+                label.delete(array.shift(lArr))
+
+etiketTasi(array<label> lArr) =>
+    if array.size(lArr) > 0
+        for i = 0 to array.size(lArr) - 1
+            label.set_x(array.get(lArr, i), bar_index)
+
+cizgiCiz(ptCizgi, ptEtiket, plusTepeCiz  and not na(plusTepeD),  high[pivotSag], alRenk,  "TEPE")
+cizgiCiz(mtCizgi, mtEtiket, minusTepeCiz and not na(minusTepeD), low[pivotSag],  satRenk, "DİP")
+cizgiCiz(pdCizgi, pdEtiket, plusDipCiz   and not na(plusDipD),   low[pivotSag],  alRenk,  "DESTEK")
+cizgiCiz(mdCizgi, mdEtiket, minusDipCiz  and not na(minusDipD),  high[pivotSag], satRenk, "DİRENÇ")
+
+if etiketGoster
+    etiketTasi(ptEtiket)
+    etiketTasi(mtEtiket)
+    etiketTasi(pdEtiket)
+    etiketTasi(mdEtiket)
+
+// Göstergeler
+pDI = plot(showDI ? plusDI : na, "DI+", color=diPlusColor, linewidth=diLineWidth)
+pDM = plot(showDI ? minusDI : na, "DI-", color=diMinusColor, linewidth=diLineWidth)
+fill(pDI, pDM, color = plusDI > minusDI ? color.new(diPlusColor, 90) : color.new(diMinusColor, 90), title="DI Dolgu Alani")
+plot(showAdxLine ? adx : na, "ADX", color=adxRenk, linewidth=2, style=plot.style_circles)
+plot(showRSI ? rsi : na, "RSI", color=rsiColor, linewidth=rsiLineWidth)
+
+hline(showDIRefLevel ? diRefLevel : na, "DI Referans Seviyesi", color=color.gray, linestyle=hline.style_dashed)
+hline(showRSILevels ? rsiOverbought : na, "RSI Aşırı Alım", color=color.new(color.red, 50), linestyle=hline.style_dashed)
+hline(showRSILevels ? rsiOversold : na, "RSI Aşırı Satım", color=color.new(color.green, 50), linestyle=hline.style_dashed)
+hline(showRSILevels ? rsiMiddle : na, "RSI Orta Seviye", color=color.new(color.gray, 70), linestyle=hline.style_dotted)
+hline(adxLevel,  "Kesişim Seviyesi 1 (DI)", color=color.new(color.white, 30),  linestyle=hline.style_solid)
+hline(adxLevel2, "Kesişim Seviyesi 2 (DI)", color=color.new(color.orange, 30), linestyle=hline.style_dashed)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 6. SİNYALLER - FİYAT ETİKETLİ (EXECUTION LAYER)
+// ═══════════════════════════════════════════════════════════════════════════════
+if alSinyal
+    label.new(bar_index, low, "AL\n" + str.tostring(close, format.mintick), 
+         style=label.style_label_up, color=alRenk, textcolor=color.white, 
+         size=size.normal, force_overlay=true)
+
+if satSinyal
+    label.new(bar_index, high, "SAT\n" + str.tostring(close, format.mintick), 
+         style=label.style_label_down, color=satRenk, textcolor=color.white, 
+         size=size.normal, force_overlay=true)
+
+if dipAlSinyal
+    label.new(bar_index, low, "DİP AL\n" + str.tostring(close, format.mintick), 
+         style=label.style_label_up, color=dipAlRenk, textcolor=color.white, 
+         size=size.normal, force_overlay=true)
+
+plotshape(alSinyal,  "AL",  style=shape.triangleup,   location=location.belowbar, color=alRenk,  size=size.small, force_overlay=true)
+plotshape(satSinyal, "SAT", style=shape.triangledown, location=location.abovebar, color=satRenk, size=size.small, force_overlay=true)
+plotshape(dipAlSinyal, "DİP AL", style=shape.triangleup, location=location.belowbar, color=dipAlRenk, size=size.small, force_overlay=true)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 7. DASHBOARD (MONITORING LAYER)
+// ═══════════════════════════════════════════════════════════════════════════════
+if showDashboard
+    var table dash = table.new(position.top_right, 2, 12, bgcolor=color.new(color.black, 85), frame_width=1, frame_color=color.gray, border_width=1)
+
+    string trendDurum = plusDI > minusDI ? "YÜKSELİŞ" : "DÜŞÜŞ"
+    string sonSinyal  = dipAlSinyal ? "DİP AL" : (alSinyal ? "AL" : (satSinyal ? "SAT" : "BEKLE"))
+    color sinyalRenk  = dipAlSinyal ? dipAlRenk : (alSinyal ? alRenk : (satSinyal ? satRenk : color.gray))
+    
+    // MACD Durumu
+    string macdDurum = macdLine > signalLine ? "BOĞA (AL)" : "AYI (SAT)"
+    color macdRenk = macdLine > signalLine ? color.lime : color.red
+
+    table.cell(dash, 0, 0, "Sembol", text_color=color.white, text_size=size.small, bgcolor=color.new(color.gray, 70))
+    table.cell(dash, 1, 0, syminfo.ticker, text_color=color.yellow, text_size=size.small, bgcolor=color.new(color.gray, 70))
+    table.cell(dash, 0, 1, "DI+ / DI-", text_color=color.white, text_size=size.small)
+    table.cell(dash, 1, 1, str.tostring(plusDI, "#.##") + " / " + str.tostring(minusDI, "#.##"), text_color=plusDI > minusDI ? diPlusColor : diMinusColor, text_size=size.small)
+    table.cell(dash, 0, 2, "ADX", text_color=color.white, text_size=size.small)
+    table.cell(dash, 1, 2, str.tostring(adx, "#.##"), text_color=adx > adxMinLevel ? adxRenk : color.gray, text_size=size.small)
+    table.cell(dash, 0, 3, "Trend", text_color=color.white, text_size=size.small)
+    table.cell(dash, 1, 3, trendDurum, text_size=size.small)
+    table.cell(dash, 0, 4, "Son Sinyal", text_color=color.white, text_size=size.small, bgcolor=color.new(color.gray, 70))
+    table.cell(dash, 1, 4, sonSinyal, text_color=sinyalRenk, text_size=size.normal, bgcolor=color.new(color.gray, 70))
+    table.cell(dash, 0, 5, "MACD Onayı", text_color=color.white, text_size=size.small) // Yeni Eklendi
+    table.cell(dash, 1, 5, macdDurum, text_color=macdRenk, text_size=size.small)
+    table.cell(dash, 0, 6, "Hacim", text_color=color.white, text_size=size.small)
+    table.cell(dash, 1, 6, str.tostring(volume, "#") + " / " + str.tostring(hacimOrt * hacimCarpan, "#"), text_color=hacimOk ? color.lime : color.red, text_size=size.small)
+    table.cell(dash, 0, 7, "RSI Durumu", text_color=color.white, text_size=size.small)
+    table.cell(dash, 1, 7, str.tostring(rsi, "#.##"), text_color=rsi > rsiOverbought ? color.red : (rsi < rsiOversold ? color.green : color.gray), text_size=size.small)
+    table.cell(dash, 0, 8, "DI Mesafesi", text_color=color.white, text_size=size.small)
+    table.cell(dash, 1, 8, str.tostring(math.abs(plusDI - minusDI), "#.##") + " / Min:" + str.tostring(minDiGap, "#.#"), text_color=diGapOk ? color.lime : color.red, text_size=size.small)
+    table.cell(dash, 0, 9, "ADX Filtre", text_color=color.white, text_size=size.small)
+    table.cell(dash, 1, 9, adxOk ? "AKTİF" : "PASİF", text_color=adxOk ? color.lime : color.red, text_size=size.small)
+    table.cell(dash, 0, 10, "DI Ref. Seviye", text_color=color.white, text_size=size.small)
+    table.cell(dash, 1, 10, str.tostring(diRefLevel, "#.#"), text_color=plusDI > diRefLevel ? color.lime : color.red, text_size=size.small)
+    table.cell(dash, 0, 11, "Fiyat", text_color=color.white, text_size=size.small)
+    table.cell(dash, 1, 11, str.tostring(close, format.mintick), text_color=color.white, text_size=size.small)
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// 8. ALARMLAR (EVENT LAYER)
+// ═══════════════════════════════════════════════════════════════════════════════
+alertcondition(alSinyal,  "AL Sinyali", "MONEY TRADER: {{ticker}} - DI+ Seviye 1'i kesti (AL)! Fiyat: {{close}}")
+alertcondition(satSinyal, "SAT Sinyali", "MONEY TRADER: {{ticker}} - DI- Seviye 2'yi kesti (SAT)! Fiyat: {{close}}")
+alertcondition(dipAlSinyal, "DİP AL Sinyali", "MONEY TRADER: {{ticker}} - DI+ Referans Seviyesini kesti (DİP AL)! Fiyat: {{close}}")
+alertcondition(ta.crossover(rsi, rsiOverbought), "RSI Aşırı Alım", "MONEY TRADER: {{ticker}} - RSI aşırı alım bölgesine girdi!")
+alertcondition(ta.crossunder(rsi, rsiOversold), "RSI Aşırı Satım", "MONEY TRADER: {{ticker}} - RSI aşırı satım bölgesine girdi!")

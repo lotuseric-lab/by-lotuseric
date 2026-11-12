@@ -42,6 +42,15 @@
         }
         column += end - i; i = end; continue;
       }
+      if (ch === "#") {
+        const match = text.slice(i).match(/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?![0-9a-fA-F])/);
+        if (match) {
+          const startLine = line, startColumn = column;
+          push("STRING", "#" + match[1].toLowerCase(), startLine, startColumn);
+          i += match[0].length; column += match[0].length;
+          continue;
+        }
+      }
       if (ch === '"' || ch === "'") {
         const quote = ch, startLine = line, startColumn = column;
         let value = "", closed = false;
@@ -95,7 +104,7 @@
         i++; column++;
         while (/[A-Za-z0-9_]/.test(text[i] || "")) { i++; column++; }
         const word = text.slice(start, i);
-        push(word === "true" || word === "false" || word === "na" ? "LITERAL" : "IDENTIFIER",
+        push(word === "true" || word === "false" ? "LITERAL" : (word === "and" || word === "or" || word === "not") ? "OPERATOR" : "IDENTIFIER",
           word, startLine, startColumn);
         continue;
       }
