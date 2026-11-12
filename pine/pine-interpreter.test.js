@@ -30,6 +30,23 @@ assert.ok(Math.abs(result.plots[0].values.at(-1) - 139) < 1e-9);
 assert.equal(result.plots[1].values.at(-1), 138);
 
 result = runPine(compile(`//@version=6
+indicator("Input test", overlay=false)
+length = input.int(3, "Length", minval=1, maxval=10)
+plot(ta.sma(close, length), "Average")
+`), bars);
+assert.equal(result.metadata.title, "Input test");
+assert.equal(result.metadata.overlay, false);
+assert.equal(result.inputDefs[0].key, "Length");
+assert.equal(result.inputDefs[0].def, 3);
+assert.equal(result.plots[0].values.at(-1), 139);
+result = runPine(compile(`//@version=6
+indicator("Input test", overlay=false)
+length = input.int(3, "Length", minval=1, maxval=10)
+plot(ta.sma(close, length), "Average")
+`), bars, {inputs:{Length:5}});
+assert.equal(result.plots[0].values.at(-1), 138);
+
+result = runPine(compile(`//@version=6
 indicator("History and conditions")
 var float total = 0.0
 if close > close[1]
