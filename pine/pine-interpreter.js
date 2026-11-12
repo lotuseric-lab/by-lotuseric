@@ -275,6 +275,7 @@
       new:(x1,y1,x2,y2,...args)=>{const c=drawCfg(args),o={id:drawingId++,x1:value(x1),y1:value(y1),x2:value(x2),y2:value(y2),color:c.color||"#2962ff",width:c.width||2,style:c.style||"solid",extend:c.extend||"none",xloc:c.xloc||"bar_index"};outputs.lines.push(o);return o;},
       set_x1:(o,v)=>{o=value(o);if(o)o.x1=value(v);},set_y1:(o,v)=>{o=value(o);if(o)o.y1=value(v);},set_x2:(o,v)=>{o=value(o);if(o)o.x2=value(v);},set_y2:(o,v)=>{o=value(o);if(o)o.y2=value(v);},set_color:(o,v)=>{o=value(o);if(o)o.color=value(v);},set_width:(o,v)=>{o=value(o);if(o)o.width=value(v);},set_style:(o,v)=>{o=value(o);if(o)o.style=value(v);},set_extend:(o,v)=>{o=value(o);if(o)o.extend=value(v);},get_x1:o=>value(o)?.x1??NA,get_y1:o=>value(o)?.y1??NA,get_x2:o=>value(o)?.x2??NA,get_y2:o=>value(o)?.y2??NA,delete:o=>{o=value(o);if(o)o.deleted=true;},get_price:(o,x)=>{o=value(o);if(!o)return NA;const dx=num(o.x2)-num(o.x1);return dx===0?NA:num(o.y1)+(num(o.y2)-num(o.y1))*(num(value(x))-num(o.x1))/dx;}
     };
+    const linefillNS={new:(line1,line2,color)=>{const o={id:drawingId++,line1:value(line1),line2:value(line2),color:value(color)||"rgba(41,98,255,0.18)",deleted:false};outputs.linefills.push(o);return o;},set_color:(o,c)=>{o=value(o);if(o)o.color=value(c);},delete:o=>{o=value(o);if(o)o.deleted=true;}};
     const labelNS={style_none:"none",style_label_up:"label_up",style_label_down:"label_down",style_label_left:"label_left",style_label_right:"label_right",
       new:(x,y,txt,...args)=>{const c=drawCfg(args),o={id:drawingId++,x:value(x),y:value(y),text:String(value(txt)||""),color:c.color||"#2962ff",textcolor:c.textcolor||"#ffffff",style:c.style||"label_up",size:c.size||"normal",xloc:c.xloc||"bar_index",yloc:c.yloc||"price"};outputs.labels.push(o);return o;},
       set_x:(o,v)=>{o=value(o);if(o)o.x=value(v);},set_y:(o,v)=>{o=value(o);if(o)o.y=value(v);},set_text:(o,v)=>{o=value(o);if(o)o.text=String(value(v)||"");},set_color:(o,v)=>{o=value(o);if(o)o.color=value(v);},set_textcolor:(o,v)=>{o=value(o);if(o)o.textcolor=value(v);},set_style:(o,v)=>{o=value(o);if(o)o.style=value(v);},set_size:(o,v)=>{o=value(o);if(o)o.size=value(v);},delete:o=>{o=value(o);if(o)o.deleted=true;}
@@ -298,8 +299,8 @@
     builtins.xloc={bar_index:"bar_index",bar_time:"bar_time"};
     builtins.yloc={price:"price",abovebar:"abovebar",belowbar:"belowbar"};
     builtins.position={top_left:"top_left",top_center:"top_center",top_right:"top_right",middle_left:"middle_left",middle_center:"middle_center",middle_right:"middle_right",bottom_left:"bottom_left",bottom_center:"bottom_center",bottom_right:"bottom_right"};
-    builtins.line=lineNS;builtins.label=labelNS;builtins.box=boxNS;builtins.table=tableNS;
-    Object.defineProperty(lineNS,"all",{get:()=>outputs.lines.filter(x=>!x.deleted)});Object.defineProperty(labelNS,"all",{get:()=>outputs.labels.filter(x=>!x.deleted)});Object.defineProperty(boxNS,"all",{get:()=>outputs.boxes.filter(x=>!x.deleted)});
+    builtins.line=lineNS;builtins.linefill=linefillNS;builtins.label=labelNS;builtins.box=boxNS;builtins.table=tableNS;
+    Object.defineProperty(lineNS,"all",{get:()=>outputs.lines.filter(x=>!x.deleted)});Object.defineProperty(linefillNS,"all",{get:()=>outputs.linefills.filter(x=>!x.deleted)});Object.defineProperty(labelNS,"all",{get:()=>outputs.labels.filter(x=>!x.deleted)});Object.defineProperty(boxNS,"all",{get:()=>outputs.boxes.filter(x=>!x.deleted)});
     Object.assign(labelNS,{style_label_left:"label_left",style_label_right:"label_right",style_label_up:"label_up",style_label_down:"label_down",style_none:"none"});
     Object.assign(builtins.hline,{style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed"});
     return builtins;
@@ -310,7 +311,7 @@
     if(!ast||ast.type!=="Program")throw new TypeError("Geçerli Pine AST bekleniyor.");
     if(ast.diagnostics&&ast.diagnostics.length)throw new PineExecutionError("Kaynakta parse hataları var: "+ast.diagnostics[0].message,ast.diagnostics[0],"PINE_PARSE_ERROR");
     const cleanBars=bars.map((b,i)=>{const o={};for(const k of ["open","high","low","close","volume","time"]){const n=Number(b[k]);if(!Number.isFinite(n))throw new PineExecutionError("Geçersiz "+k+" verisi ("+i+").");o[k]=n;}return Object.freeze(o);});
-    const outputs={plots:[],shapes:[],hlines:[],candles:[],expression:[],labels:[],lines:[],boxes:[],tables:[],fills:[],barColors:[],bgColors:[],alerts:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
+    const outputs={plots:[],shapes:[],hlines:[],candles:[],expression:[],labels:[],lines:[],boxes:[],tables:[],fills:[],linefills:[],barColors:[],bgColors:[],alerts:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
     const inputValues=Object.assign(Object.create(null),opts.inputs||{});
     const global=new Scope();
     const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null),seriesVarNames=new Set();
