@@ -118,14 +118,14 @@
       if(assign===1&&first.type==="IDENTIFIER"){
         return {type:"AssignmentStatement",operator:ts[1].value,target:{type:"Identifier",name:first.value,loc:loc(first)},value:expression(ts,2),...base};
       }
-      if(assign===2&&first.type==="IDENTIFIER"&&ts[1].type==="IDENTIFIER"){
-        return {type:"DeclarationStatement",qualifier:first.value,name:ts[1].value,value:expression(ts,3),...base};
-      }
       if(assign===3&&first.value==="var"&&TYPES.has(ts[1].value)&&ts[2].type==="IDENTIFIER"){
         return {type:"TypedDeclarationStatement",qualifier:"var",valueType:ts[1].value,name:ts[2].value,value:expression(ts,4),...base};
       }
       if(assign===2&&TYPES.has(first.value)&&ts[1].type==="IDENTIFIER"){
         return {type:"TypedDeclarationStatement",qualifier:null,valueType:first.value,name:ts[1].value,value:expression(ts,3),...base};
+      }
+      if(assign===2&&first.type==="IDENTIFIER"&&ts[1].type==="IDENTIFIER"&&first.value!=="var"){
+        return {type:"DeclarationStatement",qualifier:first.value,name:ts[1].value,value:expression(ts,3),...base};
       }
       return {type:"ExpressionStatement",expression:expression(ts),...base};
     }
