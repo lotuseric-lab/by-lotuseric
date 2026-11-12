@@ -133,6 +133,21 @@
       }
       return {type:"ExpressionStatement",expression:expression(ts),...base};
     }
+    function attachElseChain(node,indent){
+      const next=lines[cursor];
+      if(!next||next.indent!==indent||next.tokens[0].value!=="else")return;
+      const line=lines[cursor++];
+      if(line.tokens[1]&&line.tokens[1].value==="if"){
+        const nested={type:"IfStatement",test:expression(line.tokens,2),body:[],alternate:[],loc:loc(line.tokens[0]),indent};
+        node.alternate=[nested];
+        if(lines[cursor]&&lines[cursor].indent>indent)nested.body=parseBlock(indent);
+        else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else if bloğu boş.",line:line.line,column:line.indent});
+        attachElseChain(nested,indent);
+      }else{
+        if(lines[cursor]&&lines[cursor].indent>indent)node.alternate=parseBlock(indent);
+        else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else bloğu boş.",line:line.line,column:line.indent});
+      }
+    }
     function parseBlock(parentIndent) {
       const body=[];
       while(cursor<lines.length){
@@ -151,10 +166,7 @@
           if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
             if(lines[cursor]&&lines[cursor].indent>line.indent)node.body=parseBlock(line.indent);
             else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"Kontrol bloğu için girintili gövde bekleniyor.",line:line.line,column:line.indent});
-            if(node.type==="IfStatement"&&lines[cursor]&&lines[cursor].indent===line.indent&&lines[cursor].tokens[0].value==="else"){
-              const el=lines[cursor++];if(lines[cursor]&&lines[cursor].indent>el.indent)node.alternate=parseBlock(el.indent);
-              else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else bloğu boş.",line:el.line,column:el.indent});
-            }
+            if(node.type==="IfStatement")attachElseChain(node,line.indent);
           }
           body.push(node);
         }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.line||line.line,column:error.column||line.indent});}
@@ -170,10 +182,7 @@
         if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
           if(lines[cursor]&&lines[cursor].indent>line.indent)node.body=parseBlock(line.indent);
           else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"Kontrol bloğu için girintili gövde bekleniyor.",line:line.line,column:line.indent});
-          if(node.type==="IfStatement"&&lines[cursor]&&lines[cursor].indent===line.indent&&lines[cursor].tokens[0].value==="else"){
-            const el=lines[cursor++];if(lines[cursor]&&lines[cursor].indent>el.indent)node.alternate=parseBlock(el.indent);
-            else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else bloğu boş.",line:el.line,column:el.indent});
-          }
+          if(node.type==="IfStatement")attachElseChain(node,line.indent);
         }
         body.push(node);
       }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.line||line.line,column:error.column||line.indent});}
