@@ -394,20 +394,23 @@ function indicatorValues(def){const st=libraryIndicators[def.id]||{},period=Math
   if(center.low===Math.min(...w.map(x=>x.low))&&w.every((x,j)=>j===4||center.low<x.low)){buy={top:Math.min(center.close,center.open),bottom:center.low,from:barData[ci].time,index:ci};}
  }
  const last=barData[n-1],lastVolAvg=volAvg[n-1],lastRsi=rsi[n-1],volConfirm=st.volConfirmation!==false,rsiFilter=st.rsiFilter!==false;
- if(sell&&last.close>sell.top)sell=null;
+ const sellBroken=!!(sell&&last.close>sell.top);if(sellBroken&&(!volConfirm||(lastVolAvg!==null&&last.volume>lastVolAvg))&&(!rsiFilter||(lastRsi!==null&&lastRsi>50)))out.sellBreak.push({time:last.time,value:last.high});
+ if(sellBroken)sell=null;
  if(buy&&last.close<buy.bottom)buy=null;
  const line=(from,value)=>[{time:from,value},{time:last.time,value}];
- if(sell){out.sellTop=line(sell.from,sell.top);out.sellBottom=line(sell.from,sell.bottom);if(last.close>sell.top&&(!volConfirm||(lastVolAvg!==null&&last.volume>lastVolAvg))&&(!rsiFilter||(lastRsi!==null&&lastRsi>50)))out.sellBreak.push({time:last.time,value:last.high});}
+ if(sell){out.sellTop=line(sell.from,sell.top);out.sellBottom=line(sell.from,sell.bottom);}
  if(buy){out.buyTop=line(buy.from,buy.top);out.buyBottom=line(buy.from,buy.bottom);}
- const start=Math.max(0,n-look),window=barData.slice(start),highest=Math.max(...window.map(x=>x.high)),lowest=Math.min(...window.map(x=>x.low)),dipTop=lowest*1.05,range=highest-lowest,step=range/10,bins=Array(10).fill(0);
- if(Number.isFinite(highest)&&Number.isFinite(lowest)){
-  for(const x of window){const p=x.close;if(!Number.isFinite(p)||step===0)continue;let idx=-1;for(let j=0;j<10;j++){const lower=lowest+step*j,upper=j===9?highest:lowest+step*(j+1);if(p>=lower&&(j===9?p<=upper:p<upper)){idx=j;break;}}if(idx>=0)bins[idx]++;}
+ const majorTopByBar=Array(n).fill(null),dipTopByBar=Array(n).fill(null),majorBottomByBar=Array(n).fill(null),dipBottomByBar=Array(n).fill(null);
+ for(let i=0;i<n;i++){
+  const start=Math.max(0,i-look+1),window=barData.slice(start,i+1),highest=Math.max(...window.map(x=>x.high)),lowest=Math.min(...window.map(x=>x.low)),range=highest-lowest,step=range/10,bins=Array(10).fill(0);
+  if(!Number.isFinite(highest)||!Number.isFinite(lowest))continue;
+  if(step>0){for(const x of window){const p=x.close;for(let j=0;j<10;j++){const lower=lowest+step*j,upper=j===9?highest:lowest+step*(j+1);if(p>=lower&&(j===9?p<=upper:p<upper)){bins[j]++;break;}}}}
   let best=0;for(let j=1;j<10;j++)if(bins[j]>bins[best])best=j;
-  const majorBottom=lowest+step*best,majorTop=best===9?highest:lowest+step*(best+1);
-  for(let i=start;i<n;i++){const x=barData[i],prev=barData[i-1];out.dipTop.push({time:x.time,value:dipTop});out.dipBottom.push({time:x.time,value:lowest});out.majorTop.push({time:x.time,value:majorTop});out.majorBottom.push({time:x.time,value:majorBottom});
-   if(prev&&prev.close<=majorTop&&x.close>majorTop)out.majorBreak.push({time:x.time,value:x.low});
-   if(prev&&prev.close<=dipTop&&x.close>dipTop)out.dipBreak.push({time:x.time,value:x.low});
-  }
+  majorBottomByBar[i]=lowest+step*best;majorTopByBar[i]=best===9?highest:lowest+step*(best+1);dipBottomByBar[i]=lowest;dipTopByBar[i]=lowest*1.05;
+  const x=barData[i],prev=barData[i-1];
+  out.dipTop.push({time:x.time,value:dipTopByBar[i]});out.dipBottom.push({time:x.time,value:dipBottomByBar[i]});out.majorTop.push({time:x.time,value:majorTopByBar[i]});out.majorBottom.push({time:x.time,value:majorBottomByBar[i]});
+  if(prev&&i>0&&majorTopByBar[i-1]!==null&&prev.close<=majorTopByBar[i-1]&&x.close>majorTopByBar[i])out.majorBreak.push({time:x.time,value:x.low});
+  if(prev&&i>0&&dipTopByBar[i-1]!==null&&prev.close<=dipTopByBar[i-1]&&x.close>dipTopByBar[i])out.dipBreak.push({time:x.time,value:x.low});
  }
  return out
 }if(def.kind==='adxDi'){const p=Math.max(2,period),plus=[],minus=[],tr=[],level=Number(st.crossLevel)||10,cool=Math.max(0,Math.min(100,Number(st.cooldown)||10));for(let i=1;i<barData.length;i++){const a=barData[i],b=barData[i-1],up=a.high-b.high,dn=b.low-a.low;plus.push(up>dn&&up>0?up:0);minus.push(dn>up&&dn>0?dn:0);tr.push(Math.max(a.high-a.low,Math.abs(a.high-b.close),Math.abs(a.low-b.close)))}let at=0,ps=0,ms=0,lastAl=-99999,lastSat=-99999,prevPlus=null,prevMinus=null;const out={plus:[],minus:[],buy:[],sell:[],level:[]};for(let i=0;i<tr.length;i++){if(i<p){at+=tr[i];ps+=plus[i];ms+=minus[i];if(i===p-1){at/=p;ps/=p;ms/=p}}else{at=(at*(p-1)+tr[i])/p;ps=(ps*(p-1)+plus[i])/p;ms=(ms*(p-1)+minus[i])/p}if(i>=p-1){const bar=barData[i+1],time=bar.time,diP=at?100*ps/at:0,diM=at?100*ms/at:0,confirmed=bar.confirm===true||bar.confirm==='1'||bar.confirm===1;out.plus.push({time,value:diP});out.minus.push({time,value:diM});out.level.push({time,value:level});if(confirmed&&prevPlus!==null&&diP>level&&prevPlus<=level&&i-lastAl>=cool){out.buy.push({time,value:level});lastAl=i}if(confirmed&&prevMinus!==null&&diM>level&&prevMinus<=level&&i-lastSat>=cool){out.sell.push({time,value:level});lastSat=i}prevPlus=diP;prevMinus=diM}}return out}if(def.kind==='fibRsi'){
