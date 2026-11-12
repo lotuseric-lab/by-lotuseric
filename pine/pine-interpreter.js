@@ -135,6 +135,40 @@
       rising:(s,l)=>{const a=seriesValues(s),n=Math.trunc(num(value(l)));if(a.length<=n)return false;for(let i=a.length-n+1;i<a.length;i++)if(num(a[i])<=num(a[i-1]))return false;return true;},
       barssince: s=>{const a=seriesValues(s);for(let i=a.length-1;i>=0;i--)if(truth(a[i]))return a.length-1-i;return NA;}
     };
+    function fullEma(src,len){const a=seriesValues(src),out=[];let prev=NA;const n=Math.trunc(num(value(len))),alpha=2/(n+1);for(let i=0;i<a.length;i++){if(isNA(a[i])){out.push(NA);continue;}if(isNA(prev)){if(i+1>=n){const w=a.slice(i+1-n,i+1);if(!w.some(isNA))prev=w.reduce((z,x)=>z+num(x),0)/n;}}else prev=alpha*num(a[i])+(1-alpha)*prev;out.push(prev);}return out;}
+    function fullRma(src,len){const a=seriesValues(src),out=[];let prev=NA;const n=Math.trunc(num(value(len)));for(let i=0;i<a.length;i++){if(isNA(a[i])){out.push(NA);continue;}if(isNA(prev)){if(i+1>=n){const w=a.slice(i+1-n,i+1);if(!w.some(isNA))prev=w.reduce((z,x)=>z+num(x),0)/n;}}else prev=(prev*(n-1)+num(a[i]))/n;out.push(prev);}return out;}
+    function pivot(src,left,right,highMode){const a=seriesValues(src),l=Math.max(1,Math.trunc(num(value(left)))),r=Math.max(1,Math.trunc(num(value(right)))),i=a.length-1-r;if(i<l||i<0)return NA;const w=a.slice(i-l,i+r+1);if(w.some(isNA))return NA;const v=a[i],ext=highMode?Math.max(...w.map(num)):Math.min(...w.map(num));return num(v)===ext?v:NA;}
+    const array = {
+      new:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?NA:value(initial)),
+      new_float:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?NA:value(initial)),
+      new_int:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?0:value(initial)),
+      new_bool:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?false:value(initial)),
+      new_string:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?"":value(initial)),
+      new_color:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?NA:value(initial)),
+      from:(...items)=>items.map(value),size:a=>a.length,push:(a,v)=>a.push(value(v)),pop:a=>a.pop(),shift:a=>a.shift(),unshift:(a,v)=>a.unshift(value(v)),
+      get:(a,i)=>a[Math.trunc(num(value(i)))],set:(a,i,v)=>{a[Math.trunc(num(value(i)))]=value(v);return a;},remove:(a,i)=>a.splice(Math.trunc(num(value(i))),1)[0],
+      clear:a=>{a.length=0;},copy:a=>a.slice(),reverse:a=>a.reverse(),sort:(a)=>a.sort((x,y)=>num(x)-num(y)),
+      sum:a=>a.reduce((z,x)=>z+num(x),0),avg:a=>a.length?a.reduce((z,x)=>z+num(x),0)/a.length:NA,
+      min:a=>a.length?Math.min(...a.map(num)):NA,max:a=>a.length?Math.max(...a.map(num)):NA,
+      indexof:(a,v)=>a.indexOf(value(v)),includes:(a,v)=>a.includes(value(v)),slice:(a,l,r)=>a.slice(Math.trunc(num(value(l))),r===undefined?undefined:Math.trunc(num(value(r))))
+    };
+    const str = {
+      tostring:(v)=>isNA(value(v))?"NaN":String(value(v)),length:v=>String(value(v)||"").length,
+      lower:v=>String(value(v)||"").toLowerCase(),upper:v=>String(value(v)||"").toUpperCase(),
+      contains:(a,b)=>String(value(a)).includes(String(value(b))),startswith:(a,b)=>String(value(a)).startsWith(String(value(b))),
+      endswith:(a,b)=>String(value(a)).endsWith(String(value(b))),substring:(a,start,end)=>String(value(a)).slice(Math.trunc(num(value(start))),end===undefined?undefined:Math.trunc(num(value(end)))),
+      format:(fmt,...args)=>{let i=0;return String(value(fmt)).replace(/\\{(\\d+)\\}/g,(m,n)=>args[Number(n)]===undefined?m:String(value(args[Number(n)])));}
+    };
+    ta.macd=(src,fast,slow,signal)=>{const f=fullEma(src,fast),sl=fullEma(src,slow),m=f.map((x,i)=>isNA(x)||isNA(sl[i])?NA:x-sl[i]),sig=fullEma(new SeriesRef(m),signal),i=m.length-1;return [m[i]===undefined?NA:m[i],sig[i]===undefined?NA:sig[i],m[i]===undefined||isNA(sig[i])?NA:m[i]-sig[i]];};
+    ta.bb=(src,len,mult)=>{const basis=sma(src,len),sd=rolling(src,len,w=>{const m=w.reduce((z,x)=>z+num(x),0)/w.length;return Math.sqrt(w.reduce((z,x)=>z+(num(x)-m)**2,0)/w.length);}),k=mult===undefined?2:num(value(mult));return [basis,isNA(sd)?NA:basis+k*sd,isNA(sd)?NA:basis-k*sd];};
+    ta.stoch=(src,peak,valley,len)=>{const hi=highest(peak,len),lo=lowest(valley,len),x=value(src);return isNA(hi)||isNA(lo)||hi===lo?NA:100*(num(x)-lo)/(hi-lo);};
+    ta.pivothigh=(src,l,r)=>pivot(src,l,r,true);ta.pivotlow=(src,l,r)=>pivot(src,l,r,false);
+    ta.roc=(src,len)=>{const d=change(src,len),a=seriesValues(src),prev=a.length>Math.trunc(num(value(len)))?num(a[a.length-1-Math.trunc(num(value(len))) ]):NaN;return !Number.isFinite(prev)||prev===0?NA:d/prev*100;};
+    ta.cum=src=>seriesValues(src).reduce((z,x)=>z+(isNA(x)?0:num(x)),0);
+    ta.linreg=(src,len,offset)=>{const a=seriesValues(src),n=Math.trunc(num(value(len))),off=offset===undefined?0:Math.trunc(num(value(offset)));if(a.length<n||n<2)return NA;const w=a.slice(-n);if(w.some(isNA))return NA;const xm=(n-1)/2,ym=w.reduce((z,x)=>z+num(x),0)/n;let cov=0,vx=0;w.forEach((x,i)=>{cov+=(i-xm)*(num(x)-ym);vx+=(i-xm)**2;});const slope=cov/vx;return ym+slope*((n-1)-off-xm);};
+    ta.mfi=(src,len)=>{const p=seriesValues(src),v=ctx.bars.slice(0,ctx.index+1).map(b=>b.volume),n=Math.trunc(num(value(len)));if(p.length<=n)return NA;let pos=0,neg=0;for(let i=p.length-n;i<p.length;i++){const flow=num(p[i])*v[i];if(num(p[i])>num(p[i-1]))pos+=flow;else if(num(p[i])<num(p[i-1]))neg+=flow;}return neg===0?100:100-100/(1+pos/neg);};
+    ta.vwap=(src)=>{const p=src?seriesValues(src):ctx.bars.slice(0,ctx.index+1).map(b=>(b.high+b.low+b.close)/3);let pv=0,vol=0;ctx.bars.slice(0,ctx.index+1).forEach((b,i)=>{pv+=num(p[i])*b.volume;vol+=b.volume;});return vol?pv/vol:NA;};
+    const barstate={isfirst:ctx.index===0,islast:ctx.index===ctx.bars.length-1,ishistory:ctx.index<ctx.bars.length-1,isrealtime:false,isconfirmed:true,isnew:true};
     const input = {};
     for(const kind of ["int","float","bool","string","source","color","timeframe","symbol"]){
       input[kind]=(def, ...rest)=>{
@@ -149,7 +183,7 @@
     const color = {new:(c,t)=>{const raw=String(value(c)||"#2962ff");const alpha=1-clamp(num(value(t)||0),0,100)/100;return /^#[0-9a-f]{6}$/i.test(raw)?raw+Math.round(alpha*255).toString(16).padStart(2,"0"):raw;},rgb:(r,g,b,t)=>"rgba("+[r,g,b].map(x=>clamp(Math.round(num(value(x))),0,255)).join(",") + ","+(1-clamp(num(value(t)||0),0,100)/100)+")",red:"#f23645",lime:"#089981",green:"#089981",blue:"#2962ff",orange:"#ff9800",yellow:"#fdd835",purple:"#9c27b0",white:"#ffffff",black:"#000000",gray:"#787b86",grey:"#787b86",teal:"#00897b",aqua:"#00bcd4",fuchsia:"#e040fb",silver:"#bdbdbd",maroon:"#880e4f",navy:"#000080",transparent:"rgba(0,0,0,0)"};
     const builtins = {
       na:()=>NA, nafn:()=>NA, nz:(x,repl)=>isNA(value(x))?(repl===undefined?0:value(repl)):value(x),
-      math, ta, input, color,
+      math, ta, input, color, array, str, barstate,
       indicator:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Indicator";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;}, study:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Study";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;},
       plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=outputs._plotCallIndex++;let p=outputs.plots[k];if(!p){p={title:cfg.title||"Plot "+(k+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:[]};outputs.plots[k]=p;}p.values.push(value(v));return null;},
       plotshape:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",style:cfg.style||"shape.triangleup",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
@@ -173,13 +207,13 @@
     const global=new Scope();
     const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null);
     const builtins=createBuiltins({bars:cleanBars,get index(){return currentIndex;}},outputs,inputValues,opts);
-    let currentIndex=-1,steps=0;
+    let currentIndex=-1,steps=0;\n    const ctxBars=cleanBars;
     const maxSteps=opts.maxSteps||100000;
     function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı.",node,"PINE_EXECUTION_LIMIT");}
     function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name]);}
     function envGet(scope,name){
       if(scope.has(name))return scope.get(name);
-      if(["open","high","low","close","volume","time"].includes(name))return series(name);
+      if(["open","high","low","close","volume","time"].includes(name))return series(name);\n      if(name==="hl2")return new SeriesRef(ctxBars.map(b=>(b.high+b.low)/2));\n      if(name==="hlc3")return new SeriesRef(ctxBars.map(b=>(b.high+b.low+b.close)/3));\n      if(name==="ohlc4")return new SeriesRef(ctxBars.map(b=>(b.open+b.high+b.low+b.close)/4));
       if(name==="bar_index")return currentIndex;
       if(name==="true")return true;if(name==="false")return false;
       if(Object.prototype.hasOwnProperty.call(builtins,name))return builtins[name];
