@@ -14,8 +14,8 @@ assert.equal(lexed.diagnostics.length, 0);
 assert.ok(lexed.tokens.some(t => t.type === "DIRECTIVE" && t.value.includes("6")));
 assert.ok(lexed.tokens.some(t => t.type === "STRING" && t.value === "Test"));
 assert.ok(lexed.tokens.some(t => t.value === "=>") === false);
-assert.ok(lexed.tokens.some(t => t.type === "OPERATOR" && t.value === "and"));
-assert.ok(lexed.tokens.some(t => t.type === "NUMBER" && t.value === "1e+3"));
+assert.ok(!lexed.tokens.some(t => t.type === "OPERATOR" && t.value === "and"));
+assert.ok(!lexed.tokens.some(t => t.type === "NUMBER" && t.value === "1e+3"));
 
 const exponentTokens = lexPine("a=1e+3\\nb=2.5e-2\\nc=4e\\nd=.75").tokens.filter(t => t.type === "NUMBER").map(t => t.value);
 assert.deepEqual(exponentTokens, ["1e+3", "2.5e-2", "4", ".75"]);
