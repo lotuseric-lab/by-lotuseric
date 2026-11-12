@@ -84,6 +84,16 @@ assert.equal(result.plots.length, 1);
 assert.equal(result.plots[0].values.length, bars.length);
 assert.equal(result.plots[0].values.at(-1), bars.at(-1).close);
 
+result = runPine(compile(`//@version=6
+indicator("MTF test")
+hourClose = request.security(syminfo.tickerid, "60", close)
+plot(hourClose, "Hourly close")
+`), bars, {timeframe:"5m",symbol:"TEST-USDT"});
+assert.equal(result.plots[0].values[10], null);
+assert.equal(result.plots[0].values[11], bars[11].close);
+assert.equal(result.plots[0].values[23], bars[23].close);
+
+
 
 
 
