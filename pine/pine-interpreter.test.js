@@ -193,6 +193,17 @@ const expectedObvSma=obvSeries.slice(-3).reduce((a,b)=>a+b,0)/3;
 assert.equal(result.plots[1].values.at(-1), 1);
 assert.equal(result.plots[0].values.at(-1), expectedObvSma);
 
+result = runPine(compile(`//@version=6
+indicator("Fill output")
+a = plot(ta.sma(close, 3), "A")
+b = plot(ta.ema(close, 3), "B")
+fill(a, b, color=color.new(color.green, 80), title="Band")
+`), bars);
+assert.equal(result.fills.length, bars.length);
+assert.equal(result.fills[0].plot1, 0);
+assert.equal(result.fills[0].plot2, 1);
+assert.equal(result.fills[0].title, "Band");
+
 const crossCloses=[10,9,8,7,8,9,10,11,12,13,14,15,14,13,12,11,10,9,8];
 const crossBars=crossCloses.map((close,i)=>({time:1700000000+i*300,open:close,high:close+1,low:close-1,close,volume:1000}));
 result=runPine(compile(`//@version=6
