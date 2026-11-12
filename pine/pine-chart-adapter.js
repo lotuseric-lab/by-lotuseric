@@ -17,7 +17,7 @@
   function remove(state){
     if(!state)return;
     for(const s of state.series||[]){try{s.chart.removeSeries(s.series)}catch{}}
-    if(state.fillSvg)try{state.fillSvg.remove()}catch{}for(const p of state.panes||[]){try{p.chart.remove()}catch{}try{p.wrap.remove()}catch{}}
+    if(state.fillSvg)try{state.fillSvg.remove()}catch{}if(state.svg)try{state.svg.remove()}catch{}for(const el of state.tableEls||[])try{el.remove()}catch{}for(const p of state.panes||[]){try{p.chart.remove()}catch{}try{p.wrap.remove()}catch{}}
   }
   function mount(config){
     const {chart,addChartSeries,bars,output,host,drawingHost,priceSeries}=config;
