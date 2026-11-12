@@ -50,4 +50,17 @@ assert.equal(multiline.body[0].expression.arguments.length,2);
 
 const bad=parsePine(lexPine("if close > open\nplot(close)").tokens);
 assert.ok(bad.diagnostics.some(d=>d.code==="PINE_PARSE_EMPTY_BLOCK"));
+
+const elseIf=parsePine(lexPine(`//@version=6
+indicator("Else if")
+if close > open
+    x = 1
+else if close < open
+    x = 2
+else
+    x = 3
+`).tokens);
+assert.deepEqual(elseIf.diagnostics,[]);
+assert.equal(elseIf.body[1].alternate[0].type,"IfStatement");
+assert.equal(elseIf.body[1].alternate[0].alternate[0].type,"AssignmentStatement");
 console.log("Pine parser tests: OK");
