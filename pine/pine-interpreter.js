@@ -168,8 +168,8 @@
     ta.linreg=(src,len,offset)=>{const a=seriesValues(src),n=Math.trunc(num(value(len))),off=offset===undefined?0:Math.trunc(num(value(offset)));if(a.length<n||n<2)return NA;const w=a.slice(-n);if(w.some(isNA))return NA;const xm=(n-1)/2,ym=w.reduce((z,x)=>z+num(x),0)/n;let cov=0,vx=0;w.forEach((x,i)=>{cov+=(i-xm)*(num(x)-ym);vx+=(i-xm)**2;});const slope=cov/vx;return ym+slope*((n-1)-off-xm);};
     ta.mfi=(src,len)=>{const p=seriesValues(src),v=ctx.bars.slice(0,ctx.index+1).map(b=>b.volume),n=Math.trunc(num(value(len)));if(p.length<=n)return NA;let pos=0,neg=0;for(let i=p.length-n;i<p.length;i++){const flow=num(p[i])*v[i];if(num(p[i])>num(p[i-1]))pos+=flow;else if(num(p[i])<num(p[i-1]))neg+=flow;}return neg===0?100:100-100/(1+pos/neg);};
     ta.vwap=(src)=>{const p=src?seriesValues(src):ctx.bars.slice(0,ctx.index+1).map(b=>(b.high+b.low+b.close)/3);let pv=0,vol=0;ctx.bars.slice(0,ctx.index+1).forEach((b,i)=>{pv+=num(p[i])*b.volume;vol+=b.volume;});return vol?pv/vol:NA;};
-    const barstate={isfirst:ctx.index===0,islast:ctx.index===ctx.bars.length-1,ishistory:ctx.index<ctx.bars.length-1,isrealtime:false,isconfirmed:true,isnew:true};
-    const input = {};
+    const barstate={isrealtime:false,isconfirmed:true,isnew:true};Object.defineProperties(barstate,{isfirst:{get:()=>ctx.index===0},islast:{get:()=>ctx.index===ctx.bars.length-1},ishistory:{get:()=>ctx.index<ctx.bars.length-1}});
+    Object.defineProperty(ta,"obv",{get:()=>{const b=ctx.bars.slice(0,ctx.index+1);let total=0;for(let i=1;i<b.length;i++)total+=(b[i].close>b[i-1].close?1:b[i].close<b[i-1].close?-1:0)*b[i].volume;return total;}});\n    const input = {};
     for(const kind of ["int","float","bool","string","source","color","timeframe","symbol"]){
       input[kind]=(def, ...rest)=>{
         const cfg=rest.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(x&&typeof x==="object"&&!Array.isArray(x))Object.assign(o,x);return o;},{});
@@ -183,7 +183,7 @@
     const color = {new:(c,t)=>{const raw=String(value(c)||"#2962ff");const alpha=1-clamp(num(value(t)||0),0,100)/100;return /^#[0-9a-f]{6}$/i.test(raw)?raw+Math.round(alpha*255).toString(16).padStart(2,"0"):raw;},rgb:(r,g,b,t)=>"rgba("+[r,g,b].map(x=>clamp(Math.round(num(value(x))),0,255)).join(",") + ","+(1-clamp(num(value(t)||0),0,100)/100)+")",red:"#f23645",lime:"#089981",green:"#089981",blue:"#2962ff",orange:"#ff9800",yellow:"#fdd835",purple:"#9c27b0",white:"#ffffff",black:"#000000",gray:"#787b86",grey:"#787b86",teal:"#00897b",aqua:"#00bcd4",fuchsia:"#e040fb",silver:"#bdbdbd",maroon:"#880e4f",navy:"#000080",transparent:"rgba(0,0,0,0)"};
     const builtins = {
       na:()=>NA, nafn:()=>NA, nz:(x,repl)=>isNA(value(x))?(repl===undefined?0:value(repl)):value(x),
-      math, ta, input, color, array, str, barstate,
+      math, ta, input, color, array, str, barstate, timeframe:{period:String(options.timeframe||"")}, syminfo:{ticker:String(options.symbol||""),tickerid:String(options.symbol||""),basecurrency:"",currency:""},
       indicator:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Indicator";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;}, study:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Study";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;},
       plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=outputs._plotCallIndex++;let p=outputs.plots[k];if(!p){p={title:cfg.title||"Plot "+(k+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:[]};outputs.plots[k]=p;}p.values.push(value(v));return null;},
       plotshape:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",style:cfg.style||"shape.triangleup",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
@@ -217,7 +217,7 @@
       if(name==="hl2")return new SeriesRef(ctxBars.map(b=>(b.high+b.low)/2));
       if(name==="hlc3")return new SeriesRef(ctxBars.map(b=>(b.high+b.low+b.close)/3));
       if(name==="ohlc4")return new SeriesRef(ctxBars.map(b=>(b.open+b.high+b.low+b.close)/4));
-      if(name==="bar_index")return currentIndex;
+      if(name==="bar_index")return new SeriesRef(Array.from({length:currentIndex+1},(_,i)=>i));
       if(name==="true")return true;if(name==="false")return false;
       if(Object.prototype.hasOwnProperty.call(builtins,name))return builtins[name];
       if(Object.prototype.hasOwnProperty.call(functions,name))return functions[name];
