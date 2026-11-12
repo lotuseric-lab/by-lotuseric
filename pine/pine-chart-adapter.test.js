@@ -68,7 +68,7 @@ console.log("Pine chart adapter tests: OK");
     }
   });
   const priceSvg=priceHost.children.find(x=>x.tagName==="svg");
-  const pane= paneHost.children.find(x=>x.className==="oscPane");
+  const pane= paneHost.children.find(x=>x.className?.includes("oscPane"));
   const paneSvg=pane.children.find(x=>x.className==="oscPaneChart").children.find(x=>x.tagName==="svg");
   assert.ok(priceSvg,"forceOverlay drawing should be rendered on the price chart");
   assert.ok(paneSvg,"ordinary drawing should be rendered in the oscillator pane");
