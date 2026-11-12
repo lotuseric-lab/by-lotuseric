@@ -255,10 +255,14 @@ a = array.new_int(1)
 plot(array.get(a, 1))
 `), bars), /Array index out of bounds/);
 
-assert.throws(() => runPine(compile(`//@version=6
-indicator("Unsupported visual")
+result = runPine(compile(`//@version=6
+indicator("Bar color output")
 barcolor(color.red)
-`), bars), e => e instanceof PineExecutionError && e.code === "PINE_VISUAL_UNSUPPORTED");
+bgcolor(color.new(color.blue, 80))
+`), bars);
+assert.equal(result.barColors.length, bars.length);
+assert.equal(result.barColors.at(-1).color, "#f23645");
+assert.equal(result.bgColors.length, bars.length);
 result = runPine(compile(`//@version=6
 indicator("Fill handles")
 a = plot(close)
