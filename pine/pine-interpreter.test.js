@@ -47,6 +47,20 @@ plot(ta.sma(close, length), "Average")
 assert.equal(result.plots[0].values.at(-1), 138);
 
 result = runPine(compile(`//@version=6
+indicator("Array and tuple")
+var array<float> values = array.new_float()
+array.push(values, close)
+[m, sig, hist] = ta.macd(close, 3, 6, 3)
+plot(array.size(values), "Array size")
+plot(bar_index[1], "Previous bar")
+plot(hist, "MACD histogram")
+`), bars);
+assert.equal(result.plots[0].values.at(-1), bars.length);
+assert.equal(result.plots[1].values.at(-1), bars.length-2);
+assert.ok(Number.isFinite(result.plots[2].values.at(-1)));
+
+
+result = runPine(compile(`//@version=6
 indicator("History and conditions")
 var float total = 0.0
 if close > close[1]
