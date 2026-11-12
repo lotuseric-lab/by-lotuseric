@@ -178,9 +178,9 @@ assert.ok(result.shapes.some(x=>x.title==="Cross down"&&x.value),"EMA crossunder
 
 result = runPine(compile(`//@version=6
 indicator("Format namespace")
-plot(close, str.tostring(close, format.mintick))
+label.new(bar_index, close, str.tostring(close, format.mintick))
 `), bars, {mintick:0.01});
-assert.equal(result.plots[0].title, "101.00");
+assert.equal(result.labels.at(-1).text, "140.00");
 
 assert.throws(() => runPine(compile(`//@version=6
 indicator("Bad")
