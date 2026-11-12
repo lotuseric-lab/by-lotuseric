@@ -306,8 +306,8 @@
         }
         case "CallExpression":{
           if(n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="request"&&n.callee.property.name==="security"){
-            const sym=n.arguments[0]?value(evalExpr(n.arguments[0],scope)):String(options.symbol||"");
-            const tf=n.arguments[1]?value(evalExpr(n.arguments[1],scope)):String(options.timeframe||"");
+            const sym=n.arguments[0]?value(evalExpr(n.arguments[0],scope)):String(opts.symbol||"");
+            const tf=n.arguments[1]?value(evalExpr(n.arguments[1],scope)):String(opts.timeframe||"");
             const exprNode=n.arguments[2]&&n.arguments[2].type==="NamedArgument"?n.arguments[2].value:n.arguments[2];
             if(!exprNode)throw new PineExecutionError("request.security üçün ifade argümanı gerekli.",n);
             const look=n.arguments.slice(3).find(a=>a.type==="NamedArgument"&&a.name==="lookahead");
@@ -320,7 +320,7 @@
               if(targetMs<baseMs)throw new PineExecutionError("Daha düşük zaman dilimi request.security henüz desteklenmiyor; security_lower_tf gerekir.",n,"PINE_MTF_LOWER_TF");
               const mtfBars=targetMs===baseMs?cleanBars:aggregateBars(cleanBars,targetMs,baseMs);
               const mini={type:"Program",body:[{type:"ExpressionStatement",expression:exprNode}],diagnostics:[]};
-              const res=runPine(mini,mtfBars,{...options,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityData:null});
+              const res=runPine(mini,mtfBars,{...opts,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityData:null});
               const vals=res.expression||[];
               mapped=cleanBars.map((bar,i)=>{
                 const closeTime=(bar.time*1000)+baseMs;let j=-1;
