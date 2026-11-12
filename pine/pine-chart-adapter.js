@@ -19,6 +19,7 @@
     for(const s of state.series||[]){try{s.chart.removeSeries(s.series)}catch{}}
     if(state.fillSvg)try{state.fillSvg.remove()}catch{}if(state.svg)try{state.svg.remove()}catch{}for(const m of state.markers||[])try{m.detach()}catch{}for(const el of state.tableEls||[])try{el.remove()}catch{}for(const p of state.panes||[]){try{p.chart.remove()}catch{}try{p.wrap.remove()}catch{}}
   }
+  function hostWidthSafe(host){return host?.clientWidth||host?.getBoundingClientRect?.().width||0;}
   function mount(config){
     const {chart,addChartSeries,bars,output,host,drawingHost,priceSeries}=config;
     if(!chart||typeof addChartSeries!=="function"||!Array.isArray(bars)||!output)throw new TypeError("Pine chart adapter eksik yapılandırıldı.");
@@ -84,10 +85,12 @@
       svg.setAttribute("class","pineDrawingOverlay");
       Object.assign(svg.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none",overflow:"visible",zIndex:"6"});
       drawingHost.append(svg);state.svg=svg;
-      const xy=(x,y,xloc)=>{let time;if(xloc==="bar_time")time=Number(x);else{const i=Math.max(0,Math.min(bars.length-1,Math.trunc(Number(x))));time=bars[i]?.time;}const px=chart.timeScale().timeToCoordinate(time),py=priceSeries.priceToCoordinate(Number(y));return px==null||py==null?null:{x:px,y:py};};
-      const line=(x1,y1,x2,y2,color,width,style,xloc)=>{const a=xy(x1,y1,xloc),b=xy(x2,y2,xloc);if(!a||!b)return;const el=document.createElementNS("http://www.w3.org/2000/svg","line");for(const [k,v] of Object.entries({x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:color||"#2962ff","stroke-width":width||2,"stroke-dasharray":style==="dashed"?"7 5":style==="dotted"?"2 4":""}))el.setAttribute(k,String(v));svg.append(el);};
-      for(const o of output.lines||[])if(!o.deleted)line(o.x1,o.y1,o.x2,o.y2,o.color,o.width,o.style,o.xloc);
-      for(const o of output.boxes||[])if(!o.deleted){const a=xy(o.left,o.top,o.xloc),b=xy(o.right,o.bottom,o.xloc);if(!a||!b)continue;const el=document.createElementNS("http://www.w3.org/2000/svg","rect");for(const [k,v] of Object.entries({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:o.bgcolor,stroke:o.border_color,"stroke-width":o.border_width||1}))el.setAttribute(k,String(v));svg.append(el);}
+      const timeScale=chart.timeScale(),hostWidth=hostWidthSafe(drawingHost);
+      const indexToX=index=>{const n=Number(index);if(!Number.isFinite(n)||!bars.length)return null;const i=Math.trunc(n),last=bars.length-1;const t=i>=0&&i<=last?bars[i]?.time:null;if(t!=null){const x=timeScale.timeToCoordinate(t);if(x!=null)return x;}const x1=timeScale.timeToCoordinate(bars[last]?.time),x0=last>0?timeScale.timeToCoordinate(bars[last-1]?.time):null;const step=x1!=null&&x0!=null?x1-x0:0;if(x1==null||!step)return null;return x1+(i-last)*step;};
+      const xy=(x,y,xloc)=>{let px;if(xloc==="bar_time"){const time=Number(x);px=timeScale.timeToCoordinate(time);if(px==null&&bars.length>1){const last=bars[bars.length-1],prev=bars[bars.length-2],x1=timeScale.timeToCoordinate(last.time),x0=timeScale.timeToCoordinate(prev.time),dt=last.time-prev.time;if(x1!=null&&x0!=null&&dt)px=x1+((time-last.time)/dt)*(x1-x0);}}else px=indexToX(x);const py=priceSeries.priceToCoordinate(Number(y));return px==null||py==null?null:{x:px,y:py};};
+      const line=o=>{const a=xy(o.x1,o.y1,o.xloc),b=xy(o.x2,o.y2,o.xloc);if(!a||!b)return;let x1=a.x,x2=b.x;if(o.extend==="right"||o.extend==="both")x2=hostWidth;if(o.extend==="left"||o.extend==="both")x1=0;const el=document.createElementNS("http://www.w3.org/2000/svg","line");for(const [k,v] of Object.entries({x1,y1:a.y,x2,y2:b.y,stroke:o.color||"#2962ff","stroke-width":o.width||2,"stroke-dasharray":o.style==="dashed"?"7 5":o.style==="dotted"?"2 4":""}))el.setAttribute(k,String(v));svg.append(el);};
+      for(const o of output.lines||[])if(!o.deleted)line(o);
+      for(const o of output.boxes||[])if(!o.deleted){const a=xy(o.left,o.top,o.xloc),b=xy(o.right,o.bottom,o.xloc);if(!a||!b)continue;const el=document.createElementNS("http://www.w3.org/2000/svg","rect");for(const [k,v] of Object.entries({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:o.bgcolor||"none",stroke:o.border_color||"none","stroke-width":o.border_width||1}))el.setAttribute(k,String(v));svg.append(el);}
       for(const o of output.labels||[])if(!o.deleted){const p=xy(o.x,o.y,o.xloc);if(!p)continue;const el=document.createElementNS("http://www.w3.org/2000/svg","text");el.setAttribute("x",String(p.x));el.setAttribute("y",String(p.y));el.setAttribute("fill",o.textcolor||"#fff");el.setAttribute("font-size","12");el.textContent=o.text;svg.append(el);}
       const linesById=new Map((output.lines||[]).map(o=>[o.id,o]));for(const f of output.linefills||[]){if(f.deleted)continue;const a=linesById.get(f.line1?.id),b=linesById.get(f.line2?.id);if(!a||!b||a.deleted||b.deleted)continue;const p1=xy(a.x1,a.y1,a.xloc),p2=xy(a.x2,a.y2,a.xloc),p3=xy(b.x2,b.y2,b.xloc),p4=xy(b.x1,b.y1,b.xloc);if(!p1||!p2||!p3||!p4)continue;const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");poly.setAttribute("points",[p1,p2,p3,p4].map(p=>p.x+","+p.y).join(" "));poly.setAttribute("fill",f.color||"rgba(41,98,255,0.18)");poly.setAttribute("stroke","none");svg.insertBefore(poly,svg.firstChild);}
     }
@@ -103,7 +106,7 @@
     if(overlay&&output.shapes?.length){
       const visible=output.shapes.filter(x=>x.value&&bars[x.bar]);
       if(priceSeries&&typeof LightweightCharts.createSeriesMarkers==="function"){
-        const shapeMap={"shape.triangleup":"arrowUp","shape.arrowup":"arrowUp","shape.triangledown":"arrowDown","shape.arrowdown":"arrowDown","shape.square":"square","shape.circle":"circle"};
+        const shapeMap={"shape.triangleup":"arrowUp","shape.arrowup":"arrowUp","shape.labelup":"arrowUp","shape.triangledown":"arrowDown","shape.arrowdown":"arrowDown","shape.labeldown":"arrowDown","shape.square":"square","shape.circle":"circle","shape.diamond":"square","shape.cross":"cross","shape.xcross":"cross"};
         const sizeMap={tiny:1,small:1,normal:2,large:3,huge:4};
         const markers=visible.map(x=>({time:bars[x.bar].time,position:x.location==="belowbar"||x.location==="bottom"?"belowBar":x.location==="abovebar"||x.location==="top"?"aboveBar":"inBar",color:x.color||"#2962ff",shape:shapeMap[x.style]||"circle",text:x.text||"",size:sizeMap[x.size]||2}));
         state.markers.push(LightweightCharts.createSeriesMarkers(priceSeries,markers));
