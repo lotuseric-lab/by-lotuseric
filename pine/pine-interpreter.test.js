@@ -144,6 +144,19 @@ plot(total, "Count")
 assert.equal(result.plots[0].values.at(-1), 39);
 
 result = runPine(compile(`//@version=6
+indicator("Persistent var series and na")
+var int lastBar = na
+plot(na(lastBar) ? 1 : 0, "Is NA")
+plot(lastBar[1], "Previous stored bar")
+if bar_index == 0
+    lastBar := bar_index
+`), bars);
+assert.equal(result.plots[0].values[0], 1);
+assert.equal(result.plots[0].values[1], 0);
+assert.equal(result.plots[1].values[1], null);
+assert.equal(result.plots[1].values[2], 0);
+
+result = runPine(compile(`//@version=6
 indicator("Signals")
 plotshape(ta.crossover(ta.ema(close, 3), ta.ema(close, 8)), title="Cross")
 `), bars);
