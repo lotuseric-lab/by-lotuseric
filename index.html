@@ -400,17 +400,17 @@ function indicatorValues(def){const st=libraryIndicators[def.id]||{},period=Math
   if(c21[i]!==null&&up1!==null&&dn1!==null)b1=c21[i]>=0?Math.max(up1,b1??up1):Math.min(dn1,b1??dn1);
   const up2=a100[i]===null?null:mid-a100[i]*5,dn2=a100[i]===null?null:mid+a100[i]*5;
   if(c50[i]!==null&&up2!==null&&dn2!==null)b2=c50[i]>=0?Math.max(up2,b2??up2):Math.min(dn2,b2??dn2);
-  const prev=i?i-1:-1,confirmed=x.confirm===true||x.confirm===1||x.confirm==='1';
-  if(b1!==null&&b2!==null&&prev>=0&&confirmed){
-   if(crossUp(barData[prev].close===undefined?null:(()=>{
-      // Previous series values are reconstructed from the preceding output point.
-      return out.sari.length?out.sari[out.sari.length-1].value:null
-   })(),sari,out.blue2.length?out.blue2[out.blue2.length-1].value:null,b2))out.upTrend.push({time:x.time,value:x.low});
-   if(crossDown(out.sari.length?out.sari[out.sari.length-1].value:null,sari,out.blue2.length?out.blue2[out.blue2.length-1].value:null,b2)){out.sell.push({time:x.time,value:x.high});out.downTrend.push({time:x.time,value:x.high})}
-   if(crossUp(out.sari.length?out.sari[out.sari.length-1].value:null,sari,out.blue2.length?out.blue2[out.blue2.length-1].value:null,b2))out.buy.push({time:x.time,value:x.low});
-   if(crossUp(out.blue2.length?out.blue2[out.blue2.length-1].value:null,b2,out.blue1.length?out.blue1[out.blue1.length-1].value:null,b1))out.upTrend.push({time:x.time,value:x.low});
-   const p2=out.blue2.length?out.blue2[out.blue2.length-1].value:null,p1=out.blue2.length>1?out.blue2[out.blue2.length-2].value:null;
-   if(crossUp(p1,p2,out.yellow.length>1?out.yellow[out.yellow.length-2].value:null,out.yellow.length?out.yellow[out.yellow.length-1].value:null)&&p2>=p1)out.strongTrend.push({time:x.time,value:x.low});
+  const confirmed=x.confirm===true||x.confirm===1||x.confirm==='1';
+  const prevSari=out.sari.length?out.sari[out.sari.length-1].value:null;
+  const prevBlue1=out.blue1.length&&out.blue1[out.blue1.length-1]?out.blue1[out.blue1.length-1].value:null;
+  const prevBlue2=out.blue2.length&&out.blue2[out.blue2.length-1]?out.blue2[out.blue2.length-1].value:null;
+  const prevYellow=out.yellow.length?out.yellow[out.yellow.length-1].value:null;
+  const prevBlue2Two=out.blue2.length>1&&out.blue2[out.blue2.length-2]?out.blue2[out.blue2.length-2].value:null;
+  if(confirmed){
+   if(crossUp(prevSari,sari,prevBlue2,b2))out.buy.push({time:x.time,value:x.low});
+   if(crossDown(prevSari,sari,prevBlue2,b2)){out.sell.push({time:x.time,value:x.high});out.downTrend.push({time:x.time,value:x.high})}
+   if(crossUp(prevBlue2,b2,prevBlue1,b1))out.upTrend.push({time:x.time,value:x.low});
+   if(crossUp(prevBlue2,b2,prevYellow,yellow)&&prevBlue2!==null&&prevBlue2Two!==null&&b2>prevBlue2&&prevBlue2>=prevBlue2Two)out.strongTrend.push({time:x.time,value:x.low});
   }
   out.yellow.push({time:x.time,value:yellow});out.sari.push({time:x.time,value:sari});
   out.blue1.push(b1===null?null:{time:x.time,value:b1});out.blue2.push(b2===null?null:{time:x.time,value:b2});
