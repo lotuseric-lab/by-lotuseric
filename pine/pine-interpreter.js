@@ -250,8 +250,8 @@
       plotbar:(o,h,l,c,...args)=>{const cfg=args.reduce((z,x)=>{if(x&&x.__named)z[x.name]=value(x.value);return z;},{});outputs.candles.push({type:"bar",bar:ctx.index,open:value(o),high:value(h),low:value(l),close:value(c),color:cfg.color||"#22c58b"});return null;},
       hline:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;return o;},{});outputs.hlines.push({value:value(v),color:cfg.color||"#8794a8",linestyle:cfg.linestyle||"solid",title:cfg.title||""});return null;},
       alertcondition:(condition,title,message)=>{if(truth(value(condition)))outputs.alerts.push({bar:ctx.index,title:value(title)||"",message:value(message)||""});return null;}, alert:(message)=>{outputs.alerts.push({bar:ctx.index,message:String(value(message)||"")});return null;},
-      barcolor:()=>{throw new PineExecutionError("barcolor() görsel çıktısı henüz desteklenmiyor; kod sessizce atlanmadı.","barcolor","PINE_VISUAL_UNSUPPORTED");},
-      bgcolor:()=>{throw new PineExecutionError("bgcolor() görsel çıktısı henüz desteklenmiyor; kod sessizce atlanmadı.",null,"PINE_VISUAL_UNSUPPORTED");},
+      barcolor:(c,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.barColors.push({bar:ctx.index+num(cfg.offset||0),color:value(c)});return null;},
+      bgcolor:(c,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.bgColors.push({bar:ctx.index+num(cfg.offset||0),color:value(c)});return null;},
       fill:(plot1,plot2,...args)=>{
         const a=value(plot1),b=value(plot2);
         if(!a||!b||a.__pinePlotRef!==true||b.__pinePlotRef!==true)
@@ -306,7 +306,7 @@
     if(!ast||ast.type!=="Program")throw new TypeError("Geçerli Pine AST bekleniyor.");
     if(ast.diagnostics&&ast.diagnostics.length)throw new PineExecutionError("Kaynakta parse hataları var: "+ast.diagnostics[0].message,ast.diagnostics[0],"PINE_PARSE_ERROR");
     const cleanBars=bars.map((b,i)=>{const o={};for(const k of ["open","high","low","close","volume","time"]){const n=Number(b[k]);if(!Number.isFinite(n))throw new PineExecutionError("Geçersiz "+k+" verisi ("+i+").");o[k]=n;}return Object.freeze(o);});
-    const outputs={plots:[],shapes:[],hlines:[],candles:[],expression:[],labels:[],lines:[],boxes:[],tables:[],fills:[],alerts:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
+    const outputs={plots:[],shapes:[],hlines:[],candles:[],expression:[],labels:[],lines:[],boxes:[],tables:[],fills:[],barColors:[],bgColors:[],alerts:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
     const inputValues=Object.assign(Object.create(null),opts.inputs||{});
     const global=new Scope();
     const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null),seriesVarNames=new Set();
