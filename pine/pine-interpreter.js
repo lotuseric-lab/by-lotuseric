@@ -227,7 +227,7 @@
     const barstate={isrealtime:false,isconfirmed:true,isnew:true,ishistory:true};Object.defineProperties(barstate,{isfirst:{get:()=>ctx.index===0},islast:{get:()=>ctx.index===ctx.bars.length-1},islastconfirmedhistory:{get:()=>ctx.index===ctx.bars.length-1}});
     Object.defineProperty(ta,"obv",{get:()=>{const b=ctx.bars.slice(0,ctx.index+1),out=[];let total=0;for(let i=0;i<b.length;i++){if(i>0)total+=(b[i].close>b[i-1].close?1:b[i].close<b[i-1].close?-1:0)*b[i].volume;out.push(total);}return new SeriesRef(out);}});
     const input = {};
-    for(const kind of ["int","float","bool","string","source","color","timeframe","symbol"]){
+    for(const kind of ["int","float","bool","string","source","color","timeframe","symbol","session"]){
       input[kind]=(def, ...rest)=>{
         const cfg=rest.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(x&&typeof x==="object"&&!Array.isArray(x))Object.assign(o,x);return o;},{});
         const title=cfg.title||(typeof rest[0]==="string"?rest[0]:"")||cfg.tooltip||"";
@@ -361,6 +361,22 @@
         }
         case "CallExpression":{
           if(n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="ta"&&n.callee.property.name==="tr")return trueRange({bars:ctxBars,index:currentIndex});
+          if(n.callee&&n.callee.type==="Identifier"&&n.callee.name==="time"){
+            const session=n.arguments[1]?String(value(evalExpr(n.arguments[1],scope))||""):null;
+            const timezone=n.arguments[2]?String(value(evalExpr(n.arguments[2],scope))||"UTC"):"UTC";
+            if(!session)return ctxBars[currentIndex].time;
+            const match=session.match(/^(\\d{4})-(\\d{4})(?::([1-7]+))?$/);
+            if(!match)throw new PineExecutionError("time() seans biçimi HHMM-HHMM[:1234567] olmalı.",n,"PINE_SESSION_FORMAT");
+            const parts=new Intl.DateTimeFormat("en-US",{timeZone:timezone,weekday:"short",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(ctxBars[currentIndex].time*1000));
+            const get=k=>parts.find(p=>p.type===k)?.value;
+            const day=({Sun:"1",Mon:"2",Tue:"3",Wed:"4",Thu:"5",Fri:"6",Sat:"7"})[get("weekday")];
+            const hh=Number(get("hour")),mm=Number(get("minute")),now=hh*60+mm;
+            const start=Number(match[1].slice(0,2))*60+Number(match[1].slice(2));
+            const end=Number(match[2].slice(0,2))*60+Number(match[2].slice(2));
+            const days=match[3]||"1234567";
+            const active=start<=end?(now>=start&&now<end):(now>=start||now<end);
+            return active&&days.includes(day)?ctxBars[currentIndex].time:NA;
+          }
           if(n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="request"&&n.callee.property.name==="security"){
             const sym=n.arguments[0]?value(evalExpr(n.arguments[0],scope)):String(opts.symbol||"");
             const tf=n.arguments[1]?value(evalExpr(n.arguments[1],scope)):String(opts.timeframe||"");
