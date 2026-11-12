@@ -3,12 +3,13 @@ name: Pine runtime foundation tests
 on:
   push:
     branches:
-      - feature/pine-compatible-runtime
+      - feature/pine-engine-evaluator
     paths:
       - "pine/**"
       - "index.html"
       - ".github/workflows/pine-runtime-tests.yml"
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - "pine/**"
       - "index.html"
@@ -28,4 +29,5 @@ jobs:
       - run: node pine/pine-frontend.test.js
       - run: node pine/pine-parser.test.js
       - run: node pine/pine-runtime.test.js
+      - run: node pine/pine-interpreter.test.js
       - run: node pine/check-inline-scripts.js
