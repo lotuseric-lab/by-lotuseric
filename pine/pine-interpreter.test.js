@@ -174,7 +174,7 @@ const expectedObvSma=obvSeries.slice(-3).reduce((a,b)=>a+b,0)/3;
 assert.equal(result.plots[1].values.at(-1), 1);
 assert.equal(result.plots[0].values.at(-1), expectedObvSma);
 
-const crossCloses=[10,9,8,7,8,9,10,11,12,13,14,15];
+const crossCloses=[10,9,8,7,8,9,10,11,12,13,14,15,14,13,12,11,10,9,8];
 const crossBars=crossCloses.map((close,i)=>({time:1700000000+i*300,open:close,high:close+1,low:close-1,close,volume:1000}));
 result=runPine(compile(`//@version=6
 indicator("EMA crossover regression")
