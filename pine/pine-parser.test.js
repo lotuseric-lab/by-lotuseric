@@ -43,4 +43,19 @@ label.set_text(lbSL, "Orijinal SL " + str.tostring(close, format.mintick) + " (â
 `).tokens);
 assert.deepEqual(labelMethod.diagnostics,[]);
 
+
+const nestedLabelMethod=parsePine(lexPine(`//@version=5
+indicator("Nested label method")
+if tradeOpen and breakoutDir != 0 and not slHit and bar_index > breakoutBar
+    bool tpSide = breakoutDir == 1 ? high >= tp1Price : low <= tp1Price
+    if tpSide and not tp1Hit
+        tp1Hit := true
+        slPrice := entryPrice
+        if not na(lbSL)
+            string slPctUpd = str.tostring(math.abs(slPriceOrig - entryPrice) / entryPrice * 100, "#.##") + "%"
+            label.set_text(lbSL, "Orijinal SL " + str.tostring(slPriceOrig, format.mintick) + " (âˆ’" + slPctUpd + ")")
+            label.set_color(lbSL, color.new(SL_COLOR, 75))
+`).tokens);
+assert.deepEqual(nestedLabelMethod.diagnostics,[]);
+
 console.log("Pine parser tests: OK");
