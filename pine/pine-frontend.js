@@ -84,7 +84,7 @@
             if (/[+-]/.test(text[i] || "")) { i++; column++; }
             const digits = i;
             while (/[0-9]/.test(text[i] || "")) { i++; column++; }
-            if (digits === i) { i = expStart; column -= i - expStart; }
+            if (digits === i) { i = expStart; column = expColumn; }
           }
         }
         push("NUMBER", text.slice(start, i), startLine, startColumn);
