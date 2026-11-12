@@ -282,7 +282,8 @@
     const outputs={plots:[],shapes:[],hlines:[],candles:[],expression:[],labels:[],lines:[],boxes:[],tables:[],alerts:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
     const inputValues=Object.assign(Object.create(null),opts.inputs||{});
     const global=new Scope();
-    const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null);
+    const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null),seriesVarNames=new Set();
+    let activeBarScope=null;
     const builtins=createBuiltins({bars:cleanBars,get index(){return currentIndex;}},outputs,inputValues,opts);
     let currentIndex=-1,steps=0;
     const ctxBars=cleanBars;
@@ -384,7 +385,7 @@
       throw new PineExecutionError("Desteklenmeyen ifade düğümü: "+n.type,n,"PINE_UNSUPPORTED_AST");
     }
     function assignTarget(target,v,scope,node){
-      if(target.type==="Identifier"){scope.set(target.name,v);return;}
+      if(target.type==="Identifier"){if(seriesVarNames.has(target.name)){const current=scope.get(target.name);if(current instanceof SeriesRef&&current.values.length){current.values[current.values.length-1]=value(v);return;}}scope.set(target.name,v);return;}
       if(target.type==="MemberExpression"){const obj=evalExpr(target.object,scope);if(!obj||typeof obj!=="object")throw new PineExecutionError("UDT/nesne alanına atama yapılamıyor.",node);const key=target.computed?value(evalExpr(target.property,scope)):target.property.name;obj[key]=v;return;}
       if(target.type==="TupleExpression"||target.type==="ArrayExpression"){
         if(!Array.isArray(v))throw new PineExecutionError("Tuple atamasında dizi bekleniyor.",node);
@@ -405,7 +406,12 @@
             if(!Object.prototype.hasOwnProperty.call(persistent,n.name))persistent[n.name]=value(evalExpr(n.value,scope));
             scope.define(n.name,persistent[n.name]);return persistent[n.name];
           }
-          const initial=evalExpr(n.value,scope);scope.define(n.name,initial);return initial;
+          const initial=evalExpr(n.value,scope);
+          if(scope===activeBarScope&&!(initial&&typeof initial==="object")){
+            const a=vars[n.name]||(vars[n.name]=[]);while(a.length<currentIndex)a.push(NA);if(a.length===currentIndex)a.push(value(initial));else a[currentIndex]=value(initial);
+            seriesVarNames.add(n.name);const ref=new SeriesRef(a);scope.define(n.name,ref);return ref;
+          }
+          scope.define(n.name,initial);return initial;
         }
         case "AssignmentStatement":{
           const old=n.target.type==="Identifier"?scope.get(n.target.name):evalExpr(n.target,scope),rhs=evalExpr(n.value,scope);let v=rhs;
@@ -442,7 +448,7 @@
     for(let i=0;i<cleanBars.length;i++){
       currentIndex=i;outputs._plotValuesThisBar=new Map();
       for(const k of barKeys){if(!vars[k])vars[k]=[];vars[k].push(cleanBars[i][k]);}
-      const barScope=new Scope(global);
+      const barScope=new Scope(global);activeBarScope=barScope;
       try{execBlock(ast.body,barScope);if(opts.captureExpression)outputs.expression.push(value(evalExpr(opts.captureExpression,barScope)));}
       catch(error){if(error&&error.__pineBreak)throw new PineExecutionError("break yalnızca döngü içinde kullanılabilir.");if(error&&error.__pineContinue)throw new PineExecutionError("continue yalnızca döngü içinde kullanılabilir.");if(error instanceof PineExecutionError)throw error;throw new PineExecutionError(error.message,null);}
       for(const p of outputs.plots)p.values.push(outputs._plotValuesThisBar.has(p._id)?outputs._plotValuesThisBar.get(p._id):NA);
