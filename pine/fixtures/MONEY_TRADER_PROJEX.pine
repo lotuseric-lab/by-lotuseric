@@ -3,16 +3,10 @@ indicator("MONEY TRADER - TAVAN ADAYI + PROJE-X", overlay=true, max_lines_count=
 max_labels_count=500, max_boxes_count=500)
 
 //
-═══════════════════════════════════════════════════════════════════════════
 
- 🚦
-═
 //    SİNYAL AÇMA/KAPAMA
 //
-═══════════════════════════════════════════════════════════════════════════
 
-              🚦
-═
 grp_signals = "   Sinyal Açma/Kapama"
 show_tavan_signal = input.bool(true, "Tavan Adayı / Super Sinyal (AL)", group=grp_signals,
 tooltip="Önceki günün yüksek seviyesi kırıldığında sinyal üretir.")
@@ -28,12 +22,8 @@ show_projex_al      = input.bool(true, "Proje-X AL Sinyali ve Hedefler", group=g
 tooltip="ProjeX + TMO onaylı AL sinyali ve ATR hedef çizgileri.")
 
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 // GIRDILER
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 grp_tavan = "TAVAN AYARLARI (ALIS)"
 tavan_breakout_pct = input.float(0.5, "Min Kirilim %", minval=0.0, maxval=5.0, step=0.1,
 group=grp_tavan)
@@ -68,7 +58,6 @@ manual_enable_acc = input.bool(false, "Manuel Major Kullan", group=grp_manual)
 manual_acc_top = input.float(0.0, "Manuel Major Ust", step=0.01, group=grp_manual)
 manual_acc_bot = input.float(0.0, "Manuel Major Alt", step=0.01, group=grp_manual)
 
- 🚀
 //   PROJE-X AYARLARI
 grp_projex = "🚀   Proje-X AL Sinyali Ayarlari"
 px_volLen      = input.int(20, "Hacim SMA", group=grp_projex)
@@ -84,22 +73,14 @@ px_tmoSmoothLen = input.int(3, "TMO Smooth Length", group=grp_projex)
 px_cooldownBars = input.int(5, "Sinyal Sonrası Bekleme (Mum)", minval=1, group=grp_projex)
 
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 // HESAPLAMALAR
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 volSma20 = ta.sma(volume, 20)
 volRatio = volSma20 > 0 ? volume / volSma20 : 1.0
 
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 // BOLGELER (Sadece Hesaplama, Kutular Silindi)
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 auto_highest = ta.highest(high, auto_zone_days)
 auto_lowest = ta.lowest(low, auto_zone_days)
 
@@ -151,11 +132,8 @@ final_acc_bot = manual_enable_acc and manual_acc_bot > 0 ? manual_acc_bot :
 auto_major_bot
 
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 // ONCEKI GUN YUKSEK/DUSUK (DIRENC/DESTEK)
 //
-═══════════════════════════════════════════════════════════════════════════
 pdh = high[1]
 pdl = low[1]
 
@@ -186,12 +164,8 @@ format.mintick),
     style=label.style_label_left, color=color.teal, textcolor=color.white, size=size.small)
 
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 // ALIS SINYAL MANTIGI (TAVAN ADAYI)
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 breakout = not na(pdh) and ta.crossover(close, pdh) and barstate.isconfirmed
 threshold = pdh * (1 + tavan_breakout_pct / 100)
 confirmed = close > threshold
@@ -216,12 +190,8 @@ format.mintick) + "\nVol: " + str.tostring(volRatio, "0.00") + "x", yloc=yloc.be
 color=color.yellow, textcolor=color.black, style=label.style_label_up, size=size.normal)
 
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 // SATIS SINYAL MANTIGI (DESTEK KIRILIMI)
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 breakdown = not na(pdl) and ta.crossunder(close, pdl) and barstate.isconfirmed
 threshold_sat = pdl * (1 - sat_breakout_pct / 100)
 confirmed_sat = close < threshold_sat
@@ -245,14 +215,10 @@ format.mintick) + "\nVol: " + str.tostring(volRatio, "0.00") + "x", yloc=yloc.ab
 color=color.maroon, textcolor=color.white, style=label.style_label_down, size=size.normal)
 
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 // HACIM VE MOMENTUM SINYALLERI
 //
-═══════════════════════════════════════════════════════════════════════════
 
             📊
-═
 grp_basic = "  Temel Ayarlar"
 vol_mult_up = input.float(1.5, "Hacim Çarpanı (Yükseliş)", step=0.1, group=grp_basic)
 vol_mult_down = input.float(0.7, "Hacim Çarpanı (Düşüş)", step=0.1, group=grp_basic)
@@ -289,12 +255,8 @@ Kaybı\n 💰    " + str.tostring(close, format.mintick), yloc=yloc.abovebar, co
 textcolor=color.white, style=label.style_label_down, size=size.normal)
 
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 // QUANTUM GOLDEN
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 hassasiyet = input.float(0.1, "Minimum Momentum Esigi (%)", step=0.1, group="Quantum")
 atrPeriod = input.int(14, "Hedef ATR Periyodu", group="Quantum")
 
@@ -355,14 +317,9 @@ if barstate.islast
 barcolor(ha_isUp ? color.lime : color.red)
 
 //
-═══════════════════════════════════════════════════════════════════════════
 
- 🚀
-═
 //   PROJE-X AL SİNYALİ, HEDEFLER, İZLEME VE STOP-LOSS (SAT) DÖNGÜSÜ
 //
-═══════════════════════════════════════════════════════════════════════════
-═
 px_volSma = ta.sma(volume, px_volLen)
 px_momentum = ta.roc(close, px_momLen)
 px_atr = ta.atr(14)
