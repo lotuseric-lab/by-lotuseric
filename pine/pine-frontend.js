@@ -42,6 +42,15 @@
         }
         column += end - i; i = end; continue;
       }
+      if (ch === "#") {
+        const match = text.slice(i).match(/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{8})(?![0-9a-fA-F])/);
+        if (match) {
+          const startLine = line, startColumn = column;
+          push("STRING", "#" + match[1].toLowerCase(), startLine, startColumn);
+          i += match[0].length; column += match[0].length;
+          continue;
+        }
+      }
       if (ch === '"' || ch === "'") {
         const quote = ch, startLine = line, startColumn = column;
         let value = "", closed = false;
