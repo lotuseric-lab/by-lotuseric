@@ -85,6 +85,16 @@ assert.equal(result.plots[0].values.length, bars.length);
 assert.equal(result.plots[0].values.at(-1), bars.at(-1).close);
 
 result = runPine(compile(`//@version=6
+indicator("Multiline function")
+twicePlusOne(x) =>
+    doubled = x * 2
+    doubled + 1
+plot(twicePlusOne(close), "Function")
+`), bars);
+assert.equal(result.plots[0].values.at(-1), bars.at(-1).close*2+1);
+
+
+result = runPine(compile(`//@version=6
 indicator("MTF test")
 hourClose = request.security(syminfo.tickerid, "60", close)
 plot(hourClose, "Hourly close")
