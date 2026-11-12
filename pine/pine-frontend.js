@@ -51,10 +51,6 @@
           continue;
         }
       }
-      if (ch === "#") {
-        const match = text.slice(i).match(/^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?(?![A-Za-z0-9_])/);
-        if (match) { push("STRING", match[0], line, column); i += match[0].length; column += match[0].length; continue; }
-      }
       if (ch === '"' || ch === "'") {
         const quote = ch, startLine = line, startColumn = column;
         let value = "", closed = false;
