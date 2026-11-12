@@ -341,6 +341,12 @@ result=runPine(wizardAst,fiboBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.0
 assert.equal(result.metadata.title,"Money Trader — Otomatik Destek/Direnç");
 assert.ok(result.inputDefs.length>=10,"Wizzard source input definitions should be exposed");
 
+const sniperSource=fs.readFileSync(path.join(__dirname,"fixtures","MONEY_TRADER_SNIPER.pine"),"utf8");
+const sniperAst=compile(sniperSource);
+result=runPine(sniperAst,fiboBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:500000});
+assert.equal(result.metadata.title,"SNIPER BOT SIGNALS [ALL BREAKOUTS]");
+
+
 const sessionBars=[
  {time:Date.UTC(2024,0,1,9,30)/1000,open:1,high:2,low:0,close:1,volume:10},
  {time:Date.UTC(2024,0,1,10,30)/1000,open:1,high:2,low:0,close:1,volume:10}
