@@ -79,4 +79,14 @@ assert.deepEqual(blockFunction.diagnostics,[]);
 assert.equal(blockFunction.body[1].type,"FunctionDeclaration");
 assert.equal(blockFunction.body[1].bodyStatements.length,2);
 assert.equal(blockFunction.body[2].type,"ExpressionStatement");
+
+const switchExpr=parsePine(lexPine(`//@version=6
+indicator("Switch expression")
+theme = switch close > open
+    true => "green"
+    false => "red"
+`).tokens);
+assert.deepEqual(switchExpr.diagnostics,[]);
+assert.equal(switchExpr.body[1].value.type,"SwitchExpression");
+assert.equal(switchExpr.body[1].value.cases.length,2);
 console.log("Pine parser tests: OK");
