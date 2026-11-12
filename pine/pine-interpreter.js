@@ -138,13 +138,14 @@
     function fullEma(src,len){const a=seriesValues(src),out=[];let prev=NA;const n=Math.trunc(num(value(len))),alpha=2/(n+1);for(let i=0;i<a.length;i++){if(isNA(a[i])){out.push(NA);continue;}if(isNA(prev)){if(i+1>=n){const w=a.slice(i+1-n,i+1);if(!w.some(isNA))prev=w.reduce((z,x)=>z+num(x),0)/n;}}else prev=alpha*num(a[i])+(1-alpha)*prev;out.push(prev);}return out;}
     function fullRma(src,len){const a=seriesValues(src),out=[];let prev=NA;const n=Math.trunc(num(value(len)));for(let i=0;i<a.length;i++){if(isNA(a[i])){out.push(NA);continue;}if(isNA(prev)){if(i+1>=n){const w=a.slice(i+1-n,i+1);if(!w.some(isNA))prev=w.reduce((z,x)=>z+num(x),0)/n;}}else prev=(prev*(n-1)+num(a[i]))/n;out.push(prev);}return out;}
     function pivot(src,left,right,highMode){const a=seriesValues(src),l=Math.max(1,Math.trunc(num(value(left)))),r=Math.max(1,Math.trunc(num(value(right)))),i=a.length-1-r;if(i<l||i<0)return NA;const w=a.slice(i-l,i+r+1);if(w.some(isNA))return NA;const v=a[i],ext=highMode?Math.max(...w.map(num)):Math.min(...w.map(num));return num(v)===ext?v:NA;}
+    const makeArray=(size,initial,fallback)=>{const n=size===undefined?0:Math.trunc(num(value(size)));if(!Number.isFinite(n)||n<0||n>100000)throw new RangeError("Dizi boyutu 0..100000 arasında olmalı.");return Array.from({length:n},()=>initial===undefined?fallback:value(initial));};
     const array = {
-      new:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?NA:value(initial)),
-      new_float:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?NA:value(initial)),
-      new_int:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?0:value(initial)),
-      new_bool:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?false:value(initial)),
-      new_string:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?"":value(initial)),
-      new_color:(size,initial)=>Array(Math.max(0,Math.min(100000,Math.trunc(num(value(size)))))).fill(initial===undefined?NA:value(initial)),
+      new:(size,initial)=>makeArray(size,initial,NA),
+      new_float:(size,initial)=>makeArray(size,initial,NA),
+      new_int:(size,initial)=>makeArray(size,initial,0),
+      new_bool:(size,initial)=>makeArray(size,initial,false),
+      new_string:(size,initial)=>makeArray(size,initial,""),
+      new_color:(size,initial)=>makeArray(size,initial,NA),
       from:(...items)=>items.map(value),size:a=>a.length,push:(a,v)=>a.push(value(v)),pop:a=>a.pop(),shift:a=>a.shift(),unshift:(a,v)=>a.unshift(value(v)),
       get:(a,i)=>a[Math.trunc(num(value(i)))],set:(a,i,v)=>{a[Math.trunc(num(value(i)))]=value(v);return a;},remove:(a,i)=>a.splice(Math.trunc(num(value(i))),1)[0],
       clear:a=>{a.length=0;},copy:a=>a.slice(),reverse:a=>a.reverse(),sort:(a)=>a.sort((x,y)=>num(x)-num(y)),
