@@ -350,6 +350,7 @@
           break;
         }
         case "ConditionalExpression":return truth(value(evalExpr(n.test,scope)))?evalExpr(n.consequent,scope):evalExpr(n.alternate,scope);
+        case "SwitchExpression":{const d=n.discriminant?value(evalExpr(n.discriminant,scope)):undefined;let chosen=null;for(const c of n.cases||[]){if(c.test===null){if(!chosen)chosen=c;continue;}const t=value(evalExpr(c.test,scope));if(n.discriminant?d===t:truth(t)){chosen=c;break;}}if(!chosen)return NA;const last=chosen.body&&chosen.body[chosen.body.length-1];return last&&last.type==="ExpressionStatement"?evalExpr(last.expression,scope):last?execStatement(last,new Scope(scope)):NA;}
         case "MemberExpression":{
           if(!n.computed&&n.object&&n.object.type==="Identifier"&&n.object.name==="ta"&&n.property&&n.property.name==="tr")return new SeriesRef(ctxBars.slice(0,currentIndex+1).map((_,i)=>trueRange({bars:ctxBars,index:i})));
           const obj=evalExpr(n.object,scope);
