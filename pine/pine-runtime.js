@@ -62,13 +62,18 @@
       return true;
     }
     read(name, offset) {
+      const historyOffset = offset === undefined ? 0 : offset;
+      if (!Number.isInteger(historyOffset) || historyOffset < 0) throw new RangeError("History offset must be a non-negative integer.");
       if (["open", "high", "low", "close", "volume", "time"].includes(name)) {
-        const barIndex = this.index - (offset || 0);
+        const barIndex = this.index - historyOffset;
         return barIndex < 0 || barIndex >= this.bars.length ? NA : this.bars[barIndex][name];
       }
-      if (name === "bar_index") return this.index < 0 ? NA : this.index - (offset || 0);
+      if (name === "bar_index") {
+        const historicalIndex = this.index - historyOffset;
+        return historicalIndex < 0 ? NA : historicalIndex;
+      }
       const series = this.series[name];
-      return series ? series.at(offset || 0) : NA;
+      return series ? series.at(historyOffset) : NA;
     }
     write(name, value) {
       if (!this.series[name]) this.series[name] = new PineSeries([]);
