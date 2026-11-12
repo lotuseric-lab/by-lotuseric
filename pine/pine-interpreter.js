@@ -223,7 +223,7 @@
       na:()=>NA, nafn:()=>NA, nz:(x,repl)=>isNA(value(x))?(repl===undefined?0:value(repl)):value(x),
       math, ta, input, color, array, map:mapNS, matrix:matrixNS, str, barstate, timeframe:{period:String(options.timeframe||""),isweekly:/^(1W|1w|W|w)$/.test(String(options.timeframe||"")),isdaily:/^(1D|1d|D|d)$/.test(String(options.timeframe||"")),isintraday:/^([1-9]\d*|[1-9]\d*[m])$/.test(String(options.timeframe||"")),ismonthly:/^(1M|M)$/.test(String(options.timeframe||""))}, syminfo:{ticker:String(options.symbol||""),tickerid:String(options.symbol||""),mintick:Number(options.mintick||0.00000001),basecurrency:"",currency:""},
       indicator:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Indicator";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;}, study:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Study";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;},
-      plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=outputs._plotCallIndex++;let p=outputs.plots[k];if(!p){p={title:cfg.title||"Plot "+(k+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:[]};outputs.plots[k]=p;}p.values.push(value(v));return null;},
+      plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=outputs._activePlotId;if(k===undefined)throw new PineExecutionError("plot çağrı noktası belirlenemedi.",null,"PINE_PLOT_CALLSITE");let p=outputs.plots.find(x=>x._id===k);if(!p){p={_id:k,title:cfg.title||"Plot "+(outputs.plots.length+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:[]};outputs.plots.push(p);}outputs._plotValuesThisBar.set(k,value(v));return null;},
       plotshape:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",style:cfg.style||"shape.triangleup",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
       plotchar:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",char:cfg.char||"•",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
       plotcandle:(o,h,l,c,...args)=>{const cfg=args.reduce((z,x)=>{if(x&&x.__named)z[x.name]=value(x.value);return z;},{});outputs.candles.push({type:"candlestick",bar:ctx.index,open:value(o),high:value(h),low:value(l),close:value(c),color:cfg.color||"#22c58b",wickcolor:cfg.wickcolor||cfg.color||"#22c58b",bordercolor:cfg.bordercolor||cfg.color||"#22c58b"});return null;},
@@ -283,6 +283,7 @@
     let currentIndex=-1,steps=0;
     const ctxBars=cleanBars;
     const securityCache=new Map();
+    const plotCallIds=new WeakMap();let nextPlotCallId=0;
     const maxSteps=opts.maxSteps||100000;
     function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı.",node,"PINE_EXECUTION_LIMIT");}
     function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name]);}
@@ -358,7 +359,9 @@
           }
           const fn=n.callee&&n.callee.type==="Identifier"&&n.callee.name==="na"?builtins.na:evalExpr(n.callee,scope);if(typeof fn!=="function")throw new PineExecutionError("Çağrılan ifade fonksiyon değil.",n);
           const args=n.arguments.map(a=>a.type==="NamedArgument"?namedArg(a.name,evalExpr(a.value,scope)):evalExpr(a,scope));
-          return fn(...args);
+          const isPlotCall=n.callee&&n.callee.type==="Identifier"&&n.callee.name==="plot";
+          if(isPlotCall){if(!plotCallIds.has(n))plotCallIds.set(n,nextPlotCallId++);outputs._activePlotId=plotCallIds.get(n);}
+          try{return fn(...args);}finally{if(isPlotCall)delete outputs._activePlotId;}
         }
         case "ArrowFunctionExpression":return {params:n.params.map(p=>p.name),body:n.body,scope};
       }
@@ -419,14 +422,15 @@
     // Install OHLCV series progressively; each bar is evaluated in source order.
     const barKeys=["open","high","low","close","volume","time"];
     for(let i=0;i<cleanBars.length;i++){
-      currentIndex=i;outputs._plotCallIndex=0;
+      currentIndex=i;outputs._plotValuesThisBar=new Map();
       for(const k of barKeys){if(!vars[k])vars[k]=[];vars[k].push(cleanBars[i][k]);}
       const barScope=new Scope(global);
       try{execBlock(ast.body,barScope);if(opts.captureExpression)outputs.expression.push(value(evalExpr(opts.captureExpression,barScope)));}
       catch(error){if(error&&error.__pineBreak)throw new PineExecutionError("break yalnızca döngü içinde kullanılabilir.");if(error&&error.__pineContinue)throw new PineExecutionError("continue yalnızca döngü içinde kullanılabilir.");if(error instanceof PineExecutionError)throw error;throw new PineExecutionError(error.message,null);}
-      for(const p of outputs.plots){if(p.values.length<=i)p.values.push(NA);}
+      for(const p of outputs.plots)p.values.push(outputs._plotValuesThisBar.has(p._id)?outputs._plotValuesThisBar.get(p._id):NA);
     }
-    delete outputs._plotCallIndex;
+    for(const p of outputs.plots)delete p._id;
+    delete outputs._plotValuesThisBar;
     outputs.inputs=inputValues;
     outputs.barCount=cleanBars.length;
     outputs.metadata=Object.assign(outputs.metadata,opts.metadata||{});
