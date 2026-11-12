@@ -92,9 +92,9 @@ The next gate is to run the same real OHLCV export through TradingView, Resin an
 
 ### Critical screenshot-specific gap discovered
 
-The user's reference ADX script declares `overlay=false` but uses `force_overlay=true` on price-chart labels and drawings. Resin's captured drawing records in this smoke artifact do not include a `force_overlay` field. Therefore, even though the runtime executes the ADX script and captures its drawings, a renderer cannot reliably route those drawings to the main price pane while keeping DI+/DI- in the separate pane. This is a concrete explanation for a key part of the screenshot mismatch.
+The user's reference ADX script declares `overlay=false` but uses `force_overlay=true` on price-chart labels, lines and plotshapes. A closer inspection of the actual Resin JSON artifact corrected the initial finding: Resin DOES preserve `forceOverlay: true` for plotshape outputs (and the plot output schema has a forceOverlay field). However, the captured `drawings[]` state records for `line.new` and `label.new` do NOT carry forceOverlay. Thus the specific remaining gap is drawing-object pane routing, not all visual outputs. A renderer can route the plotshapes to the main pane, but cannot yet reliably route the ADX line/label drawings there while leaving DI+/DI- in the indicator pane.
 
-PineTS documents `force_overlay` synchronization for line/box/label drawing objects (changelog 0.9.9). PineTS/Vela is therefore the better feature-completeness reference for this exact case, but the PineTS + Vela-PineTS packages are AGPL-3.0 and require a commercial license or AGPL-compatible product distribution before shipping in BY LOTUSERIC.
+TradingView's official documentation confirms force_overlay applies to plot* outputs and drawing constructors. Resin's drawing-capture limitation is therefore a real compatibility gap for this source. PineTS/Vela can be used as a black-box behavior reference, but the PineTS + Vela-PineTS packages are AGPL-3.0 and require a commercial license or AGPL-compatible product distribution before shipping in BY LOTUSERIC.
 
 ### Strongest clean-room architecture to pursue
 
@@ -104,3 +104,12 @@ PineTS documents `force_overlay` synchronization for line/box/label drawing obje
 - Keep the current Lightweight Charts page as a fallback until Vela + Resin passes visual acceptance on mobile.
 
 This is not a claim of TradingView equivalence. It is the lowest-license-risk path to a stronger, testable Pine-compatible system. If Vela's integration cost or mobile performance fails, retain the current chart adapter and build the same runtime improvements behind it.
+
+
+### Artifact-level force_overlay audit
+
+The downloaded `resin-money-trader-smoke-results.zip` was inspected directly (not inferred from source code):
+- `viz.plots[*].forceOverlay` exists; ordinary DI+/DI-/RSI plots are false.
+- `viz.shapes[*].forceOverlay` exists; the MONEY TRADER ADX AL/SAT/DİP AL plotshapes are true.
+- `viz.drawings[*].state` for captured line and label objects has no `forceOverlay` field in this Resin build. Example objects: line id 307 and label id 308.
+This narrows the engineering task: preserve drawing-constructor `force_overlay` metadata through Resin's drawing capture and the chart adapter, while keeping existing plotshape routing intact. The earlier blanket statement that Resin did not preserve force_overlay was too broad and has been corrected.
