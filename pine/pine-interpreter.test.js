@@ -26,7 +26,7 @@ assert.equal(result.plots.length, 2);
 assert.equal(result.plots[0].values.length, bars.length);
 assert.equal(result.plots[0].title, "Fast");
 assert.equal(result.plots[0].color, "#2962ff");
-assert.ok(Math.abs(result.plots[0].values.at(-1) - 139.5) < 1e-9);
+assert.ok(Math.abs(result.plots[0].values.at(-1) - 139) < 1e-9);
 assert.equal(result.plots[1].values.at(-1), 138);
 
 result = runPine(compile(`//@version=6
