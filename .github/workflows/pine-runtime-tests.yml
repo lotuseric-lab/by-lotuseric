@@ -30,4 +30,5 @@ jobs:
       - run: node pine/pine-parser.test.js
       - run: node pine/pine-runtime.test.js
       - run: node pine/pine-interpreter.test.js
+      - run: node pine/pine-chart-adapter.test.js
       - run: node pine/check-inline-scripts.js
