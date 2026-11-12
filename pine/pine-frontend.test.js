@@ -36,4 +36,6 @@ const hex = lexPine(`//@version=6\ncolor a = #00e676\ncolor b = #ff1744cc\n`);
 assert.equal(hex.diagnostics.length, 0);
 assert.ok(hex.tokens.some(t => t.type === "STRING" && t.value === "#00e676"));
 assert.ok(hex.tokens.some(t => t.type === "STRING" && t.value === "#ff1744cc"));
+const logical = lexPine("not enabled or ready and active");
+assert.deepEqual(logical.tokens.filter(t => t.type === "OPERATOR").map(t => t.value), ["not", "or", "and"]);
 console.log("Pine front-end tests: OK");
