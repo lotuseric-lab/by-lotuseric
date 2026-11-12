@@ -620,7 +620,7 @@ function runCustomPine(showMessage=true){
    if(target.addSeries&&LightweightCharts[type])return target.addSeries(LightweightCharts[type],options);
    throw new Error('Grafik motoru bu seri türünü desteklemiyor: '+type);
   };
-  customPineChartState=ByLotusericPineChartAdapter.mount({chart,addChartSeries:addForTarget,bars:barData,output,host:$('indicatorPanes')});
+  customPineChartState=ByLotusericPineChartAdapter.mount({chart,addChartSeries:addForTarget,bars:barData,output,host:$('indicatorPanes'),drawingHost:$('chart'),priceSeries:candleSeries});
   customPineLastCode=code;
   status.textContent='Çalıştı: '+(output.metadata.title||$('customIndicatorName').value||'Özel Pine')+' · '+output.plots.length+' çizgi · '+barData.length+' mum';
   status.style.color='var(--green)';
