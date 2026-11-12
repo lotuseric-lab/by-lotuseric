@@ -74,3 +74,10 @@ For every fixture record:
 - Resin: https://github.com/nullarch/resin
 - PineTS: https://github.com/LuxAlgo/PineTS
 - PineTS license and chart integration: https://github.com/LuxAlgo/PineTS/blob/main/README.md
+
+
+## Automated candidate smoke workflow
+
+`.github/workflows/pine-engine-candidate-benchmark.yml` checks out the Resin repository, records its exact commit SHA, compiles every checked-in MONEY TRADER fixture, executes each fixture over 500 deterministic bars, and uploads the visualization JSON. This is an integration smoke test only: deterministic synthetic bars prove that the candidate runs and emits output, not that its numbers or drawings match TradingView.
+
+The next gate is to run the same real OHLCV export through TradingView, Resin and PineTS/Vela and compare every bar. For SMART LINES v3, the exact source and matching TradingView data/export are required; similar indicator names are not substitutes.
