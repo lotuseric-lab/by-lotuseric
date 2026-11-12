@@ -267,4 +267,25 @@ fill(a, b, color=color.new(color.blue, 70))
 `), bars);
 assert.equal(result.fills.length, bars.length);
 
+
+const sparseMtfBars = Array.from({length:12},(_,i)=>i===3?null:{
+  time:1700002800+i*300,open:100+i,high:102+i,low:99+i,close:101+i,volume:1000
+}).filter(Boolean);
+result=runPine(compile(`//@version=6
+indicator("MTF complete bucket with missing base candle")
+hourClose=request.security(syminfo.tickerid,"60",close)
+plot(hourClose,"Confirmed hourly close")
+`),sparseMtfBars,{timeframe:"5m",symbol:"TEST-USDT"});
+assert.equal(result.plots[0].values.at(-1),sparseMtfBars.at(-1).close,
+  "A fully elapsed HTF bucket must not be discarded merely because the feed has a missing base candle");
+
+const partialMtfBars=sparseMtfBars.slice(0,-1);
+result=runPine(compile(`//@version=6
+indicator("MTF unfinished bucket")
+hourClose=request.security(syminfo.tickerid,"60",close)
+plot(hourClose,"Confirmed hourly close")
+`),partialMtfBars,{timeframe:"5m",symbol:"TEST-USDT"});
+assert.equal(result.plots[0].values.at(-1),null,
+  "An unfinished higher-timeframe candle must not leak into confirmed lookahead-off values");
+
 console.log("Pine interpreter tests: OK");
