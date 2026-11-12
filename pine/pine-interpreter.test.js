@@ -335,4 +335,9 @@ result=runPine(fiboAst,fiboBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,
 assert.ok(result.tables.length>0,"FIBO source should render its diagnostics table");
 assert.ok(result.lines.length>0,"FIBO source should create Fibonacci levels");
 
+const wizardSource=fs.readFileSync(path.join(__dirname,"fixtures","MONEY_TRADER_WIZZARD.pine"),"utf8");
+const wizardAst=compile(wizardSource);
+result=runPine(wizardAst,fiboBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:500000});
+assert.ok(result.lines.length>0||result.labels.length>0,"Wizzard source should create chart drawings");
+
 console.log("Pine interpreter tests: OK");
