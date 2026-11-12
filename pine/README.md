@@ -40,3 +40,9 @@ node pine/pine-frontend.test.js
 ```
 
 GitHub Actions, bu klasördeki değişikliklerde aynı testi çalıştırır.
+
+## Parser durumu
+
+`pine-parser.js` şu an temel ifade AST'sini üretir: matematiksel/mantıksal işlemler, karşılaştırmalar, ternary, fonksiyon çağrıları, isimli argümanlar, namespace alanları, geçmiş indeksleri, diziler ve arrow fonksiyonları. Basit atama/deklarasyon/if/while/for satırları da tanınır.
+
+Henüz tam Pine parser değildir: girintili blokların iç içe AST'ye bağlanması, çok satırlı ifadeler, Pine for-range sözdiziminin tüm varyantları, tip bildirimi ve derleyici semantiği sonraki adımlardır. Bunlar tamamlanmadan gerçek kaynaklar için uyumluluk iddiası yapılmaz.
