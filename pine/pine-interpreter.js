@@ -322,10 +322,14 @@
               const mini={type:"Program",body:[{type:"ExpressionStatement",expression:exprNode}],diagnostics:[]};
               const res=runPine(mini,mtfBars,{...opts,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityData:null});
               const vals=res.expression||[];
-              mapped=cleanBars.map((bar,i)=>{
+              const gaps=n.arguments.slice(3).find(a=>a.type==="NamedArgument"&&a.name==="gaps");
+              const gapsOn=!!(gaps&&value(evalExpr(gaps.value,scope))==="gaps_on");
+              mapped=cleanBars.map((bar)=>{
                 const closeTime=(bar.time*1000)+baseMs;let j=-1;
                 for(let k=0;k<mtfBars.length;k++)if((mtfBars[k].time*1000)+targetMs<=closeTime)j=k;else break;
-                return j<0?NA:(vals[j]===undefined?NA:vals[j]);
+                if(j<0)return NA;
+                if(gapsOn&&(mtfBars[j].time*1000)+targetMs!==closeTime)return NA;
+                return vals[j]===undefined?NA:vals[j];
               });
               securityCache.set(cacheKey,mapped);
             }
