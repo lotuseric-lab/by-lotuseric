@@ -20,9 +20,9 @@
     for(const p of state.panes||[]){try{p.chart.remove()}catch{}try{p.wrap.remove()}catch{}}
   }
   function mount(config){
-    const {chart,addChartSeries,bars,output,host}=config;
+    const {chart,addChartSeries,bars,output,host,drawingHost,priceSeries}=config;
     if(!chart||typeof addChartSeries!=="function"||!Array.isArray(bars)||!output)throw new TypeError("Pine chart adapter eksik yapılandırıldı.");
-    const state={series:[],panes:[],markers:[],output};
+    const state={series:[],panes:[],markers:[],tableEls:[],output};
     const overlay=output.metadata?.overlay!==false;
     let target=chart;
     if(!overlay&&host){
@@ -49,6 +49,20 @@
       const series=addChartSeries.call(null,target,"LineSeries",{color:"#8794a8",lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false});
       series.setData(bars.map(b=>({time:b.time,value:h.value})));
       state.series.push({chart:target,series});
+    }
+    if(drawingHost&&priceSeries&&(output.lines?.length||output.labels?.length||output.boxes?.length)){
+      const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+      svg.setAttribute("class","pineDrawingOverlay");
+      Object.assign(svg.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none",overflow:"visible",zIndex:"6"});
+      drawingHost.append(svg);state.svg=svg;
+      const xy=(x,y,xloc)=>{let time;if(xloc==="bar_time")time=Number(x);else{const i=Math.max(0,Math.min(bars.length-1,Math.trunc(Number(x))));time=bars[i]?.time;}const px=chart.timeScale().timeToCoordinate(time),py=priceSeries.priceToCoordinate(Number(y));return px==null||py==null?null:{x:px,y:py};};
+      const line=(x1,y1,x2,y2,color,width,style)=>{const a=xy(x1,y1,"bar_index"),b=xy(x2,y2,"bar_index");if(!a||!b)return;const el=document.createElementNS("http://www.w3.org/2000/svg","line");for(const [k,v] of Object.entries({x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:color||"#2962ff","stroke-width":width||2,"stroke-dasharray":style==="dashed"?"7 5":style==="dotted"?"2 4":""}))el.setAttribute(k,String(v));svg.append(el);};
+      for(const o of output.lines||[])if(!o.deleted)line(o.x1,o.y1,o.x2,o.y2,o.color,o.width,o.style);
+      for(const o of output.boxes||[])if(!o.deleted){const a=xy(o.left,o.top,o.xloc),b=xy(o.right,o.bottom,o.xloc);if(!a||!b)continue;const el=document.createElementNS("http://www.w3.org/2000/svg","rect");for(const [k,v] of Object.entries({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:o.bgcolor,stroke:o.border_color,"stroke-width":o.border_width||1}))el.setAttribute(k,String(v));svg.append(el);}
+      for(const o of output.labels||[])if(!o.deleted){const p=xy(o.x,o.y,o.xloc);if(!p)continue;const el=document.createElementNS("http://www.w3.org/2000/svg","text");el.setAttribute("x",String(p.x));el.setAttribute("y",String(p.y));el.setAttribute("fill",o.textcolor||"#fff");el.setAttribute("font-size","12");el.textContent=o.text;svg.append(el);}
+    }
+    if(output.tables?.length&&drawingHost){
+      for(const t of output.tables){if(t.deleted)continue;const el=document.createElement("div");el.className="pineTableOverlay";Object.assign(el.style,{position:"absolute",right:"8px",top:"8px",zIndex:"8",background:t.bgcolor||"#142033",color:"#fff",border:"1px solid "+(t.frame_color||"#64748b"),padding:"4px",fontSize:"11px",pointerEvents:"none"});const table=document.createElement("table");for(let r=0;r<t.rows;r++){const tr=document.createElement("tr");for(let c=0;c<t.columns;c++){const td=document.createElement("td"),cell=t.cells[c+":"+r];td.textContent=cell?.text||"";td.style.padding="3px 5px";td.style.color=cell?.text_color||"#fff";if(cell?.bgcolor)td.style.background=cell.bgcolor;tr.append(td);}table.append(tr);}el.append(table);drawingHost.append(el);state.tableEls.push(el);}
     }
     if(overlay&&output.shapes?.length){
       const markerSeries=addChartSeries.call(null,target,"LineSeries",{color:"#ffffff",lineVisible:false,pointMarkersVisible:true,pointMarkersRadius:5,priceLineVisible:false,lastValueVisible:false});
