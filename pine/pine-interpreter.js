@@ -184,7 +184,7 @@
       sum:m=>m.data.flat().reduce((z,x)=>z+num(x),0)
     };
     const str = {
-      tostring:(v)=>isNA(value(v))?"NaN":String(value(v)),length:v=>String(value(v)||"").length,
+      tostring:(v,fmt)=>{const x=value(v),f=value(fmt);if(isNA(x))return "NaN";if(f==="mintick"&&Number.isFinite(Number(options.mintick))&&Number(options.mintick)>0){const tick=Number(options.mintick),digits=Math.max(0,Math.min(12,(-Math.floor(Math.log10(tick))+(tick/Math.pow(10,Math.floor(Math.log10(tick)))%1?1:0))));return Number(x).toFixed(digits);}if(f==="percent")return (Number(x)*100).toFixed(2)+"%";return String(x);},length:v=>String(value(v)||"").length,
       lower:v=>String(value(v)||"").toLowerCase(),upper:v=>String(value(v)||"").toUpperCase(),
       contains:(a,b)=>String(value(a)).includes(String(value(b))),startswith:(a,b)=>String(value(a)).startsWith(String(value(b))),
       endswith:(a,b)=>String(value(a)).endsWith(String(value(b))),substring:(a,start,end)=>String(value(a)).slice(Math.trunc(num(value(start))),end===undefined?undefined:Math.trunc(num(value(end)))),
@@ -222,6 +222,7 @@
     const builtins = {
       na:()=>NA, nafn:()=>NA, nz:(x,repl)=>isNA(value(x))?(repl===undefined?0:value(repl)):value(x),
       math, ta, input, color, array, map:mapNS, matrix:matrixNS, str, barstate, timeframe:{period:String(options.timeframe||""),isweekly:/^(1W|1w|W|w)$/.test(String(options.timeframe||"")),isdaily:/^(1D|1d|D|d)$/.test(String(options.timeframe||"")),isintraday:/^([1-9]\d*|[1-9]\d*[m])$/.test(String(options.timeframe||"")),ismonthly:/^(1M|M)$/.test(String(options.timeframe||""))}, syminfo:{ticker:String(options.symbol||""),tickerid:String(options.symbol||""),mintick:Number(options.mintick||0.00000001),basecurrency:"",currency:""},
+      format:{mintick:"mintick",price:"price",volume:"volume",percent:"percent",inherit:"inherit"},
       indicator:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Indicator";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;}, study:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Study";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;},
       plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=outputs._activePlotId;if(k===undefined)throw new PineExecutionError("plot çağrı noktası belirlenemedi.",null,"PINE_PLOT_CALLSITE");let p=outputs.plots.find(x=>x._id===k);if(!p){p={_id:k,title:cfg.title||"Plot "+(outputs.plots.length+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:Array(ctx.index).fill(NA)};outputs.plots.push(p);}outputs._plotValuesThisBar.set(k,value(v));return null;},
       plotshape:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",style:cfg.style||"shape.triangleup",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
@@ -320,6 +321,7 @@
         }
         case "ConditionalExpression":return truth(value(evalExpr(n.test,scope)))?evalExpr(n.consequent,scope):evalExpr(n.alternate,scope);
         case "MemberExpression":{
+          if(!n.computed&&n.object&&n.object.type==="Identifier"&&n.object.name==="ta"&&n.property&&n.property.name==="tr")return new SeriesRef(ctxBars.slice(0,currentIndex+1).map((_,i)=>trueRange({bars:ctxBars,index:i})));
           const obj=evalExpr(n.object,scope);
           if(n.computed){const idx=Math.trunc(num(value(evalExpr(n.property,scope))));if(obj instanceof SeriesRef)return obj.at(idx);if(Array.isArray(obj))return idx>=0&&idx<obj.length?obj[idx]:NA;throw new PineExecutionError("Bu değer geçmiş/indeks erişimini desteklemiyor.",n);}
           if(obj==null)throw new PineExecutionError("Boş değer üzerinde alan erişimi.",n);
@@ -327,6 +329,7 @@
           throw new PineExecutionError("Desteklenmeyen alan: "+(n.property&&n.property.name),n);
         }
         case "CallExpression":{
+          if(n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="ta"&&n.callee.property.name==="tr")return trueRange({bars:ctxBars,index:currentIndex});
           if(n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="request"&&n.callee.property.name==="security"){
             const sym=n.arguments[0]?value(evalExpr(n.arguments[0],scope)):String(opts.symbol||"");
             const tf=n.arguments[1]?value(evalExpr(n.arguments[1],scope)):String(opts.timeframe||"");
