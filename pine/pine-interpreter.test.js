@@ -204,6 +204,14 @@ assert.equal(result.fills[0].plot1, 0);
 assert.equal(result.fills[0].plot2, 1);
 assert.equal(result.fills[0].title, "Band");
 
+result = runPine(compile(`//@version=6
+indicator("Hline options")
+hline(50, "Middle", color=color.red, linestyle=hline.style_dashed)
+`), bars);
+assert.equal(result.hlines[0].value, 50);
+assert.equal(result.hlines[0].color, "#f23645");
+assert.equal(result.hlines[0].linestyle, "dashed");
+
 const crossCloses=[10,9,8,7,8,9,10,11,12,13,14,15,14,13,12,11,10,9,8];
 const crossBars=crossCloses.map((close,i)=>({time:1700000000+i*300,open:close,high:close+1,low:close-1,close,volume:1000}));
 result=runPine(compile(`//@version=6
