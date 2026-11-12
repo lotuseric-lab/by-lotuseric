@@ -122,7 +122,7 @@
       if(assign===1&&first.type==="IDENTIFIER"){
         return {type:"AssignmentStatement",operator:ts[1].value,target:{type:"Identifier",name:first.value,loc:loc(first)},value:expression(ts,2),...base};
       }
-      if(assign>1&&first.type==="IDENTIFIER"&&ts[1].value==="."){
+      if(assign>1&&first.type==="IDENTIFIER"&&ts[1].value==="."&&!ts.slice(0,assign).some(t=>t.value==="(")){
         return {type:"AssignmentStatement",operator:ts[assign].value,target:expression(ts,0,assign),value:expression(ts,assign+1),...base};
       }
       if(first.value==="var"&&ts[1]&&TYPES.has(ts[1].value)&&ts[2]&&ts[2].value==="<"){
