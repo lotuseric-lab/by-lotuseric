@@ -85,6 +85,12 @@ assert.equal(result.plots[0].values.length, bars.length);
 assert.equal(result.plots[0].values.at(-1), bars.at(-1).close);
 
 result = runPine(compile(`//@version=6
+indicator("History on TA call")
+plot(ta.highest(high, 5)[1], "Previous rolling high")
+`), bars);
+assert.equal(result.plots[0].values[5], Math.max(...bars.slice(0,5).map(b=>b.high)));
+
+result = runPine(compile(`//@version=6
 indicator("Conditional plot alignment")
 if bar_index % 2 == 0
     plot(close, "Even bars")
