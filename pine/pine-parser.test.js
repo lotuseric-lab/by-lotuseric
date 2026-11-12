@@ -36,6 +36,12 @@ assert.equal(ast.body[2].type,"TypedDeclarationStatement");
 assert.equal(parsePine(lexPine(`//@version=6\nvar upper_draw = array.new<draw>()`).tokens).body[0].type,"DeclarationStatement");
 assert.equal(parsePine(lexPine(`//@version=5\nvar line[] fibLines = array.new_line()`).tokens).body[0].type,"TypedDeclarationStatement");
 assert.equal(parsePine(lexPine(`//@version=5\nline[] fibLines = array.new_line()`).tokens).body[0].type,"TypedDeclarationStatement");
+
+const labelMethod=parsePine(lexPine(`//@version=5
+indicator("Label method")
+label.set_text(lbSL, "Orijinal SL " + str.tostring(close, format.mintick) + " (−" + slPctUpd + ")")
+`).tokens);
+assert.deepEqual(labelMethod.diagnostics,[]);
 assert.equal(ast.body[3].type,"FunctionDeclaration");
 assert.equal(ast.body[4].type,"IfStatement");
 assert.equal(ast.body[4].body[1].type,"IfStatement");
