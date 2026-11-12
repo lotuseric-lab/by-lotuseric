@@ -46,6 +46,7 @@
     }
   }
   function value(v) { return v instanceof SeriesRef ? v.current : v; }
+  function safeArrayIndex(a,i) { const n=Math.trunc(num(value(i))); if(!Number.isFinite(n)||n<0||n>=a.length) throw new RangeError("Array index out of bounds: "+n); return n; }
   function seriesValues(v) { return v instanceof SeriesRef ? v.values.slice(0,v.index+1) : [value(v)]; }
   function rolling(src, length, fn) {
     const a = seriesValues(src), n = Math.trunc(num(value(length)));
@@ -357,13 +358,13 @@
         case "MemberExpression":{
           if(!n.computed&&n.object&&n.object.type==="Identifier"&&n.object.name==="ta"&&n.property&&n.property.name==="tr")return new SeriesRef(ctxBars.slice(0,currentIndex+1).map((_,i)=>trueRange({bars:ctxBars,index:i})));
           const obj=evalExpr(n.object,scope);
-          if(n.computed){const idx=Math.trunc(num(value(evalExpr(n.property,scope))));if(obj instanceof SeriesRef)return obj.at(idx);if(Array.isArray(obj))return idx>=0&&idx<obj.length?obj[idx]:NA;let historicalExpr=n.object;while(historicalExpr&&historicalExpr.type==="GroupExpression")historicalExpr=historicalExpr.expression;if(historicalExpr&&historicalExpr.type==="CallExpression"&&Number.isInteger(idx)&&idx>=0){if(idx>currentIndex)return NA;const savedIndex=currentIndex;try{currentIndex=savedIndex-idx;return value(evalExpr(historicalExpr,scope));}finally{currentIndex=savedIndex;}}throw new PineExecutionError("Bu değer geçmiş/indeks erişimini desteklemiyor.",n);}
+          if(n.computed){const idx=Math.trunc(num(value(evalExpr(n.property,scope))));if(obj instanceof SeriesRef)return obj.at(idx);if(Array.isArray(obj))return Number.isFinite(idx)&&idx>=0&&idx<obj.length?obj[idx]:NA;let historicalExpr=n.object;while(historicalExpr&&historicalExpr.type==="GroupExpression")historicalExpr=historicalExpr.expression;if(historicalExpr&&historicalExpr.type==="CallExpression"&&Number.isInteger(idx)&&idx>=0){if(idx>currentIndex)return NA;const savedIndex=currentIndex;try{currentIndex=savedIndex-idx;return value(evalExpr(historicalExpr,scope));}finally{currentIndex=savedIndex;}}throw new PineExecutionError("Bu değer geçmiş/indeks erişimini desteklemiyor.",n);}
           if(obj==null)throw new PineExecutionError("Boş değer üzerinde alan erişimi.",n);
           if(Array.isArray(obj)){
             const methods={
               size:()=>obj.length,push:v=>obj.push(value(v)),pop:()=>obj.pop(),shift:()=>obj.shift(),unshift:v=>obj.unshift(value(v)),
-              get:i=>obj[arrayIndex(obj,i)],set:(i,v)=>{obj[arrayIndex(obj,i)]=value(v);return null;},
-              remove:i=>obj.splice(arrayIndex(obj,i),1)[0],clear:()=>{obj.length=0;},reverse:()=>obj.reverse(),
+              get:i=>obj[safeArrayIndex(obj,i)],set:(i,v)=>{obj[safeArrayIndex(obj,i)]=value(v);return null;},
+              remove:i=>obj.splice(safeArrayIndex(obj,i),1)[0],clear:()=>{obj.length=0;},reverse:()=>obj.reverse(),
               sum:()=>obj.reduce((z,x)=>z+num(x),0),avg:()=>obj.length?obj.reduce((z,x)=>z+num(x),0)/obj.length:NA,
               min:()=>obj.length?Math.min(...obj.map(num)):NA,max:()=>obj.length?Math.max(...obj.map(num)):NA,
               includes:v=>obj.includes(value(v)),indexof:v=>obj.indexOf(value(v)),copy:()=>obj.slice(),
