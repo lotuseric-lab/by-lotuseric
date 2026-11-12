@@ -1,5 +1,5 @@
-/* BY LOTUSERIC Pine expression parser and statement AST builder.
- * Parsing only: this module never evaluates source code.
+/* BY LOTUSERIC Pine expression and indentation-aware statement parser.
+ * Parsing only: source is never evaluated by this module.
  */
 (function (root, factory) {
   const api = factory();
@@ -7,205 +7,174 @@
   if (root) root.ByLotusericPineParser = api;
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
-
-  const PRECEDENCE = {
-    "or": 1, "and": 2,
-    "==": 3, "!=": 3, "<": 3, ">": 3, "<=": 3, ">=": 3,
-    "+": 4, "-": 4,
-    "*": 5, "/": 5, "%": 5
-  };
+  const PRECEDENCE = { or:1, and:2, "==":3, "!=":3, "<":3, ">":3, "<=":3, ">=":3, "+":4, "-":4, "*":5, "/":5, "%":5 };
   const ASSIGNMENTS = new Set(["=", ":=", "+=", "-=", "*=", "/=", "%="]);
-
+  const TYPES = new Set(["int","float","bool","string","color","line","label","box","table","linefill","polyline","array","matrix","map"]);
   class PineParseError extends Error {
     constructor(message, token) {
-      super(message);
-      this.name = "PineParseError";
-      this.code = "PINE_PARSE_UNEXPECTED_TOKEN";
-      this.line = token ? token.line : 1;
-      this.column = token ? token.column : 1;
+      super(message); this.name="PineParseError"; this.code="PINE_PARSE_UNEXPECTED_TOKEN";
+      this.line=token?token.line:1; this.column=token?token.column:1;
     }
   }
-
+  function loc(t) { return {line:t.line,column:t.column}; }
   class ExpressionParser {
-    constructor(tokens, start, end) {
-      this.tokens = tokens;
-      this.index = start || 0;
-      this.end = end == null ? tokens.length : end;
-    }
-    peek(offset) { return this.tokens[this.index + (offset || 0)] || null; }
-    take() { return this.tokens[this.index++] || null; }
-    match(value) {
-      if (this.peek() && this.peek().value === value) { this.index++; return true; }
-      return false;
-    }
-    expect(value) {
-      if (!this.match(value)) throw new PineParseError("Beklenen '" + value + "'.", this.peek());
-    }
-    parse() {
-      const expression = this.parseExpression(0);
-      if (this.index < this.end) throw new PineParseError("İfade sonunda beklenmeyen token: " + this.peek().value, this.peek());
-      return expression;
-    }
-    parseExpression(minPrecedence) {
-      let left = this.parsePrefix();
-      left = this.parsePostfix(left);
-      while (this.index < this.end) {
-        const token = this.peek();
-        if (!token) break;
-        if (token.value === "?" && minPrecedence <= 0) {
-          this.take();
-          const consequent = this.parseExpression(0);
-          this.expect(":");
-          const alternate = this.parseExpression(0);
-          left = { type: "ConditionalExpression", test: left, consequent, alternate, loc: loc(token) };
-          continue;
-        }
-        if (token.value === "=>" && minPrecedence <= 0) {
-          this.take();
-          const body = this.parseExpression(0);
-          const params = left.type === "Identifier" ? [left] :
-            left.type === "TupleExpression" ? left.elements : [left];
-          left = { type: "ArrowFunctionExpression", params, body, loc: loc(token) };
-          continue;
-        }
-        const precedence = PRECEDENCE[token.value];
-        if (precedence == null || precedence < minPrecedence) break;
-        this.take();
-        const right = this.parseExpression(precedence + 1);
-        left = { type: "BinaryExpression", operator: token.value, left, right, loc: loc(token) };
+    constructor(tokens,start,end) { this.tokens=tokens; this.index=start||0; this.end=end==null?tokens.length:end; }
+    peek(n) { return this.tokens[this.index+(n||0)]||null; }
+    take() { return this.tokens[this.index++]||null; }
+    match(v) { if(this.peek()&&this.peek().value===v){this.index++;return true;}return false; }
+    expect(v) { if(!this.match(v))throw new PineParseError("Beklenen '"+v+"'.",this.peek()); }
+    parse() { const n=this.parseExpression(0); if(this.index<this.end)throw new PineParseError("İfade sonunda beklenmeyen token: "+this.peek().value,this.peek()); return n; }
+    parseExpression(min) {
+      let left=this.parsePostfix(this.parsePrefix());
+      while(this.index<this.end) {
+        const t=this.peek(); if(!t)break;
+        if(t.value==="?"&&min<=0){this.take();const yes=this.parseExpression(0);this.expect(":");const no=this.parseExpression(0);left={type:"ConditionalExpression",test:left,consequent:yes,alternate:no,loc:loc(t)};continue;}
+        if(t.value==="=>"&&min<=0){this.take();const body=this.parseExpression(0);const params=left.type==="Identifier"?[left]:left.type==="TupleExpression"?left.elements:[left];left={type:"ArrowFunctionExpression",params,body,loc:loc(t)};continue;}
+        const p=PRECEDENCE[t.value];if(p==null||p<min)break;this.take();const right=this.parseExpression(p+1);left={type:"BinaryExpression",operator:t.value,left,right,loc:loc(t)};
       }
       return left;
     }
     parsePrefix() {
-      const token = this.take();
-      if (!token) throw new PineParseError("İfade bekleniyordu.", null);
-      if (token.type === "NUMBER") return { type: "NumericLiteral", value: Number(token.value), raw: token.value, loc: loc(token) };
-      if (token.type === "STRING") return { type: "StringLiteral", value: token.value, loc: loc(token) };
-      if (token.type === "LITERAL") return { type: "Literal", value: token.value === "na" ? null : token.value === "true", raw: token.value, loc: loc(token) };
-      if (token.type === "IDENTIFIER") return { type: "Identifier", name: token.value, loc: loc(token) };
-      if (token.value === "+" || token.value === "-" || token.value === "not") {
-        return { type: "UnaryExpression", operator: token.value, argument: this.parseExpression(6), loc: loc(token) };
+      const t=this.take();if(!t)throw new PineParseError("İfade bekleniyordu.",null);
+      if(t.type==="NUMBER")return {type:"NumericLiteral",value:Number(t.value),raw:t.value,loc:loc(t)};
+      if(t.type==="STRING")return {type:"StringLiteral",value:t.value,loc:loc(t)};
+      if(t.type==="LITERAL")return {type:"Literal",value:t.value==="na"?null:t.value==="true",raw:t.value,loc:loc(t)};
+      if(t.type==="IDENTIFIER")return {type:"Identifier",name:t.value,loc:loc(t)};
+      if(["+","-","not"].includes(t.value))return {type:"UnaryExpression",operator:t.value,argument:this.parseExpression(6),loc:loc(t)};
+      if(t.value==="(") {
+        if(this.match(")"))return {type:"TupleExpression",elements:[],loc:loc(t)};
+        const first=this.parseExpression(0);
+        if(this.match(",")){const elements=[first];do{if(this.peek()&&this.peek().value===")")break;elements.push(this.parseExpression(0));}while(this.match(","));this.expect(")");return {type:"TupleExpression",elements,loc:loc(t)};}
+        this.expect(")");return {type:"GroupExpression",expression:first,loc:loc(t)};
       }
-      if (token.value === "(") {
-        if (this.match(")")) return { type: "TupleExpression", elements: [], loc: loc(token) };
-        const first = this.parseExpression(0);
-        if (this.match(",")) {
-          const elements = [first];
-          do { elements.push(this.parseExpression(0)); } while (this.match(","));
-          this.expect(")");
-          return { type: "TupleExpression", elements, loc: loc(token) };
-        }
-        this.expect(")");
-        return { type: "GroupExpression", expression: first, loc: loc(token) };
-      }
-      if (token.value === "[") {
-        const elements = [];
-        if (!this.match("]")) {
-          do { elements.push(this.parseExpression(0)); } while (this.match(","));
-          this.expect("]");
-        }
-        return { type: "ArrayExpression", elements, loc: loc(token) };
-      }
-      throw new PineParseError("İfade başında beklenmeyen token: " + token.value, token);
+      if(t.value==="["){const elements=[];if(!this.match("]")){do{if(this.peek()&&this.peek().value==="]")break;elements.push(this.parseExpression(0));}while(this.match(","));this.expect("]");}return {type:"ArrayExpression",elements,loc:loc(t)};}
+      throw new PineParseError("İfade başında beklenmeyen token: "+t.value,t);
     }
     parsePostfix(base) {
-      let node = base;
-      while (this.index < this.end) {
-        const token = this.peek();
-        if (token.value === ".") {
-          this.take();
-          const property = this.take();
-          if (!property || property.type !== "IDENTIFIER") throw new PineParseError("Nokta sonrasında alan adı bekleniyor.", property || token);
-          node = { type: "MemberExpression", object: node, property: { type: "Identifier", name: property.value, loc: loc(property) }, computed: false, loc: loc(token) };
-        } else if (token.value === "[") {
-          this.take();
-          const property = this.parseExpression(0);
-          this.expect("]");
-          node = { type: "MemberExpression", object: node, property, computed: true, loc: loc(token) };
-        } else if (token.value === "(") {
-          this.take();
-          const args = [];
-          if (!this.match(")")) {
-            do {
-              const key = this.peek();
-              if (key && key.type === "IDENTIFIER" && this.peek(1) && this.peek(1).value === "=") {
-                this.take();
-                this.take();
-                args.push({ type: "NamedArgument", name: key.value,
-                  value: this.parseExpression(0), loc: loc(key) });
-              } else {
-                args.push(this.parseExpression(0));
-              }
-            } while (this.match(","));
-            this.expect(")");
-          }
-          node = { type: "CallExpression", callee: node, arguments: args, loc: loc(token) };
-        } else break;
-      }
-      return node;
+      let n=base;
+      while(this.index<this.end){const t=this.peek();
+        if(t.value==="."){this.take();const p=this.take();if(!p||p.type!=="IDENTIFIER")throw new PineParseError("Nokta sonrasında alan adı bekleniyor.",p||t);n={type:"MemberExpression",object:n,property:{type:"Identifier",name:p.value,loc:loc(p)},computed:false,loc:loc(t)};}
+        else if(t.value==="["){this.take();const p=this.parseExpression(0);this.expect("]");n={type:"MemberExpression",object:n,property:p,computed:true,loc:loc(t)};}
+        else if(t.value==="("){this.take();const args=[];if(!this.match(")")){do{if(this.peek()&&this.peek().value===")")break;const k=this.peek();if(k&&k.type==="IDENTIFIER"&&this.peek(1)&&this.peek(1).value==="="){this.take();this.take();args.push({type:"NamedArgument",name:k.value,value:this.parseExpression(0),loc:loc(k)});}else args.push(this.parseExpression(0));}while(this.match(","));this.expect(")");}n={type:"CallExpression",callee:n,arguments:args,loc:loc(t)};}
+        else break;
+      }return n;
     }
   }
 
-  function loc(token) { return { line: token.line, column: token.column }; }
+  function logicalLines(tokens) {
+    const lines=[];let current=[],depth=0,first=null,last=null;
+    const flush=()=>{if(current.length){lines.push({tokens:current,indent:current[0].column,line:current[0].line});current=[];first=null;last=null;}};
+    for(const t of tokens){
+      if(t.type==="EOF"){flush();break;}
+      if(t.type==="DIRECTIVE")continue;
+      if(t.type==="NEWLINE"){
+        if(depth>0)continue;
+        const prev=current[current.length-1];
+        if(prev&&[",","+","-","*","/","%","=","=>",":=","?","and","or"].includes(prev.value))continue;
+        flush();continue;
+      }
+      if(!first)first=t;
+      current.push(t);last=t;
+      if(["(","[","{"].includes(t.value))depth++;
+      if([")","]","}"].includes(t.value))depth=Math.max(0,depth-1);
+    }
+    flush();return lines;
+  }
 
   function parsePine(tokens) {
-    const body = [], diagnostics = [];
-    let i = 0;
-    while (i < tokens.length) {
-      while (tokens[i] && (tokens[i].type === "NEWLINE" || tokens[i].type === "EOF" || tokens[i].type === "DIRECTIVE")) i++;
-      if (i >= tokens.length || tokens[i].type === "EOF") break;
-      const line = tokens[i].line, indent = tokens[i].column;
-      let end = i;
-      let depth = 0;
-      while (end < tokens.length && tokens[end].type !== "EOF") {
-        const t = tokens[end];
-        if (t.value === "(" || t.value === "[" || t.value === "{") depth++;
-        if (t.value === ")" || t.value === "]" || t.value === "}") depth--;
-        if (t.type === "NEWLINE" && depth <= 0) break;
-        end++;
+    const lines=logicalLines(tokens),diagnostics=[];let cursor=0;
+    function expression(ts,start) { return new ExpressionParser(ts,start||0).parse(); }
+    function parseStatement(line) {
+      const ts=line.tokens,first=ts[0],base={loc:loc(first),indent:line.indent};
+      if(first.value==="else")return {type:"ElseMarker",...base};
+      if(first.value==="break"||first.value==="continue")return {type:first.value==="break"?"BreakStatement":"ContinueStatement",...base};
+      if(first.value==="if"||first.value==="while"){
+        const test=expression(ts,1);
+        return {type:first.value==="if"?"IfStatement":"WhileStatement",test,body:[],alternate:[],...base};
       }
-      const segment = tokens.slice(i, end);
-      if (segment.length) {
-        try {
-          const first = segment[0];
-          let node;
-          if (first.value === "if" || first.value === "while") {
-            const parser = new ExpressionParser(segment, 1);
-            const test = parser.parse();
-            node = { type: first.value === "if" ? "IfStatement" : "WhileStatement", test, body: [], alternate: [], loc: loc(first), indent };
-          } else if (first.value === "for") {
-            const inAt = segment.findIndex(t => t.value === "in");
-            if (inAt < 2) throw new PineParseError("for döngüsü 'değişken in aralık' biçiminde olmalı.", first);
-            const variable = segment[1];
-            const iterable = new ExpressionParser(segment, inAt + 1).parse();
-            node = { type: "ForStatement", variable: variable.value, iterable, body: [], loc: loc(first), indent };
-          } else {
-            const assignmentAt = segment.findIndex(t => ASSIGNMENTS.has(t.value));
-            if (assignmentAt === 1 && segment[0].type === "IDENTIFIER") {
-              const value = new ExpressionParser(segment, 2).parse();
-              node = { type: "AssignmentStatement", operator: segment[1].value,
-                target: { type: "Identifier", name: segment[0].value, loc: loc(segment[0]) },
-                value, loc: loc(segment[0]), indent };
-            } else if (segment.length > 1 && segment[0].type === "IDENTIFIER" &&
-                       segment[1].type === "IDENTIFIER" && segment[2] && segment[2].value === "=") {
-              const value = new ExpressionParser(segment, 3).parse();
-              node = { type: "DeclarationStatement", qualifier: segment[0].value, name: segment[1].value,
-                value, loc: loc(segment[0]), indent };
-            } else {
-              const expression = new ExpressionParser(segment, 0).parse();
-              node = { type: "ExpressionStatement", expression, loc: loc(first), indent };
+      if(first.value==="for"){
+        const variable=ts[1];if(!variable||variable.type!=="IDENTIFIER")throw new PineParseError("for döngüsünde değişken adı bekleniyor.",first);
+        const eq=ts.findIndex(t=>t.value==="="),to=ts.findIndex(t=>t.value==="to"),by=ts.findIndex(t=>t.value==="by"),inAt=ts.findIndex(t=>t.value==="in");
+        if(inAt>1){return {type:"ForInStatement",variable:variable.value,iterable:expression(ts,inAt+1),body:[],...base};}
+        if(eq===2&&to>eq){const stop=by>to?by:ts.length;return {type:"ForRangeStatement",variable:variable.value,start:expression(ts,3),end:expression(ts,to+1<stop?to+1:stop),step:by>0?expression(ts,by+1):null,body:[],...base};}
+        throw new PineParseError("for döngüsü 'for i = başlangıç to bitiş [by adım]' veya 'for x in dizi' biçiminde olmalı.",first);
+      }
+      // User-defined function declaration: name(arg1, arg2) => expression
+      if(first.type==="IDENTIFIER"&&ts[1]&&ts[1].value==="("){
+        let close=-1,depth=0;
+        for(let j=1;j<ts.length;j++){if(ts[j].value==="(")depth++;if(ts[j].value===")"&&--depth===0){close=j;break;}}
+        if(close>0&&ts[close+1]&&ts[close+1].value==="=>"){
+          const params=[];for(let j=2;j<close;j++)if(ts[j].type==="IDENTIFIER"&&(j===2||ts[j-1].value===","))params.push({type:"Identifier",name:ts[j].value,loc:loc(ts[j])});
+          return {type:"FunctionDeclaration",name:first.value,params,body:expression(ts,close+2),...base};
+        }
+      }
+      // Tuple destructuring assignment: [a, b] = expression
+      if(first.value==="["||first.value==="("){
+        const eq=ts.findIndex(t=>t.value==="=");
+        if(eq>0){const target=expression(ts.slice(0,eq));return {type:"DestructuringAssignment",target,value:expression(ts,eq+1),...base};}
+      }
+      // Typed declaration: var float x = na; float x = na; x = ...
+      let assign=ts.findIndex(t=>ASSIGNMENTS.has(t.value));
+      if(assign===1&&first.type==="IDENTIFIER"){
+        return {type:"AssignmentStatement",operator:ts[1].value,target:{type:"Identifier",name:first.value,loc:loc(first)},value:expression(ts,2),...base};
+      }
+      if(assign===2&&first.type==="IDENTIFIER"&&ts[1].type==="IDENTIFIER"){
+        return {type:"DeclarationStatement",qualifier:first.value,name:ts[1].value,value:expression(ts,3),...base};
+      }
+      if(assign===3&&first.value==="var"&&TYPES.has(ts[1].value)&&ts[2].type==="IDENTIFIER"){
+        return {type:"TypedDeclarationStatement",qualifier:"var",valueType:ts[1].value,name:ts[2].value,value:expression(ts,4),...base};
+      }
+      if(assign===2&&TYPES.has(first.value)&&ts[1].type==="IDENTIFIER"){
+        return {type:"TypedDeclarationStatement",qualifier:null,valueType:first.value,name:ts[1].value,value:expression(ts,3),...base};
+      }
+      return {type:"ExpressionStatement",expression:expression(ts),...base};
+    }
+    function parseBlock(parentIndent) {
+      const body=[];
+      while(cursor<lines.length){
+        const line=lines[cursor];
+        if(line.indent<=parentIndent)break;
+        cursor++;
+        try{
+          const node=parseStatement(line);
+          if(node.type==="ElseMarker"){
+            const previous=body[body.length-1];
+            if(!previous||previous.type!=="IfStatement"){diagnostics.push({code:"PINE_PARSE_ORPHAN_ELSE",message:"else için eşleşen if bulunamadı.",line:line.line,column:line.indent});continue;}
+            if(lines[cursor]&&lines[cursor].indent>line.indent)previous.alternate=parseBlock(line.indent);
+            else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else bloğu boş.",line:line.line,column:line.indent});
+            continue;
+          }
+          if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
+            if(lines[cursor]&&lines[cursor].indent>line.indent)node.body=parseBlock(line.indent);
+            else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"Kontrol bloğu için girintili gövde bekleniyor.",line:line.line,column:line.indent});
+            if(node.type==="IfStatement"&&lines[cursor]&&lines[cursor].indent===line.indent&&lines[cursor].tokens[0].value==="else"){
+              const el=lines[cursor++];if(lines[cursor]&&lines[cursor].indent>el.indent)node.alternate=parseBlock(el.indent);
+              else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else bloğu boş.",line:el.line,column:el.indent});
             }
           }
           body.push(node);
-        } catch (error) {
-          diagnostics.push({ code: error.code || "PINE_PARSE_ERROR", message: error.message,
-            line: error.line || line, column: error.column || indent });
-        }
+        }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.line||line.line,column:error.column||line.indent});}
       }
-      i = end + (tokens[end] && tokens[end].type === "NEWLINE" ? 1 : 0);
+      return body;
     }
-    return { type: "Program", body, diagnostics };
+    const body=[];
+    while(cursor<lines.length){
+      const line=lines[cursor++];
+      try{
+        const node=parseStatement(line);
+        if(node.type==="ElseMarker"){diagnostics.push({code:"PINE_PARSE_ORPHAN_ELSE",message:"else için eşleşen if bulunamadı.",line:line.line,column:line.indent});continue;}
+        if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
+          if(lines[cursor]&&lines[cursor].indent>line.indent)node.body=parseBlock(line.indent);
+          else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"Kontrol bloğu için girintili gövde bekleniyor.",line:line.line,column:line.indent});
+          if(node.type==="IfStatement"&&lines[cursor]&&lines[cursor].indent===line.indent&&lines[cursor].tokens[0].value==="else"){
+            const el=lines[cursor++];if(lines[cursor]&&lines[cursor].indent>el.indent)node.alternate=parseBlock(el.indent);
+            else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else bloğu boş.",line:el.line,column:el.indent});
+          }
+        }
+        body.push(node);
+      }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.line||line.line,column:error.column||line.indent});}
+    }
+    return {type:"Program",body,diagnostics};
   }
-
-  return { PineParseError, ExpressionParser, parsePine };
+  return {PineParseError,ExpressionParser,parsePine};
 });
