@@ -146,11 +146,12 @@
       };
     }
     const color = {red:"#f23645",lime:"#089981",green:"#089981",blue:"#2962ff",orange:"#ff9800",yellow:"#fdd835",purple:"#9c27b0",white:"#ffffff",black:"#000000",gray:"#787b86",grey:"#787b86",teal:"#00897b",aqua:"#00bcd4",fuchsia:"#e040fb",silver:"#bdbdbd",maroon:"#880e4f",navy:"#000080",transparent:"rgba(0,0,0,0)"};
+    let plotCallIndex=0;
     const builtins = {
       na:()=>NA, nafn:()=>NA, nz:(x,repl)=>isNA(value(x))?(repl===undefined?0:value(repl)):value(x),
       math, ta, input, color,
       indicator:()=>null, study:()=>null,
-      plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});outputs.plots.push({title:cfg.title||"Plot "+(outputs.plots.length+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg linewidth||1,values:v instanceof SeriesRef?v.values.slice():[value(v)]});return null;},
+      plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=plotCallIndex++;let p=outputs.plots[k];if(!p){p={title:cfg.title||"Plot "+(k+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:[]};outputs.plots[k]=p;}p.values.push(value(v));return null;},
       plotshape:(v,...args)=>{outputs.shapes.push({value:truth(value(v)),bar:ctx.index,args:args.map(value)});return null;},
       plotchar:(v,...args)=>{outputs.shapes.push({value:truth(value(v)),bar:ctx.index,args:args.map(value),char:true});return null;},
       hline:(v,...args)=>{outputs.hlines.push({value:value(v),args:args.map(value)});return null;},
@@ -268,7 +269,7 @@
     // Install OHLCV series progressively; each bar is evaluated in source order.
     const barKeys=["open","high","low","close","volume","time"];
     for(let i=0;i<cleanBars.length;i++){
-      currentIndex=i;
+      currentIndex=i;plotCallIndex=0;
       for(const k of barKeys){if(!vars[k])vars[k]=[];vars[k].push(cleanBars[i][k]);}
       const barScope=new Scope(global);
       try{execBlock(ast.body,barScope);}
