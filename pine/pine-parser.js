@@ -130,7 +130,7 @@
         const eq=ts.findIndex(t=>t.value==="=");
         if(eq>0){const target=expression(ts.slice(0,eq));return {type:"DestructuringAssignment",target,value:expression(ts,eq+1),...base};}
       }
-      if(TYPES.has(first.value)&&ts.some((t,i)=>i>0&&t.value==="(")&&ts.some((t,i)=>i>0&&t.value==="."))return {type:"ExpressionStatement",expression:expression(ts),...base};
+      if(TYPES.has(first.value)&&ts[1]&&ts[1].value==="."&&ts[3]&&ts[3].value==="(")return {type:"ExpressionStatement",expression:expression(ts),...base};
       // Typed declaration: var float x = na; float x = na; x = ...
       let assign=ts.findIndex(t=>ASSIGNMENTS.has(t.value));
       if(assign===1&&first.type==="IDENTIFIER"){
