@@ -38,7 +38,7 @@ console.log("Pine chart adapter tests: OK");
     constructor(tag){this.tagName=tag;this.children=[];this.style={};this.attributes={};this.parentNode=null;this.clientWidth=600;this.removed=false;}
     append(...els){for(const el of els){el.parentNode=this;this.children.push(el);}}
     appendChild(el){this.append(el);return el;}
-    setAttribute(k,v){this.attributes[k]=String(v);}
+    setAttribute(k,v){this.attributes[k]=String(v);if(k==="class")this.className=String(v);}
     addEventListener(){}
     remove(){this.removed=true;if(this.parentNode)this.parentNode.children=this.parentNode.children.filter(x=>x!==this);}
     getBoundingClientRect(){return {width:600};}
