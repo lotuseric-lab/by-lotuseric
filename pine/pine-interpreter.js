@@ -286,6 +286,7 @@
     let currentIndex=-1,steps=0;
     const ctxBars=cleanBars;
     const securityCache=new Map();
+    const crossHistory=new WeakMap();
     const plotCallIds=new WeakMap();let nextPlotCallId=0;
     const maxSteps=opts.maxSteps||100000;
     function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı.",node,"PINE_EXECUTION_LIMIT");}
@@ -364,6 +365,15 @@
           }
           const fn=n.callee&&n.callee.type==="Identifier"&&n.callee.name==="na"?builtins.na:evalExpr(n.callee,scope);if(typeof fn!=="function")throw new PineExecutionError("Çağrılan ifade fonksiyon değil.",n);
           const args=n.arguments.map(a=>a.type==="NamedArgument"?namedArg(a.name,evalExpr(a.value,scope)):evalExpr(a,scope));
+          const isTaCross=n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="ta"&&["cross","crossover","crossunder"].includes(n.callee.property.name);
+          if(isTaCross&&args.length>=2&&args.slice(0,2).every(x=>!(x instanceof SeriesRef))){
+            const current=args.slice(0,2).map(value),previous=crossHistory.get(n);
+            crossHistory.set(n,current);
+            if(!previous||current.some(isNA)||previous.some(isNA))return false;
+            const up=num(current[0])>num(current[1])&&num(previous[0])<=num(previous[1]);
+            const down=num(current[0])<num(current[1])&&num(previous[0])>=num(previous[1]);
+            return n.callee.property.name==="crossover"?up:n.callee.property.name==="crossunder"?down:up||down;
+          }
           const isPlotCall=n.callee&&n.callee.type==="Identifier"&&n.callee.name==="plot";
           if(isPlotCall){if(!plotCallIds.has(n))plotCallIds.set(n,nextPlotCallId++);outputs._activePlotId=plotCallIds.get(n);}
           try{return fn(...args);}finally{if(isPlotCall)delete outputs._activePlotId;}
