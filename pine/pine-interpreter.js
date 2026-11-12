@@ -145,8 +145,8 @@
       new_int:(size,initial)=>makeArray(size,initial,0),
       new_bool:(size,initial)=>makeArray(size,initial,false),
       new_string:(size,initial)=>makeArray(size,initial,""),
-      new_color:(size,initial)=>makeArray(size,initial,NA),
-      from:(...items)=>items.map(value),size:a=>a.length,push:(a,v)=>a.push(value(v)),pop:a=>a.pop(),shift:a=>a.shift(),unshift:(a,v)=>a.unshift(value(v)),
+      new_color:(size,initial)=>makeArray(size,initial,NA),new_line:(size,initial)=>makeArray(size,initial,NA),new_label:(size,initial)=>makeArray(size,initial,NA),new_box:(size,initial)=>makeArray(size,initial,NA),
+      from:(...items)=>items.map(value),size:a=>a.length,push:(a,v)=>a.push(value(v)),pop:a=>a.pop(),shift:a=>a.shift(),unshift:(a,v)=>a.unshift(value(v)),remove:(a,i)=>a.splice(Math.trunc(num(value(i))),1)[0],
       get:(a,i)=>a[Math.trunc(num(value(i)))],set:(a,i,v)=>{a[Math.trunc(num(value(i)))]=value(v);return a;},remove:(a,i)=>a.splice(Math.trunc(num(value(i))),1)[0],
       clear:a=>{a.length=0;},copy:a=>a.slice(),reverse:a=>a.reverse(),sort:(a)=>a.sort((x,y)=>num(x)-num(y)),
       sum:a=>a.reduce((z,x)=>z+num(x),0),avg:a=>a.length?a.reduce((z,x)=>z+num(x),0)/a.length:NA,
@@ -191,10 +191,10 @@
       plotshape:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",style:cfg.style||"shape.triangleup",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
       plotchar:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});outputs.shapes.push({value:truth(value(v)),bar:ctx.index,title:cfg.title||"",color:cfg.color||"#2962ff",char:cfg.char||"•",location:cfg.location||"abovebar",text:cfg.text||""});return null;},
       hline:(v,...args)=>{outputs.hlines.push({value:value(v),args:args.map(value)});return null;},
-      alertcondition:()=>null, alert:()=>null,
+      alertcondition:(condition,title,message)=>{if(truth(value(condition)))outputs.alerts.push({bar:ctx.index,title:value(title)||"",message:value(message)||""});return null;}, alert:(message)=>{outputs.alerts.push({bar:ctx.index,message:String(value(message)||"")});return null;},
       barcolor:()=>null, bgcolor:()=>null, fill:()=>null,
       nz: (v,r)=>isNA(value(v))?(r===undefined?0:value(r)):value(v),
-      minval:x=>x, maxval:x=>x, timestamp:()=>NA, time:()=>ctx.bar?ctx.bar.time:NA
+      minval:x=>x, maxval:x=>x, timestamp:()=>NA, time:()=>ctx.bar?ctx.bar.time:NA, request:{security:()=>{throw new PineExecutionError("request.security için hedef zaman dilimi verisi henüz bağlanmadı; yanlış sonuç üretmemek için çalışma durduruldu.",null,"PINE_MTF_UNAVAILABLE");},security_lower_tf:()=>{throw new PineExecutionError("request.security_lower_tf henüz desteklenmiyor.",null,"PINE_MTF_UNAVAILABLE");}}
     };
     let drawingId=1;
     const drawCfg=args=>args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});
@@ -226,6 +226,8 @@
     builtins.yloc={price:"price",abovebar:"abovebar",belowbar:"belowbar"};
     builtins.position={top_left:"top_left",top_center:"top_center",top_right:"top_right",middle_left:"middle_left",middle_center:"middle_center",middle_right:"middle_right",bottom_left:"bottom_left",bottom_center:"bottom_center",bottom_right:"bottom_right"};
     builtins.line=lineNS;builtins.label=labelNS;builtins.box=boxNS;builtins.table=tableNS;
+    Object.defineProperty(lineNS,"all",{get:()=>outputs.lines.filter(x=>!x.deleted)});Object.defineProperty(labelNS,"all",{get:()=>outputs.labels.filter(x=>!x.deleted)});Object.defineProperty(boxNS,"all",{get:()=>outputs.boxes.filter(x=>!x.deleted)});
+    Object.assign(labelNS,{style_label_left:"label_left",style_label_right:"label_right",style_label_up:"label_up",style_label_down:"label_down",style_none:"none"});
     builtins.hline={style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed"};
     return builtins;
   }
@@ -235,7 +237,7 @@
     if(!ast||ast.type!=="Program")throw new TypeError("Geçerli Pine AST bekleniyor.");
     if(ast.diagnostics&&ast.diagnostics.length)throw new PineExecutionError("Kaynakta parse hataları var: "+ast.diagnostics[0].message,ast.diagnostics[0],"PINE_PARSE_ERROR");
     const cleanBars=bars.map((b,i)=>{const o={};for(const k of ["open","high","low","close","volume","time"]){const n=Number(b[k]);if(!Number.isFinite(n))throw new PineExecutionError("Geçersiz "+k+" verisi ("+i+").");o[k]=n;}return Object.freeze(o);});
-    const outputs={plots:[],shapes:[],hlines:[],labels:[],lines:[],boxes:[],tables:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
+    const outputs={plots:[],shapes:[],hlines:[],labels:[],lines:[],boxes:[],tables:[],alerts:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
     const inputValues=Object.assign(Object.create(null),opts.inputs||{});
     const global=new Scope();
     const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null);
