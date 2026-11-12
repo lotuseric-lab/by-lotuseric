@@ -384,10 +384,12 @@
       switch(n.type){
         case "ExpressionStatement":return evalExpr(n.expression,scope);
         case "TypedDeclarationStatement":case "DeclarationStatement":{
-          const initial=evalExpr(n.value,scope);const q=n.qualifier||"";
-          if(q==="var"||q==="varip"){if(!Object.prototype.hasOwnProperty.call(persistent,n.name))persistent[n.name]=value(initial);scope.define(n.name,persistent[n.name]);}
-          else scope.define(n.name,initial);
-          return initial;
+          const q=n.qualifier||"";
+          if(q==="var"||q==="varip"){
+            if(!Object.prototype.hasOwnProperty.call(persistent,n.name))persistent[n.name]=value(evalExpr(n.value,scope));
+            scope.define(n.name,persistent[n.name]);return persistent[n.name];
+          }
+          const initial=evalExpr(n.value,scope);scope.define(n.name,initial);return initial;
         }
         case "AssignmentStatement":{
           const old=n.target.type==="Identifier"?scope.get(n.target.name):evalExpr(n.target,scope),rhs=evalExpr(n.value,scope);let v=rhs;
