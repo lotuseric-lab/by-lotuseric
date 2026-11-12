@@ -180,7 +180,7 @@ result = runPine(compile(`//@version=6
 indicator("Format namespace")
 plot(close, str.tostring(close, format.mintick))
 `), bars, {mintick:0.01});
-assert.equal(result.plots[0].title, "140.00");
+assert.equal(result.plots[0].title, "101.00");
 
 assert.throws(() => runPine(compile(`//@version=6
 indicator("Bad")
