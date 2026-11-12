@@ -169,10 +169,10 @@ indicator("OBV series")
 plot(ta.sma(ta.obv, 3), "OBV average")
 plot(barstate.ishistory ? 1 : 0, "History")
 `), bars);
-const obv = bars.reduce((acc,b,i)=>{if(i>0)acc+=((b.close>bars[i-1].close)?1:(b.close<bars[i-1].close)?-1:0)*b.volume;return acc;},0);
-const lastThreeObv = bars.slice(-3).reduce((acc,b,i)=>{const index=bars.length-3+i;const prev=index>0?bars[index-1]:null;return acc+(prev?(b.close>prev.close?1:b.close<prev.close?-1:0)*b.volume:0);},obv);
+const obvSeries=[];let obv=0;bars.forEach((b,i)=>{if(i>0)obv+=(b.close>bars[i-1].close?1:b.close<bars[i-1].close?-1:0)*b.volume;obvSeries.push(obv);});
+const expectedObvSma=obvSeries.slice(-3).reduce((a,b)=>a+b,0)/3;
 assert.equal(result.plots[1].values.at(-1), 1);
-assert.equal(result.plots[0].values.at(-1), obv);
+assert.equal(result.plots[0].values.at(-1), expectedObvSma);
 
 const crossCloses=[10,9,8,7,8,9,10,11,12,13,14,15];
 const crossBars=crossCloses.map((close,i)=>({time:1700000000+i*300,open:close,high:close+1,low:close-1,close,volume:1000}));
