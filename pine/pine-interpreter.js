@@ -246,17 +246,17 @@
     };
     const labelNS={style_none:"none",style_label_up:"label_up",style_label_down:"label_down",style_label_left:"label_left",style_label_right:"label_right",
       new:(x,y,txt,...args)=>{const c=drawCfg(args),o={id:drawingId++,x:value(x),y:value(y),text:String(value(txt)||""),color:c.color||"#2962ff",textcolor:c.textcolor||"#ffffff",style:c.style||"label_up",size:c.size||"normal",xloc:c.xloc||"bar_index",yloc:c.yloc||"price"};outputs.labels.push(o);return o;},
-      set_x:(o,v)=>o.x=value(v),set_y:(o,v)=>o.y=value(v),set_text:(o,v)=>o.text=String(value(v)||""),set_color:(o,v)=>o.color=value(v),set_textcolor:(o,v)=>o.textcolor=value(v),set_style:(o,v)=>o.style=value(v),set_size:(o,v)=>o.size=value(v),delete:o=>{o.deleted=true;}
+      set_x:(o,v)=>o.x=value(v),set_y:(o,v)=>o.y=value(v),set_text:(o,v)=>o.text=String(value(v)||""),set_color:(o,v)=>o.color=value(v),set_textcolor:(o,v)=>o.textcolor=value(v),set_style:(o,v)=>o.style=value(v),set_size:(o,v)=>o.size=value(v),delete:o=>{if(o)o.deleted=true;}
     };
     const boxNS={new:(left,top,right,bottom,...args)=>{const c=drawCfg(args),o={id:drawingId++,left:value(left),top:value(top),right:value(right),bottom:value(bottom),border_color:c.border_color||"#2962ff",bgcolor:c.bgcolor||"rgba(41,98,255,0.12)",border_width:c.border_width||1,xloc:c.xloc||"bar_index"};outputs.boxes.push(o);return o;},
-      set_left:(o,v)=>o.left=value(v),set_top:(o,v)=>o.top=value(v),set_right:(o,v)=>o.right=value(v),set_bottom:(o,v)=>o.bottom=value(v),set_bgcolor:(o,v)=>o.bgcolor=value(v),set_border_color:(o,v)=>o.border_color=value(v),set_border_width:(o,v)=>o.border_width=value(v),delete:o=>{o.deleted=true;}
+      set_left:(o,v)=>o.left=value(v),set_top:(o,v)=>o.top=value(v),set_right:(o,v)=>o.right=value(v),set_bottom:(o,v)=>o.bottom=value(v),set_bgcolor:(o,v)=>o.bgcolor=value(v),set_border_color:(o,v)=>o.border_color=value(v),set_border_width:(o,v)=>o.border_width=value(v),delete:o=>{if(o)o.deleted=true;}
     };
     const tableNS={new:(position,columns,rows,...args)=>{const c=drawCfg(args),o={id:drawingId++,position:value(position),columns:Math.max(1,Math.trunc(num(value(columns)))),rows:Math.max(1,Math.trunc(num(value(rows)))),cells:{},bgcolor:c.bgcolor||"rgba(20,30,45,0.9)",frame_color:c.frame_color||"#64748b"};outputs.tables.push(o);return o;},
       cell:(t,column,row,txt,...args)=>{const c=drawCfg(args);t.cells[String(value(column))+":"+String(value(row))]={text:String(value(txt)||""),text_color:c.text_color||"#ffffff",bgcolor:c.bgcolor||t.bgcolor};},
       cell_set_text:(t,column,row,txt)=>{const k=String(value(column))+":"+String(value(row));if(t.cells[k])t.cells[k].text=String(value(txt)||"");},
       cell_set_text_color:(t,column,row,c)=>{const k=String(value(column))+":"+String(value(row));if(t.cells[k])t.cells[k].text_color=value(c);},
       cell_set_bgcolor:(t,column,row,c)=>{const k=String(value(column))+":"+String(value(row));if(t.cells[k])t.cells[k].bgcolor=value(c);},
-      clear:(t)=>{t.cells={};},delete:t=>{t.deleted=true;}
+      clear:(t)=>{t.cells={};},delete:t=>{if(t)t.deleted=true;}
     };
     Object.assign(builtins.plot,{style_line:"line",style_stepline:"stepline",style_histogram:"histogram",style_columns:"columns",style_area:"area",style_circles:"circles",style_cross:"cross",style_linebr:"linebr"});
     builtins.shape={circle:"shape.circle",square:"shape.square",diamond:"shape.diamond",triangleup:"shape.triangleup",triangledown:"shape.triangledown",cross:"shape.cross",xcross:"shape.xcross",flag:"shape.flag",arrowup:"shape.arrowup",arrowdown:"shape.arrowdown",labelup:"shape.labelup",labeldown:"shape.labeldown",none:"shape.none"};
