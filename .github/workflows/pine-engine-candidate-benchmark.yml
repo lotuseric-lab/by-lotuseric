@@ -56,6 +56,8 @@ jobs:
             echo "=== $name ==="
             node resin/bin/resin.mjs run "$file" --bars 500 --viz "benchmark-output/$name.viz.json"
           done
+      - name: Audit force_overlay routing metadata
+        run: node by-lotuseric/pine/engine-comparison/audit-force-overlay.mjs benchmark-output/MONEY_TRADER_ADX.viz.json
       - name: Upload candidate outputs
         uses: actions/upload-artifact@v4
         with:
