@@ -307,6 +307,9 @@ const roseAst = compile(roseSource);
 result = runPine(roseAst, bars, {timeframe:"5m",symbol:"TEST-USDT",mintick:0.01});
 assert.equal(result.metadata.title, "MONEY TRADER PURPLE ROSE [CANLI TRADE - NO REPAINT]");
 assert.ok(result.shapes.length > 0);
+assert.equal(result.shapes[0].style, "shape.triangleup");
+assert.equal(result.shapes[0].location, "belowbar");
+assert.equal(result.shapes[0].color, "#089981");
 assert.ok(result.tables.length > 0);
 
 console.log("Pine interpreter tests: OK");
