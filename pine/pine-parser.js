@@ -132,6 +132,16 @@
       }
       // Typed declaration: var float x = na; float x = na; x = ...
       let assign=ts.findIndex(t=>ASSIGNMENTS.has(t.value));
+      if(first.value==="label"&&ts[1]&&ts[1].value==="."&&ts[2]&&ts[2].type==="IDENTIFIER"&&ts[3]&&ts[3].value==="("&&ts[ts.length-1]&&ts[ts.length-1].value===")"){
+        const args=[],segmentStart=4;let start=segmentStart,depth=0;
+        for(let j=segmentStart;j<ts.length-1;j++){
+          if(["(","[","{"].includes(ts[j].value))depth++;
+          else if([")","]","}"].includes(ts[j].value))depth--;
+          else if(ts[j].value===","&&depth===0){args.push(expression(ts,start,j));start=j+1;}
+        }
+        if(start<ts.length-1)args.push(expression(ts,start,ts.length-1));
+        return {type:"ExpressionStatement",expression:{type:"CallExpression",callee:{type:"MemberExpression",object:{type:"Identifier",name:"label",loc:loc(first)},property:{type:"Identifier",name:ts[2].value,loc:loc(ts[2])},computed:false,loc:loc(ts[1])},arguments:args,loc:loc(ts[3])},...base};
+      }
       if(assign===1&&first.type==="IDENTIFIER"){
         return {type:"AssignmentStatement",operator:ts[1].value,target:{type:"Identifier",name:first.value,loc:loc(first)},value:expression(ts,2),...base};
       }
