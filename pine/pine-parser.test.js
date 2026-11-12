@@ -42,6 +42,16 @@ indicator("Label method")
 label.set_text(lbSL, "Orijinal SL " + str.tostring(close, format.mintick) + " (−" + slPctUpd + ")")
 `).tokens);
 assert.deepEqual(labelMethod.diagnostics,[]);
+
+const nestedLabelMethod=parsePine(lexPine(`//@version=5
+indicator("Nested label method")
+if close > open
+    if not na(close)
+        string slPctUpd = str.tostring(math.abs(close - open) / close * 100, "#.##") + "%"
+        label.set_text(lbSL, "Orijinal SL " + str.tostring(close, format.mintick) + " (−" + slPctUpd + ")")
+        label.set_color(lbSL, color.new(color.red, 75))
+`).tokens);
+assert.deepEqual(nestedLabelMethod.diagnostics,[]);
 assert.equal(ast.body[3].type,"FunctionDeclaration");
 assert.equal(ast.body[4].type,"IfStatement");
 assert.equal(ast.body[4].body[1].type,"IfStatement");
