@@ -399,4 +399,18 @@ assert.ok(result.linefills.length>0,"Support/resistance channel should create li
 assert.ok(result.labels.length>0,"Support/resistance levels should create price labels");
 assert.ok(result.shapes.length>0,"Support/resistance signals should be represented as shapes");
 
+const forceOverlayAst = compile(`//@version=6
+indicator("Force overlay routing", overlay=false)
+line.new(bar_index[1], low[1], bar_index, high, force_overlay=true)
+line.new(bar_index[1], high[1], bar_index, low, force_overlay=false)
+label.new(bar_index, close, "Price label", force_overlay=true)
+label.new(bar_index, close, "Pane label", force_overlay=false)
+box.new(bar_index[1], high, bar_index, low, force_overlay=true)
+box.new(bar_index[1], high, bar_index, low, force_overlay=false)
+`);
+result = runPine(forceOverlayAst, bars);
+assert.deepEqual(result.lines.map(x => x.forceOverlay), [true, false]);
+assert.deepEqual(result.labels.map(x => x.forceOverlay), [true, false]);
+assert.deepEqual(result.boxes.map(x => x.forceOverlay), [true, false]);
+
 console.log("Pine interpreter tests: OK");
