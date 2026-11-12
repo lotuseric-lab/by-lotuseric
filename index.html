@@ -589,10 +589,19 @@ function isMoneyTraderCatalogItem(x){return /MONEY\s*TRADER|MONEY\s*TRADE/i.test
 function savedPine(){try{return JSON.parse(localStorage.getItem('byLotusericPineLibrary')||'[]')}catch{return []}}
 function renderSavedPine(){const root=$('savedCustomIndicators'),items=savedPine();root.innerHTML=items.map((x,i)=>'<div class="indicatorSavedItem"><div><b>'+x.name.replace(/[<>]/g,'')+'</b><small class="muted">'+new Date(x.updated).toLocaleString('tr-TR')+'</small></div><div style="display:flex;gap:6px"><button data-edit-pine="'+i+'">Düzenle</button><button data-delete-pine="'+i+'">Sil</button></div></div>').join('')||'<p class="notice">Henüz kaydedilmiş özel kod yok.</p>';root.querySelectorAll('[data-edit-pine]').forEach(b=>b.onclick=()=>{const x=items[+b.dataset.editPine];$('customIndicatorName').value=x.name;$('customPineCode').value=x.code});root.querySelectorAll('[data-delete-pine]').forEach(b=>b.onclick=()=>{if(!confirm('Bu kayıt silinsin mi?'))return;items.splice(+b.dataset.deletePine,1);localStorage.setItem('byLotusericPineLibrary',JSON.stringify(items));renderSavedPine()})}
 document.querySelectorAll('[data-ind-tab]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-ind-tab]').forEach(x=>x.classList.toggle('active',x===b));['free','requested','custom'].forEach(k=>$('ind'+k[0].toUpperCase()+k.slice(1)+'Pane').classList.toggle('hidden',k!==b.dataset.indTab));if(b.dataset.indTab==='requested')renderMoneyIndicatorCatalog($('moneyIndicatorSearch').value)}));
-$('indicatorSearch').addEventListener('input',e=>renderIndicatorCatalog(e.target.value));$('moneyIndicatorSearch').addEventListener('input',e=>renderMoneyIndicatorCatalog(e.target.value));$('closeIndicatorLibrary').onclick=()=>$('indicatorLibrary').classList.add('hidden');$('indicatorLibrary').addEventListener('click',e=>{if(e.target===$('indicatorLibrary'))$('indicatorLibrary').classList.add('hidden')});$('saveCustomIndicator').onclick=()=>{const name=$('customIndicatorName').value.trim(),code=$('customPineCode').value.trim();if(!name||!code){alert('İndikatör adı ve Pine Script kodu gerekli.');return}const items=savedPine(),idx=items.findIndex(x=>x.name===name);const entry={name,code,updated:Date.now()};if(idx>=0)items[idx]=entry;else items.unshift(entry);try{localStorage.setItem('byLotusericPineLibrary',JSON.stringify(items));renderSavedPine();alert('Pine Script kodu bu cihazda kaydedildi.')}catch(e){alert('Kaydedilemedi: cihaz depolama alanı dolu olabilir.')}};$('clearCustomIndicator').onclick=()=>{$('customPineCode').value='';$('customIndicatorName').value=''};
-let customPineChartState=null,customPineLastCode='';
+$('indicatorSearch').addEventListener('input',e=>renderIndicatorCatalog(e.target.value));$('moneyIndicatorSearch').addEventListener('input',e=>renderMoneyIndicatorCatalog(e.target.value));$('closeIndicatorLibrary').onclick=()=>$('indicatorLibrary').classList.add('hidden');$('indicatorLibrary').addEventListener('click',e=>{if(e.target===$('indicatorLibrary'))$('indicatorLibrary').classList.add('hidden')});$('saveCustomIndicator').onclick=()=>{const name=$('customIndicatorName').value.trim(),code=$('customPineCode').value.trim();if(!name||!code){alert('İndikatör adı ve Pine Script kodu gerekli.');return}const items=savedPine(),idx=items.findIndex(x=>x.name===name);const entry={name,code,inputs:customPineInputs,updated:Date.now()};if(idx>=0)items[idx]=entry;else items.unshift(entry);try{localStorage.setItem('byLotusericPineLibrary',JSON.stringify(items));renderSavedPine();alert('Pine Script kodu bu cihazda kaydedildi.')}catch(e){alert('Kaydedilemedi: cihaz depolama alanı dolu olabilir.')}};$('clearCustomIndicator').onclick=()=>{$('customPineCode').value='';$('customIndicatorName').value=''};
+let customPineChartState=null,customPineLastCode='',customPineSettingsCode='';let customPineInputs=Object.create(null);
+function renderCustomPineSettings(defs){
+ const root=$('customPineSettings');root.innerHTML='';
+ if(!defs||!defs.length){root.innerHTML='<p class="notice">Bu göstergede kullanıcı ayarı bulunmuyor.</p>';return;}
+ for(const d of defs){const row=document.createElement('label');row.className='indicatorItem';const title=document.createElement('span');title.textContent=d.title;const input=document.createElement('input');input.style.maxWidth='150px';input.dataset.pineInput=d.key;const current=Object.prototype.hasOwnProperty.call(customPineInputs,d.key)?customPineInputs[d.key]:d.def;
+  if(d.type==='bool'){input.type='checkbox';input.checked=!!current;}else if(d.type==='color'&&/^#[0-9a-f]{6}$/i.test(String(current))){input.type='color';input.value=current;}else{input.type=d.type==='int'||d.type==='float'?'number':'text';input.value=current==null?'':String(current);if(d.type==='int')input.step=String(d.step||1);else if(d.type==='float')input.step=String(d.step||'any');if(d.min!=null)input.min=d.min;if(d.max!=null)input.max=d.max;}
+  input.addEventListener('change',()=>{let v=input.type==='checkbox'?input.checked:input.type==='number'?(d.type==='int'?parseInt(input.value,10):parseFloat(input.value)):input.value;if(input.type==='number'&&!Number.isFinite(v))return;customPineInputs[d.key]=v;runCustomPine(false)});row.append(title,input);root.append(row);
+ }
+}
 function runCustomPine(showMessage=true){
  const code=$('customPineCode').value;
+ if(code!==customPineLastCode){customPineInputs=Object.create(null);customPineSettingsCode='';}
  const status=$('customPineStatus');
  try{
   if(!barData.length)throw new Error('Önce grafik mum verisinin yüklenmesini bekleyin.');
@@ -603,7 +612,8 @@ function runCustomPine(showMessage=true){
   const ast=ByLotusericPineParser.parsePine(front.tokens);
   if(ast.diagnostics.length)throw Object.assign(new Error(ast.diagnostics[0].message),ast.diagnostics[0]);
   if(report.calls['strategy']||Object.keys(report.calls).some(k=>k.startsWith('strategy.')))throw new Error('strategy.* emir ve strateji komutları indikatör motorunda desteklenmez.');
-  const output=ByLotusericPineInterpreter.runPine(ast,barData,{});
+  const output=ByLotusericPineInterpreter.runPine(ast,barData,{inputs:customPineInputs});
+  if(customPineSettingsCode!==code){renderCustomPineSettings(output.inputDefs);customPineSettingsCode=code;}
   if(customPineChartState)customPineChartState.clear();
   const addForTarget=(target,type,options)=>{
    if(target===chart)return addChartSeries(type,options);
@@ -624,6 +634,7 @@ function runCustomPine(showMessage=true){
  }
 }
 $('runCustomIndicator').onclick=()=>runCustomPine(true);
+const __renderIndicatorsBeforePine=renderIndicators;renderIndicators=function(){__renderIndicatorsBeforePine();if(customPineLastCode&&$('customPineCode').value===customPineLastCode)runCustomPine(false)};
 
 $('closeModal').addEventListener('click',()=>$('modal').classList.add('hidden'));$('modal').addEventListener('click',e=>{if(e.target===$('modal'))$('modal').classList.add('hidden')});
 $('saveIndicators').addEventListener('click',()=>{for(const k of Object.keys(enabled))enabled[k]=$(''+k+'check').checked;document.querySelectorAll('.chip[data-ind]').forEach(b=>b.classList.toggle('on',enabled[b.dataset.ind]));renderIndicators();$('modal').classList.add('hidden');localStorage.setItem('byLotusericIndicators',JSON.stringify(enabled))});
