@@ -1,0 +1,18 @@
+(function(g){'use strict';
+function args(s){let a=[],d=0,q='',p=0;for(let i=0;i<s.length;i++){let c=s[i];if(q){if(c===q&&s[i-1]!=='\\\\')q='';continue}if(c==='"'||c==="'"){q=c;continue}if(c==='(')d++;if(c===')')d--;if(c===','&&d===0){a.push(s.slice(p,i).trim());p=i+1}}a.push(s.slice(p).trim());return a}
+function calc(e,b,v,inp){e=String(e).trim();if(v[e])return v[e];if(Object.hasOwn(inp,e))return b.map(()=>Number(inp[e]));let f={open:'open',high:'high',low:'low',close:'close',volume:'volume'};if(f[e])return b.map(x=>Number(x[f[e]]||0));if(e==='hl2')return b.map(x=>(x.high+x.low)/2);if(e==='hlc3')return b.map(x=>(x.high+x.low+x.close)/3);if(e==='ohlc4')return b.map(x=>(x.open+x.high+x.low+x.close)/4);
+let m=e.match(/^(?:ta\\.)?(sma|ema|wma|rsi|atr)\\((.*)\\)$/);if(!m)return null;let a=args(m[2]),src=calc(a[0]||'close',b,v,inp);if(!src)return null;let n=Math.max(1,Math.min(500,Number(inp[a[1]]??a[1]??14)||14));
+if(m[1]==='sma'){let s=0;return src.map((x,i)=>{s+=x;if(i>=n)s-=src[i-n];return i>=n-1?s/n:NaN})}
+if(m[1]==='wma'){let d=n*(n+1)/2;return src.map((x,i)=>{if(i<n-1)return NaN;let s=0;for(let j=0;j<n;j++)s+=src[i-n+1+j]*(j+1);return s/d})}
+if(m[1]==='ema'){let s=src[0],k=2/(n+1);return src.map((x,i)=>s=i?x*k+s*(1-k):x)}
+if(m[1]==='rsi'){let u=0,d=0;return src.map((x,i)=>{if(!i)return NaN;let z=x-src[i-1];if(i<=n){u+=Math.max(z,0);d+=Math.max(-z,0);if(i===n){u/=n;d/=n}}else{u=(u*(n-1)+Math.max(z,0))/n;d=(d*(n-1)+Math.max(-z,0))/n}return i<n?NaN:d===0?100:100-100/(1+u/d)})}
+let tr=b.map((x,i)=>i?Math.max(x.high-x.low,Math.abs(x.high-b[i-1].close),Math.abs(x.low-b[i-1].close)):x.high-x.low),s=tr[0],k=2/(n+1);return tr.map((x,i)=>{s=i?x*k+s*(1-k):x;return i<n-1?NaN:s})}
+function compile(code){if(/\\bstrategy\\s*\\(/.test(code))throw Error('Strategy kodu indikatör olarak çalıştırılamaz.');if(!/\\bindicator\\s*\\(/.test(code))throw Error('indicator() tanımı bulunamadı.');
+let inp={},params=[],m,re=/^\\s*(\\w+)\\s*=\\s*input\\.(int|float|bool|color)\\s*\\(([^)]*)\\)/gm;while(m=re.exec(code)){let a=args(m[3]),d=a[0]||'14';d=m[2]==='bool'?d==='true':m[2]==='color'?({'color.red':'#ff5252','color.green':'#22c55e','color.blue':'#448aff'}[d]||'#6da9ff'):Number(d);inp[m[1]]=d;params.push({id:m[1],title:(a[1]||m[1]).replace(/['"]/g,''),type:m[2],default:d})}
+let clean=code.split(/\\r?\\n/).map(x=>x.replace(/\\/\\/.*$/,'')).join('\\n'),vars={};re=/^\\s*(\\w+)\\s*=\\s*((?:ta\\.)?(?:sma|ema|wma|rsi|atr)\\s*\\([^)]*\\)|open|high|low|close|volume|hl2|hlc3|ohlc4)\\s*$/gm;while(m=re.exec(clean))vars[m[1]]=m[2];
+let plots=[];re=/plot\\s*\\(\\s*((?:ta\\.)?(?:sma|ema|wma|rsi|atr)\\s*\\([^)]*\\)|\\w+|open|high|low|close|volume|hl2|hlc3|ohlc4)\\s*(?:,([^)]*))?\\)/g;while(m=re.exec(clean)){let o=m[2]||'',c=(o.match(/color\\s*=\\s*(#[0-9a-fA-F]{6}|color\\.\\w+)/)||[])[1]||'#6da9ff';plots.push({expr:m[1],title:(o.match(/title\\s*=\\s*['"]([^'"]+)/)||[])[1]||m[1],color:c.startsWith('color.')?({'color.red':'#ff5252','color.green':'#22c55e','color.blue':'#448aff'}[c]||'#6da9ff'):c,width:Number((o.match(/linewidth\\s*=\\s*(\\d+)/)||[])[1]||2)})}
+if(!plots.length)throw Error('Desteklenen ilk sürüm: plot(close), plot(ta.ema/sma/wma/rsi/atr(...)). plotshape, line, box, table ve diğer Pine komutları henüz desteklenmiyor.');
+return {params,inputs:inp,vars,plots,code,name:(code.match(/indicator\\s*\\(\\s*['"]([^'"]+)/)||[])[1]||'Özel Pine'});}
+function evaluate(c,b,overrides){let inp={...c.inputs,...overrides},v={};for(let [k,e] of Object.entries(c.vars))v[k]=calc(e,b,v,inp);return c.plots.map(p=>{let a=calc(p.expr,b,v,inp);if(!a)throw Error('Desteklenmeyen ifade: '+p.expr);return {plot:p,data:a.map((x,i)=>Number.isFinite(x)?{time:b[i].time,value:x}:null).filter(Boolean)}})}
+g.PineRuntime={compile,evaluate};
+})(window);
