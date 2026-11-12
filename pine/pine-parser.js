@@ -138,6 +138,9 @@
       if(assign>1&&first.type==="IDENTIFIER"&&ts[1].value==="."&&!ts.slice(0,assign).some(t=>t.value==="(")){
         return {type:"AssignmentStatement",operator:ts[assign].value,target:expression(ts,0,assign),value:expression(ts,assign+1),...base};
       }
+      if(first.value==="var"&&ts[1]&&TYPES.has(ts[1].value)&&ts[2]&&ts[2].value==="["&&ts[3]&&ts[3].value==="]"&&ts[4]&&ts[4].type==="IDENTIFIER"&&assign===5){
+        return {type:"TypedDeclarationStatement",qualifier:"var",valueType:ts[1].value+"[]",name:ts[4].value,value:expression(ts,6),...base};
+      }
       if(first.value==="var"&&ts[1]&&TYPES.has(ts[1].value)&&ts[2]&&ts[2].value==="<"){
         const close=ts.findIndex((t,i)=>i>2&&t.value===">");
         if(close>2&&close+1<assign&&ts[close+1].type==="IDENTIFIER")return {type:"TypedDeclarationStatement",qualifier:"var",valueType:ts.slice(1,close+1).map(t=>t.value).join(""),name:ts[close+1].value,value:expression(ts,assign+1),...base};
