@@ -138,10 +138,11 @@
     const input = {};
     for(const kind of ["int","float","bool","string","source","color","timeframe","symbol"]){
       input[kind]=(def, ...rest)=>{
-        const cfg=rest.reduce((o,x)=>{if(x&&typeof x==="object"&&!Array.isArray(x))Object.assign(o,x);return o;},{});
+        const cfg=rest.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(x&&typeof x==="object"&&!Array.isArray(x))Object.assign(o,x);return o;},{});
         const title=cfg.title||(typeof rest[0]==="string"?rest[0]:"")||cfg.tooltip||"";
         const key=String(title||("input_"+Object.keys(inputs).length));
         if(!Object.prototype.hasOwnProperty.call(inputs,key))inputs[key]=def;
+        if(!outputs.inputDefs.some(x=>x.key===key))outputs.inputDefs.push({key,title:key,type:kind,def,min:cfg.minval,max:cfg.maxval,step:cfg.step,options:cfg.options});
         return inputs[key];
       };
     }
@@ -167,7 +168,7 @@
     if(!ast||ast.type!=="Program")throw new TypeError("Geçerli Pine AST bekleniyor.");
     if(ast.diagnostics&&ast.diagnostics.length)throw new PineExecutionError("Kaynakta parse hataları var: "+ast.diagnostics[0].message,ast.diagnostics[0],"PINE_PARSE_ERROR");
     const cleanBars=bars.map((b,i)=>{const o={};for(const k of ["open","high","low","close","volume","time"]){const n=Number(b[k]);if(!Number.isFinite(n))throw new PineExecutionError("Geçersiz "+k+" verisi ("+i+").");o[k]=n;}return Object.freeze(o);});
-    const outputs={plots:[],shapes:[],hlines:[],labels:[],lines:[],boxes:[],tables:[],diagnostics:[],inputs:{},metadata:{}};
+    const outputs={plots:[],shapes:[],hlines:[],labels:[],lines:[],boxes:[],tables:[],diagnostics:[],inputs:{},inputDefs:[],metadata:{}};
     const inputValues=Object.assign(Object.create(null),opts.inputs||{});
     const global=new Scope();
     const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null);
