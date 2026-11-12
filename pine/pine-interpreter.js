@@ -365,7 +365,7 @@
             const session=n.arguments[1]?String(value(evalExpr(n.arguments[1],scope))||""):null;
             const timezone=n.arguments[2]?String(value(evalExpr(n.arguments[2],scope))||"UTC"):"UTC";
             if(!session)return ctxBars[currentIndex].time;
-            const match=session.match(/^(\\d{4})-(\\d{4})(?::([1-7]+))?$/);
+            const match=session.match(/^(\d{4})-(\d{4})(?::([1-7]+))?$/);
             if(!match)throw new PineExecutionError("time() seans biçimi HHMM-HHMM[:1234567] olmalı.",n,"PINE_SESSION_FORMAT");
             const parts=new Intl.DateTimeFormat("en-US",{timeZone:timezone,weekday:"short",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(ctxBars[currentIndex].time*1000));
             const get=k=>parts.find(p=>p.type===k)?.value;
