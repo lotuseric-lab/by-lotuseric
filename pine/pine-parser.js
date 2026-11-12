@@ -91,6 +91,8 @@
       if(first.value==="type"&&ts[1]&&ts[1].type==="IDENTIFIER")return {type:"TypeDeclaration",name:ts[1].value,fields:[],...base};
       if(first.value==="break"||first.value==="continue")return {type:first.value==="break"?"BreakStatement":"ContinueStatement",...base};
       if(first.value==="switch")return {type:"SwitchStatement",discriminant:ts.length>1?expression(ts,1):null,cases:[],...base};
+      const switchAssign=ts.findIndex(t=>ASSIGNMENTS.has(t.value));
+      if(switchAssign===1&&ts[switchAssign+1]&&ts[switchAssign+1].value==="switch")return {type:"AssignmentStatement",operator:ts[switchAssign].value,target:{type:"Identifier",name:first.value,loc:loc(first)},value:{type:"SwitchExpression",discriminant:ts.length>switchAssign+2?expression(ts,switchAssign+2):null,cases:[],loc:loc(ts[switchAssign+1])},...base};
       if(first.value==="if"||first.value==="while"){
         const test=expression(ts,1);
         return {type:first.value==="if"?"IfStatement":"WhileStatement",test,body:[],alternate:[],...base};
@@ -210,7 +212,7 @@
             else diagnostics.push({code:"PINE_PARSE_EMPTY_BLOCK",message:"else bloğu boş.",line:line.line,column:line.indent});
             continue;
           }
-          if(node.type==="SwitchStatement"){node.cases=parseSwitchCases(line.indent);}
+          if(node.type==="SwitchStatement"||(node.type==="AssignmentStatement"&&node.value&&node.value.type==="SwitchExpression")){node.type==="SwitchStatement"?node.cases=parseSwitchCases(line.indent):node.value.cases=parseSwitchCases(line.indent);}
           if(node.type==="TypeDeclaration")node.fields=parseTypeFields(line.indent);
           if(node.type==="FunctionDeclaration"&&lines[cursor]&&lines[cursor].indent>line.indent)node.bodyStatements=parseBlock(line.indent);
           if(["IfStatement","WhileStatement","ForRangeStatement","ForInStatement"].includes(node.type)){
