@@ -467,6 +467,14 @@
         case "AssignmentStatement":{
           const old=n.target.type==="Identifier"?scope.get(n.target.name):evalExpr(n.target,scope),rhs=evalExpr(n.value,scope);let v=rhs;
           if(n.operator!== "="&&n.operator!==":="){const a=value(old),b=value(rhs);const op=n.operator[0];v=op==="+"?num(a)+num(b):op==="-"?num(a)-num(b):op==="*"?num(a)*num(b):num(b)===0?NA:num(a)/num(b);}
+          if(n.target.type==="Identifier"&&old===undefined&&scope===activeBarScope&&!(v&&typeof v==="object")){
+            const a=vars[n.target.name]||(vars[n.target.name]=[]);
+            while(a.length<currentIndex)a.push(NA);
+            if(a.length===currentIndex)a.push(value(v));else a[currentIndex]=value(v);
+            seriesVarNames.add(n.target.name);
+            const ref=new SeriesRef(a,()=>currentIndex);scope.define(n.target.name,ref);
+            return ref;
+          }
           assignTarget(n.target,v,scope,n);if(n.target.type==="Identifier"&&Object.prototype.hasOwnProperty.call(persistent,n.target.name))persistent[n.target.name]=value(v);return v;
         }
         case "TypeDeclaration":{
