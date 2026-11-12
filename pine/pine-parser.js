@@ -107,7 +107,18 @@
         let close=-1,depth=0;
         for(let j=1;j<ts.length;j++){if(ts[j].value==="(")depth++;if(ts[j].value===")"&&--depth===0){close=j;break;}}
         if(close>0&&ts[close+1]&&ts[close+1].value==="=>"){
-          const params=[];for(let j=2;j<close;j++)if(ts[j].type==="IDENTIFIER"&&(j===2||ts[j-1].value===","))params.push({type:"Identifier",name:ts[j].value,loc:loc(ts[j])});
+          const params=[];
+          let segmentStart=2,depthParams=0;
+          for(let j=2;j<=close;j++){
+            const token=ts[j];
+            if(j===close||(token.value===","&&depthParams===0)){
+              const segment=ts.slice(segmentStart,j);
+              const candidate=[...segment].reverse().find(t=>t.type==="IDENTIFIER");
+              if(candidate)params.push({type:"Identifier",name:candidate.value,loc:loc(candidate)});
+              segmentStart=j+1;
+            }else if(["<","(","["].includes(token.value))depthParams++;
+            else if([">",")","]"].includes(token.value))depthParams=Math.max(0,depthParams-1);
+          }
           const hasInlineBody=close+2<ts.length;
           return {type:"FunctionDeclaration",name:first.value,params,body:hasInlineBody?expression(ts,close+2):null,bodyStatements:[],...base};
         }
