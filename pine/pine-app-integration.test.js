@@ -4,7 +4,6 @@ const path = require("node:path");
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
 for (const id of [
-  "customPineName",
   "customPineCode",
   "runCustomIndicator",
   "customPineStatus",
@@ -12,9 +11,7 @@ for (const id of [
   "savedCustomIndicators",
   "indicatorPanes"
 ]) {
-  if (id === "customPineName") continue; // The established UI field is customIndicatorName.
-  const actual = id === "customPineName" ? "customIndicatorName" : id;
-  assert.ok(html.includes('id="' + actual + '"'), "Pine UI element is missing: " + actual);
+  assert.ok(html.includes('id="' + id + '"'), "Pine UI element is missing: " + id);
 }
 
 const scripts = [
