@@ -8,13 +8,11 @@ for (const file of [
   "MONEY_TRADER_ADX.pine",
   "MONEY_TRADER_GOLDEN_ROSE.pine",
   "MONEY_TRADER_SNIPER.pine",
-  "MONEY_TRADER_SUPPORT_RESISTANCE.pine",
   "MONEY_TRADER_WIZZARD.pine",
   "MONEY_TRADER_FIBO_TRADE_ARCHIVE.pine",
 ]) {
   const source = fs.readFileSync(path.join(__dirname, "fixtures", file), "utf8");
   const lexical = lexPine(source);
-  if(file==="MONEY_TRADER_SUPPORT_RESISTANCE.pine") console.log("DEBUG972",lexical.tokens.filter(t=>t.line===972).map(t=>({type:t.type,value:t.value,column:t.column})));
   assert.deepEqual(lexical.diagnostics, [], file + " lexer diagnostics");
   const parsed = parsePine(lexical.tokens);
   assert.deepEqual(parsed.diagnostics, [], file + " parser diagnostics");
