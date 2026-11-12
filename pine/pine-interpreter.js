@@ -25,12 +25,13 @@
     }
   }
   class SeriesRef {
-    constructor(values) { this.values = values; }
-    get current() { return this.values.length ? this.values[this.values.length - 1] : NA; }
+    constructor(values,indexProvider) { this.values = values; this.indexProvider=indexProvider||null; }
+    get index() { return this.indexProvider?this.indexProvider():this.values.length-1; }
+    get current() { const i=this.index;return i<0||i>=this.values.length?NA:this.values[i]; }
     at(offset) {
       if (!Number.isInteger(offset) || offset < 0) throw new RangeError("Geçmiş indeksi negatif olmayan tam sayı olmalı.");
-      const i = this.values.length - 1 - offset;
-      return i < 0 ? NA : this.values[i];
+      const i = this.index - offset;
+      return i < 0 || i>=this.values.length ? NA : this.values[i];
     }
   }
   class Scope {
@@ -45,7 +46,7 @@
     }
   }
   function value(v) { return v instanceof SeriesRef ? v.current : v; }
-  function seriesValues(v) { return v instanceof SeriesRef ? v.values : [value(v)]; }
+  function seriesValues(v) { return v instanceof SeriesRef ? v.values.slice(0,v.index+1) : [value(v)]; }
   function rolling(src, length, fn) {
     const a = seriesValues(src), n = Math.trunc(num(value(length)));
     if (!Number.isFinite(n) || n < 1) throw new RangeError("Periyot pozitif tam sayı olmalı.");
@@ -292,14 +293,14 @@
     const plotCallIds=new WeakMap();let nextPlotCallId=0;
     const maxSteps=opts.maxSteps||100000;
     function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı.",node,"PINE_EXECUTION_LIMIT");}
-    function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name]);}
+    function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name],()=>currentIndex);}
     function envGet(scope,name){
       if(scope.has(name))return scope.get(name);
       if(["open","high","low","close","volume","time"].includes(name))return series(name);
-      if(name==="hl2")return new SeriesRef(ctxBars.map(b=>(b.high+b.low)/2));
-      if(name==="hlc3")return new SeriesRef(ctxBars.map(b=>(b.high+b.low+b.close)/3));
-      if(name==="ohlc4")return new SeriesRef(ctxBars.map(b=>(b.open+b.high+b.low+b.close)/4));
-      if(name==="bar_index")return new SeriesRef(Array.from({length:currentIndex+1},(_,i)=>i));
+      if(name==="hl2")return new SeriesRef(ctxBars.map(b=>(b.high+b.low)/2),()=>currentIndex);
+      if(name==="hlc3")return new SeriesRef(ctxBars.map(b=>(b.high+b.low+b.close)/3),()=>currentIndex);
+      if(name==="ohlc4")return new SeriesRef(ctxBars.map(b=>(b.open+b.high+b.low+b.close)/4),()=>currentIndex);
+      if(name==="bar_index")return new SeriesRef(Array.from({length:ctxBars.length},(_,i)=>i),()=>currentIndex);
       if(name==="true")return true;if(name==="false")return false;
       if(Object.prototype.hasOwnProperty.call(builtins,name))return builtins[name];
       if(Object.prototype.hasOwnProperty.call(functions,name))return functions[name];
@@ -326,7 +327,7 @@
         case "MemberExpression":{
           if(!n.computed&&n.object&&n.object.type==="Identifier"&&n.object.name==="ta"&&n.property&&n.property.name==="tr")return new SeriesRef(ctxBars.slice(0,currentIndex+1).map((_,i)=>trueRange({bars:ctxBars,index:i})));
           const obj=evalExpr(n.object,scope);
-          if(n.computed){const idx=Math.trunc(num(value(evalExpr(n.property,scope))));if(obj instanceof SeriesRef)return obj.at(idx);if(Array.isArray(obj))return idx>=0&&idx<obj.length?obj[idx]:NA;throw new PineExecutionError("Bu değer geçmiş/indeks erişimini desteklemiyor.",n);}
+          if(n.computed){const idx=Math.trunc(num(value(evalExpr(n.property,scope))));if(obj instanceof SeriesRef)return obj.at(idx);if(Array.isArray(obj))return idx>=0&&idx<obj.length?obj[idx]:NA;if(n.object&&n.object.type==="CallExpression"&&Number.isInteger(idx)&&idx>=0&&idx<=currentIndex){const savedIndex=currentIndex;try{currentIndex=savedIndex-idx;return value(evalExpr(n.object,scope));}finally{currentIndex=savedIndex;}}throw new PineExecutionError("Bu değer geçmiş/indeks erişimini desteklemiyor.",n);}
           if(obj==null)throw new PineExecutionError("Boş değer üzerinde alan erişimi.",n);
           if((typeof obj==="object"||typeof obj==="function")&&n.property&&Object.prototype.hasOwnProperty.call(obj,n.property.name))return obj[n.property.name];
           throw new PineExecutionError("Desteklenmeyen alan: "+(n.property&&n.property.name),n);
@@ -407,7 +408,7 @@
             const stored=persistent[n.name];
             if(scope===activeBarScope&&!(stored&&typeof stored==="object")){
               const a=vars[n.name]||(vars[n.name]=[]);while(a.length<currentIndex)a.push(NA);if(a.length===currentIndex)a.push(stored);else a[currentIndex]=stored;
-              seriesVarNames.add(n.name);const ref=new SeriesRef(a);scope.define(n.name,ref);return ref;
+              seriesVarNames.add(n.name);const ref=new SeriesRef(a,()=>currentIndex);scope.define(n.name,ref);return ref;
             }
             scope.define(n.name,stored);return stored;
           }
