@@ -93,6 +93,18 @@ plot(twicePlusOne(close), "Function")
 `), bars);
 assert.equal(result.plots[0].values.at(-1), bars.at(-1).close*2+1);
 
+result = runPine(compile(`//@version=6
+indicator("UDT test")
+type Pivot
+    float level
+    int index = 0
+var Pivot p = Pivot.new(10.0)
+p.level := p.level + 1
+plot(p.level, "Pivot level")
+`), bars);
+assert.equal(result.plots[0].values.at(-1), 50);
+
+
 
 result = runPine(compile(`//@version=6
 indicator("MTF test")
