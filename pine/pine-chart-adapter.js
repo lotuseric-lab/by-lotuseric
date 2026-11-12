@@ -44,7 +44,7 @@
       series.setData(makeData(p.values,bars));
       state.series.push({chart:target,series});
     }
-    for(const h of output.hlines||[]){
+    const seenHlines=new Set();for(const h of output.hlines||[]){if(seenHlines.has(h.value))continue;seenHlines.add(h.value);
       if(typeof h.value!=="number"||!Number.isFinite(h.value))continue;
       const series=addChartSeries.call(null,target,"LineSeries",{color:"#8794a8",lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false});
       series.setData(bars.map(b=>({time:b.time,value:h.value})));
@@ -63,6 +63,12 @@
     }
     if(output.tables?.length&&drawingHost){
       for(const t of output.tables){if(t.deleted)continue;const el=document.createElement("div");el.className="pineTableOverlay";Object.assign(el.style,{position:"absolute",right:"8px",top:"8px",zIndex:"8",background:t.bgcolor||"#142033",color:"#fff",border:"1px solid "+(t.frame_color||"#64748b"),padding:"4px",fontSize:"11px",pointerEvents:"none"});const table=document.createElement("table");for(let r=0;r<t.rows;r++){const tr=document.createElement("tr");for(let c=0;c<t.columns;c++){const td=document.createElement("td"),cell=t.cells[c+":"+r];td.textContent=cell?.text||"";td.style.padding="3px 5px";td.style.color=cell?.text_color||"#fff";if(cell?.bgcolor)td.style.background=cell.bgcolor;tr.append(td);}table.append(tr);}el.append(table);drawingHost.append(el);state.tableEls.push(el);}
+    }
+    if(output.candles?.length){
+      const kind=output.candles[0].type==="bar"?"BarSeries":"CandlestickSeries";
+      const series=addChartSeries.call(null,target,kind,{upColor:"#22c58b",downColor:"#ff647c",borderUpColor:"#22c58b",borderDownColor:"#ff647c",wickUpColor:"#22c58b",wickDownColor:"#ff647c"});
+      const data=output.candles.filter(x=>bars[x.bar]).map(x=>({time:bars[x.bar].time,open:x.open,high:x.high,low:x.low,close:x.close,color:x.color,wickColor:x.wickcolor,borderColor:x.bordercolor}));
+      series.setData(data);state.series.push({chart:target,series});
     }
     if(overlay&&output.shapes?.length){
       const markerSeries=addChartSeries.call(null,target,"LineSeries",{color:"#ffffff",lineVisible:false,pointMarkersVisible:true,pointMarkersRadius:5,priceLineVisible:false,lastValueVisible:false});
