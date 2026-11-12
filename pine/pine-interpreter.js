@@ -196,6 +196,26 @@
       nz: (v,r)=>isNA(value(v))?(r===undefined?0:value(r)):value(v),
       minval:x=>x, maxval:x=>x, timestamp:()=>NA, time:()=>ctx.bar?ctx.bar.time:NA
     };
+    let drawingId=1;
+    const drawCfg=args=>args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);return o;},{});
+    const lineNS={style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed",
+      new:(x1,y1,x2,y2,...args)=>{const c=drawCfg(args),o={id:drawingId++,x1:value(x1),y1:value(y1),x2:value(x2),y2:value(y2),color:c.color||"#2962ff",width:c.width||2,style:c.style||"solid",extend:c.extend||"none",xloc:c.xloc||"bar_index"};outputs.lines.push(o);return o;},
+      set_x1:(o,v)=>o.x1=value(v),set_y1:(o,v)=>o.y1=value(v),set_x2:(o,v)=>o.x2=value(v),set_y2:(o,v)=>o.y2=value(v),set_color:(o,v)=>o.color=value(v),set_width:(o,v)=>o.width=value(v),set_style:(o,v)=>o.style=value(v),set_extend:(o,v)=>o.extend=value(v),delete:o=>{o.deleted=true;},get_price:(o,x)=>{const dx=num(o.x2)-num(o.x1);return dx===0?NA:num(o.y1)+(num(o.y2)-num(o.y1))*(num(value(x))-num(o.x1))/dx;}
+    };
+    const labelNS={style_none:"none",style_label_up:"label_up",style_label_down:"label_down",style_label_left:"label_left",style_label_right:"label_right",
+      new:(x,y,txt,...args)=>{const c=drawCfg(args),o={id:drawingId++,x:value(x),y:value(y),text:String(value(txt)||""),color:c.color||"#2962ff",textcolor:c.textcolor||"#ffffff",style:c.style||"label_up",size:c.size||"normal",xloc:c.xloc||"bar_index",yloc:c.yloc||"price"};outputs.labels.push(o);return o;},
+      set_x:(o,v)=>o.x=value(v),set_y:(o,v)=>o.y=value(v),set_text:(o,v)=>o.text=String(value(v)||""),set_color:(o,v)=>o.color=value(v),set_textcolor:(o,v)=>o.textcolor=value(v),set_style:(o,v)=>o.style=value(v),set_size:(o,v)=>o.size=value(v),delete:o=>{o.deleted=true;}
+    };
+    const boxNS={new:(left,top,right,bottom,...args)=>{const c=drawCfg(args),o={id:drawingId++,left:value(left),top:value(top),right:value(right),bottom:value(bottom),border_color:c.border_color||"#2962ff",bgcolor:c.bgcolor||"rgba(41,98,255,0.12)",border_width:c.border_width||1,xloc:c.xloc||"bar_index"};outputs.boxes.push(o);return o;},
+      set_left:(o,v)=>o.left=value(v),set_top:(o,v)=>o.top=value(v),set_right:(o,v)=>o.right=value(v),set_bottom:(o,v)=>o.bottom=value(v),set_bgcolor:(o,v)=>o.bgcolor=value(v),set_border_color:(o,v)=>o.border_color=value(v),set_border_width:(o,v)=>o.border_width=value(v),delete:o=>{o.deleted=true;}
+    };
+    const tableNS={new:(position,columns,rows,...args)=>{const c=drawCfg(args),o={id:drawingId++,position:value(position),columns:Math.max(1,Math.trunc(num(value(columns)))),rows:Math.max(1,Math.trunc(num(value(rows)))),cells:{},bgcolor:c.bgcolor||"rgba(20,30,45,0.9)",frame_color:c.frame_color||"#64748b"};outputs.tables.push(o);return o;},
+      cell:(t,column,row,txt,...args)=>{const c=drawCfg(args);t.cells[String(value(column))+":"+String(value(row))]={text:String(value(txt)||""),text_color:c.text_color||"#ffffff",bgcolor:c.bgcolor||t.bgcolor};},
+      cell_set_text:(t,column,row,txt)=>{const k=String(value(column))+":"+String(value(row));if(t.cells[k])t.cells[k].text=String(value(txt)||"");},
+      cell_set_text_color:(t,column,row,c)=>{const k=String(value(column))+":"+String(value(row));if(t.cells[k])t.cells[k].text_color=value(c);},
+      cell_set_bgcolor:(t,column,row,c)=>{const k=String(value(column))+":"+String(value(row));if(t.cells[k])t.cells[k].bgcolor=value(c);},
+      clear:(t)=>{t.cells={};},delete:t=>{t.deleted=true;}
+    };
     Object.assign(builtins.plot,{style_line:"line",style_stepline:"stepline",style_histogram:"histogram",style_columns:"columns",style_area:"area",style_circles:"circles",style_cross:"cross",style_linebr:"linebr"});
     builtins.shape={circle:"shape.circle",square:"shape.square",diamond:"shape.diamond",triangleup:"shape.triangleup",triangledown:"shape.triangledown",cross:"shape.cross",xcross:"shape.xcross",flag:"shape.flag",arrowup:"shape.arrowup",arrowdown:"shape.arrowdown",labelup:"shape.labelup",labeldown:"shape.labeldown",none:"shape.none"};
     builtins.location={abovebar:"abovebar",belowbar:"belowbar",top:"top",bottom:"bottom",absolute:"absolute"};
@@ -204,7 +224,7 @@
     builtins.extend={none:"none",left:"left",right:"right",both:"both"};
     builtins.xloc={bar_index:"bar_index",bar_time:"bar_time"};
     builtins.yloc={price:"price",abovebar:"abovebar",belowbar:"belowbar"};
-    builtins.line={style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed"};
+    builtins.line=lineNS;builtins.label=labelNS;builtins.box=boxNS;builtins.table=tableNS;
     builtins.hline={style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed"};
     return builtins;
   }
