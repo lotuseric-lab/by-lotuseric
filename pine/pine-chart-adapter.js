@@ -72,9 +72,10 @@
         }
       }
     }
-    const seenHlines=new Set();for(const h of output.hlines||[]){if(seenHlines.has(h.value))continue;seenHlines.add(h.value);
+    for(const h of output.hlines||[]){
       if(typeof h.value!=="number"||!Number.isFinite(h.value))continue;
-      const series=addChartSeries.call(null,target,"LineSeries",{color:"#8794a8",lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false});
+      const style=h.linestyle==="dashed"?2:h.linestyle==="dotted"?1:0;
+      const series=addChartSeries.call(null,target,"LineSeries",{color:h.color||"#8794a8",lineWidth:1,lineStyle:style,priceLineVisible:false,lastValueVisible:false});
       series.setData(bars.map(b=>({time:b.time,value:h.value})));
       state.series.push({chart:target,series});
     }
