@@ -83,7 +83,7 @@
 
   function parsePine(tokens) {
     const lines=logicalLines(tokens),diagnostics=[];let cursor=0;
-    function expression(ts,start) { return new ExpressionParser(ts,start||0).parse(); }
+    function expression(ts,start,end) { return new ExpressionParser(ts,start||0,end==null?ts.length:end).parse(); }
     function parseStatement(line) {
       const ts=line.tokens,first=ts[0],base={loc:loc(first),indent:line.indent};
       if(first.value==="else")return {type:"ElseMarker",...base};
@@ -96,7 +96,7 @@
         const variable=ts[1];if(!variable||variable.type!=="IDENTIFIER")throw new PineParseError("for döngüsünde değişken adı bekleniyor.",first);
         const eq=ts.findIndex(t=>t.value==="="),to=ts.findIndex(t=>t.value==="to"),by=ts.findIndex(t=>t.value==="by"),inAt=ts.findIndex(t=>t.value==="in");
         if(inAt>1){return {type:"ForInStatement",variable:variable.value,iterable:expression(ts,inAt+1),body:[],...base};}
-        if(eq===2&&to>eq){const stop=by>to?by:ts.length;return {type:"ForRangeStatement",variable:variable.value,start:expression(ts,3),end:expression(ts,to+1<stop?to+1:stop),step:by>0?expression(ts,by+1):null,body:[],...base};}
+        if(eq===2&&to>eq){return {type:"ForRangeStatement",variable:variable.value,start:expression(ts,3,to),end:expression(ts,to+1,by>to?by:ts.length),step:by>0?expression(ts,by+1):null,body:[],...base};}
         throw new PineParseError("for döngüsü 'for i = başlangıç to bitiş [by adım]' veya 'for x in dizi' biçiminde olmalı.",first);
       }
       // User-defined function declaration: name(arg1, arg2) => expression
