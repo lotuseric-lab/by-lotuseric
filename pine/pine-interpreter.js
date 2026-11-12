@@ -169,7 +169,8 @@
     ta.mfi=(src,len)=>{const p=seriesValues(src),v=ctx.bars.slice(0,ctx.index+1).map(b=>b.volume),n=Math.trunc(num(value(len)));if(p.length<=n)return NA;let pos=0,neg=0;for(let i=p.length-n;i<p.length;i++){const flow=num(p[i])*v[i];if(num(p[i])>num(p[i-1]))pos+=flow;else if(num(p[i])<num(p[i-1]))neg+=flow;}return neg===0?100:100-100/(1+pos/neg);};
     ta.vwap=(src)=>{const p=src?seriesValues(src):ctx.bars.slice(0,ctx.index+1).map(b=>(b.high+b.low+b.close)/3);let pv=0,vol=0;ctx.bars.slice(0,ctx.index+1).forEach((b,i)=>{pv+=num(p[i])*b.volume;vol+=b.volume;});return vol?pv/vol:NA;};
     const barstate={isrealtime:false,isconfirmed:true,isnew:true};Object.defineProperties(barstate,{isfirst:{get:()=>ctx.index===0},islast:{get:()=>ctx.index===ctx.bars.length-1},ishistory:{get:()=>ctx.index<ctx.bars.length-1}});
-    Object.defineProperty(ta,"obv",{get:()=>{const b=ctx.bars.slice(0,ctx.index+1);let total=0;for(let i=1;i<b.length;i++)total+=(b[i].close>b[i-1].close?1:b[i].close<b[i-1].close?-1:0)*b[i].volume;return total;}});\n    const input = {};
+    Object.defineProperty(ta,"obv",{get:()=>{const b=ctx.bars.slice(0,ctx.index+1);let total=0;for(let i=1;i<b.length;i++)total+=(b[i].close>b[i-1].close?1:b[i].close<b[i-1].close?-1:0)*b[i].volume;return total;}});
+    const input = {};
     for(const kind of ["int","float","bool","string","source","color","timeframe","symbol"]){
       input[kind]=(def, ...rest)=>{
         const cfg=rest.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(x&&typeof x==="object"&&!Array.isArray(x))Object.assign(o,x);return o;},{});
