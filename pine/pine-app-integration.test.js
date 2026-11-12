@@ -4,6 +4,7 @@ const path = require("node:path");
 const html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
 
 for (const id of [
+  "customIndicatorName",
   "customPineCode",
   "runCustomIndicator",
   "customPineStatus",
