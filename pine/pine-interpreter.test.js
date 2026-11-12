@@ -369,4 +369,19 @@ plot(above[1]?1:0)
 assert.equal(result.plots[0].values[0],0);
 assert.equal(result.plots[0].values[1],1);
 
+
+const supportSource=fs.readFileSync(path.join(__dirname,"fixtures","MONEY_TRADER_SUPPORT_RESISTANCE.pine"),"utf8");
+const supportAst=compile(supportSource);
+const supportBars=Array.from({length:180},(_,i)=>{
+  const wave=Math.sin(i*0.47)*4+Math.sin(i*0.13)*2;
+  const close=100+wave+i*0.015;
+  return {time:1700000000+i*300,open:close-Math.sin(i)*0.6,high:close+1+(i%7)*0.12,low:close-1-(i%5)*0.1,close,volume:1000+(i%9)*180};
+});
+result=runPine(supportAst,supportBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:500000});
+assert.equal(result.metadata.title,"MONEY TRADER Destek/Direnç");
+assert.ok(result.inputDefs.length>=15,"Support/resistance input definitions should be exposed");
+assert.ok(result.lines.length>0,"Support/resistance levels should create chart lines");
+assert.ok(result.labels.length>0,"Support/resistance levels should create price labels");
+assert.ok(result.shapes.length>0,"Support/resistance signals should be represented as shapes");
+
 console.log("Pine interpreter tests: OK");
