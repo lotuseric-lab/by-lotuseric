@@ -140,6 +140,9 @@
         const close=ts.findIndex((t,i)=>i>2&&t.value===">");
         if(close>2&&close+1<assign&&ts[close+1].type==="IDENTIFIER")return {type:"TypedDeclarationStatement",qualifier:"var",valueType:ts.slice(1,close+1).map(t=>t.value).join(""),name:ts[close+1].value,value:expression(ts,assign+1),...base};
       }
+      if(first.value==="var"&&ts[1]&&ts[1].type==="IDENTIFIER"&&ts[2]&&ts[2].value==="="){
+        return {type:"DeclarationStatement",qualifier:"var",name:ts[1].value,value:expression(ts,3),...base};
+      }
       if(first.value==="var"&&ts[1].type==="IDENTIFIER"&&ts[2].type==="IDENTIFIER"&&assign===3){
         return {type:"TypedDeclarationStatement",qualifier:"var",valueType:ts[1].value,name:ts[2].value,value:expression(ts,4),...base};
       }
