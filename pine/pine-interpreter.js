@@ -443,7 +443,14 @@
               });
               securityCache.set(cacheKey,mapped);
             }
-            return new SeriesRef(mapped.slice(0,currentIndex+1));
+            const tupleSample=mapped.find(Array.isArray);
+            if(tupleSample){
+              return tupleSample.map((_,tupleIndex)=>new SeriesRef(
+                mapped.slice(0,currentIndex+1).map(entry=>Array.isArray(entry)?entry[tupleIndex]:NA),
+                ()=>currentIndex
+              ));
+            }
+            return new SeriesRef(mapped.slice(0,currentIndex+1),()=>currentIndex);
           }
           const fn=n.callee&&n.callee.type==="Identifier"&&n.callee.name==="na"?builtins.na:evalExpr(n.callee,scope);if(typeof fn!=="function")throw new PineExecutionError("Çağrılan ifade fonksiyon değil.",n);
           const args=n.arguments.map(a=>a.type==="NamedArgument"?namedArg(a.name,evalExpr(a.value,scope)):evalExpr(a,scope));
