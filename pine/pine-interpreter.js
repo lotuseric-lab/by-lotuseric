@@ -391,7 +391,8 @@
     // Bound execution proportionally to the history window: realistic Pine
     // indicators evaluate hundreds of AST operations per bar, especially with MTF.
     // Callers can still provide a stricter explicit maxSteps budget.
-    const maxSteps=opts.maxSteps||Math.max(100000,cleanBars.length*1000);
+    const estimatedStepsPerBar=Math.max(1000,(ast.body?.length||1)*20);
+    const maxSteps=opts.maxSteps||Math.max(100000,cleanBars.length*estimatedStepsPerBar);
     function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı.",node,"PINE_EXECUTION_LIMIT");}
     function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name],()=>currentIndex);}
     function getFunctionSeriesKey(scope){
