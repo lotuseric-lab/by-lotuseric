@@ -24,56 +24,73 @@ const count = (value) => {
   if (value && typeof value === "object") return Object.keys(value).length;
   return 0;
 };
-
+const mapValues = (value) => value instanceof Map ? [...value.values()] : Array.isArray(value) ? value : [];
+const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const result = {
   fixture: "AL_ONAY_SCALP_V14_ERKEN_SAT_GUNCEL.pine",
   sourceBytes: Buffer.byteLength(source),
-  sourceLines: source.split("\\n").length,
+  sourceLines: source.split("\n").length,
   bars: bars.length,
   timestampUnit: "Unix milliseconds",
   compile: "PENDING",
-  run: "PENDING"
+  backends: {}
 };
 
 try {
   const compiled = compile(source);
   result.compile = "PASS";
   result.metadata = compiled.metadata ?? null;
-  const engine = new Engine(compiled, new ArrayFeed(bars), { backend: "interp" });
-  await engine.run({ symbol: "BTCUSDT", timeframe: "5" });
-  result.run = "PASS";
 
-  const plots = engine.outputs?.plots;
-  const markers = engine.outputs?.markers;
-  const drawings = engine.drawings;
-  result.outputKeys = Object.keys(engine.outputs ?? {});
-  result.plotCount = count(plots);
-  result.markerSeriesCount = count(markers);
-  result.drawingCount = count(drawings);
-  result.securityRequests = engine.outputs?.securityRequests ?? [];
-  result.alertEvents = engine.outputs?.alerts ?? [];
-  result.plotDiagnostics = plots instanceof Map
-    ? [...plots.values()].map(p => ({
+  for (const backend of ["interp", "js"]) {
+    const engine = new Engine(compiled, new ArrayFeed(bars), { backend });
+    await engine.run({ symbol: "BTCUSDT", timeframe: "5" });
+    const plots = mapValues(engine.outputs?.plots);
+    const markers = mapValues(engine.outputs?.markers);
+    const drawings = engine.drawings;
+    result.backends[backend] = {
+      run: "PASS",
+      plotCount: count(engine.outputs?.plots),
+      markerSeriesCount: count(engine.outputs?.markers),
+      markerCount: markers.reduce((n, m) => n + (m.data ?? []).filter(Boolean).length, 0),
+      drawingCount: count(drawings),
+      securityRequests: engine.outputs?.securityRequests ?? [],
+      alertCount: count(engine.outputs?.alerts),
+      plotDiagnostics: plots.map(p => ({
         title: p.title,
         finiteValues: (p.data ?? []).filter(Number.isFinite).length,
         lastValue: [...(p.data ?? [])].reverse().find(Number.isFinite) ?? null
-      }))
-    : [];
-  result.nonEmptyPlots = result.plotDiagnostics.filter(p => p.finiteValues > 0).length;
+      })),
+      outputs: engine.outputs
+    };
+  }
+
+  const interp = result.backends.interp;
+  const js = result.backends.js;
+  const parity = {
+    plots: sameJson([...compiledPlotData(interp.outputs)], [...compiledPlotData(js.outputs)]),
+    markers: sameJson([...compiledMarkerData(interp.outputs)], [...compiledMarkerData(js.outputs)]),
+    alerts: sameJson(interp.outputs.alerts, js.outputs.alerts),
+    securityRequests: sameJson(interp.securityRequests, js.securityRequests),
+    drawings: sameJson(interp.drawingCount, js.drawingCount)
+  };
+  result.backendParity = parity;
   result.hasExpectedMtfRequests = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "15"]
-    .every(tf => result.securityRequests.some(r => r.timeframe === tf));
+    .every(tf => interp.securityRequests.some(r => r.timeframe === tf));
   result.assertions = {
     compilePassed: result.compile === "PASS",
-    runtimePassed: result.run === "PASS",
-    hasPlots: result.plotCount > 0,
-    hasMtfRequests: result.hasExpectedMtfRequests
+    interpRuntimePassed: interp.run === "PASS",
+    jsRuntimePassed: js.run === "PASS",
+    hasPlots: interp.plotCount > 0 && js.plotCount > 0,
+    hasExpectedMtfRequests: result.hasExpectedMtfRequests,
+    backendParityPassed: Object.values(parity).every(Boolean)
   };
   result.overall = Object.values(result.assertions).every(Boolean) ? "PASS" : "FAIL";
+  delete result.backends.interp.outputs;
+  delete result.backends.js.outputs;
   console.log(JSON.stringify(result, null, 2));
   if (result.overall !== "PASS") process.exitCode = 1;
 } catch (error) {
   result.compile = result.compile === "PASS" ? "PASS" : "FAIL";
-  result.run = result.compile === "PASS" ? "FAIL" : "NOT_RUN";
   result.overall = "FAIL";
   result.error = {
     name: error?.name ?? "Error",
@@ -82,4 +99,11 @@ try {
   };
   console.error(JSON.stringify(result, null, 2));
   process.exitCode = 1;
+}
+
+function compiledPlotData(outputs) {
+  return mapValues(outputs.plots).map(p => ({ id: p.id, title: p.title, data: p.data, colors: p.colors }));
+}
+function compiledMarkerData(outputs) {
+  return mapValues(outputs.markers).map(m => ({ id: m.id, title: m.title, kind: m.kind, location: m.location, glyph: m.glyph, data: m.data }));
 }
