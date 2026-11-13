@@ -4,9 +4,13 @@
   "type": "module",
   "scripts": {
     "smoke": "node smoke-test.mjs",
-    "test:v14": "node v14-compat-test.mjs"
+    "test:v14": "node v14-compat-test.mjs",
+    "test:ui": "node v14-ui-test.mjs"
   },
   "dependencies": {
     "@heyphat/piner": "0.13.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1"
   }
 }
