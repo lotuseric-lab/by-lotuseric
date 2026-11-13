@@ -40,6 +40,14 @@ assert.deepEqual(output.plots[2].values, [105, 115]);
 assert.deepEqual(output.plots[3].values, [5, 5]);
 assert.deepEqual(output.plots[4].values, [99, 109]);
 
+const emptyIntrabars = runPine(ast, bars, {
+  symbol:"TEST", timeframe:"5",
+  lowerTimeframeData: {"1": lowerBars.map(b => ({...b,time:b.time+600}))},
+});
+assert.deepEqual(emptyIntrabars.plots[0].values,[0,0]);
+assert.deepEqual(emptyIntrabars.plots[3].values,[0,0],"tuple request must preserve empty arrays when no intrabars fall inside chart bars");
+assert.deepEqual(emptyIntrabars.plots[4].values,[null,null]);
+
 assert.throws(
   () => runPine(ast, bars, {symbol:"TEST",timeframe:"5"}),
   error => error.code === "PINE_MTF_DATA_REQUIRED",
