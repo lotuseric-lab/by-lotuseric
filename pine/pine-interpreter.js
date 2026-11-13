@@ -558,8 +558,24 @@
         case "FunctionDeclaration":{
           const callable=(...args)=>{
             const local=new Scope(scope);
-            local.__pineFunctionKey=n.name+"#"+(activeFunctionCallSite===null?"direct":activeFunctionCallSite);
-            n.params.forEach((p,i)=>local.define(p.name,value(args[i])));
+            const functionKey=n.name+"#"+(activeFunctionCallSite===null?"direct":activeFunctionCallSite);
+            local.__pineFunctionKey=functionKey;
+            let byName=functionSeriesHistory.get(functionKey);
+            if(!byName){byName=new Map();functionSeriesHistory.set(functionKey,byName);}
+            n.params.forEach((p,i)=>{
+              const arg=args[i];
+              // Pine function parameters are series-qualified when their input is
+              // a scalar or a SeriesRef. Preserve each call site's argument history
+              // so expressions such as source[1] work inside user functions.
+              if(arg instanceof SeriesRef||arg===null||typeof arg!=="object"){
+                const key="__arg__"+p.name;
+                let history=byName.get(key);
+                if(!history){history=[];byName.set(key,history);}
+                while(history.length<currentIndex)history.push(NA);
+                if(history.length===currentIndex)history.push(value(arg));else history[currentIndex]=value(arg);
+                local.define(p.name,new SeriesRef(history,()=>currentIndex));
+              }else local.define(p.name,arg);
+            });
             return n.bodyStatements&&n.bodyStatements.length?execBlockValue(n.bodyStatements,local):evalExpr(n.body,local);
           };
           callable.__pineUserFunction=true;
