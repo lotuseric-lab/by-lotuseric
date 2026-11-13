@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080e19"><title>BY LOTUSERIC · AL ONAY SCALP V14 Lab</title>
+<style>
+:root{color-scheme:dark;--bg:#080e19;--panel:#101a2a;--line:#263b55;--text:#e8f0fb;--muted:#91a5bd}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,sans-serif}
+header{padding:14px 16px;background:#0b1422;border-bottom:1px solid var(--line)}header b{font-size:17px}header small{display:block;color:var(--muted);margin-top:4px}
+main{max-width:1100px;margin:auto;padding:14px;display:grid;gap:12px}.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:13px;min-width:0}
+.row{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap}h2{font-size:14px;margin:0 0 10px}.muted{color:var(--muted);font-size:11px}
+textarea{width:100%;min-height:300px;background:#080f1b;color:#dceaff;border:1px solid var(--line);border-radius:9px;padding:10px;font:11px/1.5 ui-monospace,monospace;resize:vertical}
+button{background:#12372d;border:1px solid #397b69;color:#9af0cc;border-radius:9px;padding:10px 14px;font-weight:700}button:disabled{opacity:.5}
+#status{background:#142238;padding:10px;border-radius:8px;color:var(--muted);overflow-wrap:anywhere}#status.ok{color:#8de8bf}#status.err{color:#ff9baa}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:10px}.metric{background:#142238;padding:9px;border-radius:8px;min-width:0}.metric span{display:block;color:var(--muted);font-size:10px}.metric b{display:block;font-size:15px;margin-top:4px;overflow-wrap:anywhere}
+canvas{width:100%;height:340px;background:#0a1320;border-radius:9px;display:block}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:320px;overflow:auto;background:#080f1b;border:1px solid var(--line);padding:10px;border-radius:8px;font-size:11px}
+@media(max-width:560px){.metrics{grid-template-columns:repeat(2,1fr)}canvas{height:280px}}
+</style></head>
+<body>
+<header><b>BY LOTUSERIC · BAĞIMSIZ PINE LAB</b><small>AL ONAY SCALP V14 · Ana canlı panelden tamamen ayrı test sayfası</small></header>
+<main>
+<section class="panel"><div class="row"><h2>AL ONAY SCALP V14 [SMART FIRE]</h2><span class="muted">Kaynak: mevcut V14 fixture · Pine v6</span></div>
+<div id="status">V14 kaynak kodu yükleniyor…</div><textarea id="source" spellcheck="false" aria-label="Pine Script V14 kaynak kodu"></textarea>
+<div class="row" style="margin-top:9px"><span class="muted">Sentetik 5 dakikalık veri · 2.400 mum · işlem/emir gönderimi kapalı</span><button id="run" disabled>V14'ü çalıştır</button></div></section>
+<section class="panel"><h2>Çalıştırma sonucu</h2><div class="metrics">
+<div class="metric"><span>Test mumu</span><b id="bars">—</b></div><div class="metric"><span>Plot serisi</span><b id="plots">—</b></div><div class="metric"><span>İşaret serisi</span><b id="markers">—</b></div><div class="metric"><span>Çizim nesnesi</span><b id="drawings">—</b></div></div></section>
+<section class="panel"><div class="row"><h2>V14 grafik çıktısı</h2><span class="muted">EMA ve indikatör serileri</span></div><canvas id="chart"></canvas></section>
+<section class="panel"><h2>Motor tanılama bilgisi</h2><pre id="output">Henüz çalıştırılmadı.</pre></section>
+<section class="panel muted">Bu sayfa yalnızca bağımsız değerlendirme içindir. Piner 0.13.0 AGPL-3.0-only lisanslı olduğundan ana ticari/kapalı kaynak uygulamaya aktarılmaz. Sentetik veride başarılı çalışma, canlı piyasa doğruluğu veya TradingView ile tam eşdeğerlik anlamına gelmez.</section>
+</main>
+<script type="module">
+const $=id=>document.getElementById(id),status=(s,k="")=>{$("status").textContent=s;$("status").className=k};
+const fixture="./fixtures/AL_ONAY_SCALP_V14_ERKEN_SAT_GUNCEL.pine";
+try{const r=await fetch(fixture);if(!r.ok)throw Error("V14 kaynak dosyası alınamadı: HTTP "+r.status);$("source").value=await r.text();$("run").disabled=false;status("AL ONAY SCALP V14 kaynak kodu laboratuvara yüklendi. Çalıştırmaya hazır.","ok")}catch(e){status(e.message,"err")}
+function bars(){return Array.from({length:2400},(_,i)=>{const base=100+i*.012+Math.sin(i/13)*2.5+Math.sin(i/37)*1.2+Math.sin(i/4)*.25;const close=base+Math.sin(i/3)*.42;return{time:1790000000000+i*300000,open:base-.18,high:Math.max(base,close)+.62,low:Math.min(base,close)-.62,close,volume:1200+(i%31)*53+Math.abs(Math.sin(i/8))*600}})}
+function draw(series){const c=$("chart"),w=c.clientWidth||700,h=c.clientHeight||340,dpr=devicePixelRatio||1;c.width=w*dpr;c.height=h*dpr;const x=c.getContext("2d");x.scale(dpr,dpr);x.fillStyle="#0a1320";x.fillRect(0,0,w,h);const chosen=series.slice(0,6),vals=chosen.flatMap(s=>Array.from(s.data||[]).filter(Number.isFinite));if(!vals.length){x.fillStyle="#91a5bd";x.fillText("Sayısal seri yok",14,22);return}let lo=Math.min(...vals),hi=Math.max(...vals),pad=(hi-lo)*.08||1;lo-=pad;hi+=pad;const colors=["#76b5ff","#f4b95f","#22c58b","#ff647c","#bd9cff","#4dd0e1"];for(let j=0;j<chosen.length;j++){const a=chosen[j].data||[];x.strokeStyle=colors[j%colors.length];x.lineWidth=1.6;x.beginPath();let started=false;a.forEach((v,i)=>{if(!Number.isFinite(v)){started=false;return}const px=6+(w-12)*i/Math.max(1,a.length-1),py=h-8-(h-16)*(v-lo)/(hi-lo);if(!started){x.moveTo(px,py);started=true}else x.lineTo(px,py)});x.stroke()}x.fillStyle="#91a5bd";x.font="10px system-ui";x.fillText("Gösterilen ilk "+chosen.length+" plot serisi",10,14)}
+$("run").addEventListener("click",async()=>{const b=$("run");b.disabled=true;status("Piner yükleniyor ve V14 çalıştırılıyor…");$("output").textContent="";try{const {compile,Engine,ArrayFeed}=await import("https://esm.sh/@heyphat/piner@0.13.0?bundle");const data=bars(),compiled=compile($("source").value),engine=new Engine(compiled,new ArrayFeed(data),{backend:"interp"});await engine.run({symbol:"BTCUSDT",timeframe:"5"});const p=engine.outputs?.plots,plots=p instanceof Map?[...p.values()]:Array.isArray(p)?p:[];const m=engine.outputs?.markers,markers=m instanceof Map?[...m.values()]:Array.isArray(m)?m:[];const objects=engine.ctx?.drawPool?.objects;const drawings=objects instanceof Map?[...objects.values()]:[];if(!plots.length)throw Error("Motor çalıştı fakat plot serisi üretmedi.");$("bars").textContent=data.length;$("plots").textContent=plots.length;$("markers").textContent=markers.length;$("drawings").textContent=drawings.length;draw(plots);$("output").textContent=JSON.stringify({backend:"interp",symbol:"BTCUSDT",timeframe:"5m",bars:data.length,plots:plots.map(s=>({title:s.title||s.name||s.id,finiteValues:Array.from(s.data||[]).filter(Number.isFinite).length,last:Array.from(s.data||[]).filter(Number.isFinite).at(-1)??null})),markerSeries:markers.map(s=>({title:s.title||s.name||s.id,visible:(s.data||[]).filter(Boolean).length})),drawingTypes:drawings.reduce((a,o)=>(a[o.type]=(a[o.type]||0)+1,a),{}),securityRequests:engine.outputs?.securityRequests||[],alerts:engine.outputs?.alerts?.length??0},null,2);status("V14 motoru çalıştı; çıktılar alındı. Bu sonuç sentetik veri testidir.","ok")}catch(e){status((e.name?e.name+": ":"")+e.message,"err");$("output").textContent=e.stack||String(e)}finally{b.disabled=false}});
+</script></body></html>
