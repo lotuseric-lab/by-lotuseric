@@ -26,3 +26,4 @@ jobs:
           node-version: 20
       - run: npm install --no-audit --no-fund
       - run: npm run smoke
+      - run: npm run test:v14
