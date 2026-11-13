@@ -23,5 +23,5 @@ assert.deepEqual(out.plots[0].values,[0,1,0,1,0,1]);
 assert.deepEqual(out.plots[1].values,[2,2,4,4,5,5]);
 assert.deepEqual(out.plots[2].values,[null,null,2,2,4,4]);
 assert.deepEqual(out.plots[3].values,[null,null,0,-1,0,-1]);
-assert.deepEqual(out.plots[4].values,[null,null,-1,0,-1,0]);
+assert.deepEqual(out.plots[4].values,[null,null,-1,-2,-1,-2]);
 console.log("Pine TA history helper tests: OK");
