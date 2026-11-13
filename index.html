@@ -425,6 +425,29 @@ main{width:100%!important;max-width:none!important;margin:0!important;padding:0!
  #mainChartCard #chart{width:calc(100% - 44px)!important;margin-right:44px!important}
 }
 
+
+/* Final interaction corrections: drawer is truly collapsible; drawing tools stay behind one movable launcher. */
+.analysisDrawerHead button{position:relative;z-index:100;min-width:40px;min-height:40px;display:grid;place-items:center;pointer-events:auto!important;touch-action:manipulation}
+.analysisDrawerHead{z-index:90!important;pointer-events:auto!important}
+.analysisPanelBackdrop{pointer-events:auto}
+.workspace.panels-hidden{grid-template-columns:minmax(0,1fr)!important}
+.workspace.panels-hidden>.secondary{display:none!important}
+@media(max-width:759px){
+ .secondary{z-index:120!important;transform:translate3d(105%,0,0)!important;visibility:hidden!important;pointer-events:none!important}
+ body.analysis-open .secondary{transform:translate3d(0,0,0)!important;visibility:visible!important;pointer-events:auto!important}
+ .analysisPanelBackdrop{z-index:119!important}
+ .analysisDrawerHead{position:sticky!important;top:0!important;background:#0d1420!important}
+ .analysisDrawerHead button{position:sticky!important;top:0!important}
+ .modal{z-index:150!important}
+ .sheet{max-height:88dvh;overflow:auto}
+}
+#mainChartCard .drawDock{z-index:45!important;pointer-events:none!important}
+#mainChartCard .drawDock .drawDockToggle{display:flex!important;visibility:visible!important;pointer-events:auto!important;touch-action:none!important}
+#mainChartCard .drawDock .drawRail{display:none!important;pointer-events:auto!important}
+#mainChartCard .drawDock.open .drawRail{display:flex!important}
+#mainChartCard .drawDock .drawFlyout{display:none!important}
+#mainChartCard .drawDock.open .drawFlyout.open{display:block!important}
+
 </style>
 </head>
 <body>
@@ -867,48 +890,63 @@ async function ensureChartLibrary(){
  const typeMenu=controls.querySelector('#chartTypeMenu');if(typeMenu)header.appendChild(typeMenu);
  const note=controls.querySelector('#exchangeNote');if(note)note.classList.add('hidden');
  const searchToolbar=controls.querySelector('.toolbar');if(searchToolbar)searchToolbar.classList.add('hidden');
- const dock=document.getElementById('drawDock');if(dock){dock.classList.add('open');dock.style.left='6px';dock.style.top='54px';}
+ const dock=document.getElementById('drawDock');if(dock){dock.classList.remove('open');dock.style.left=dock.style.left||'6px';dock.style.top=dock.style.top||'54px';}
  const backdrop=document.getElementById('analysisPanelBackdrop');const aside=document.querySelector('.workspace>.secondary');const close=document.createElement('button');close.type='button';close.className='analysisDrawerClose';close.textContent='×';close.setAttribute('aria-label','Analiz panelini kapat');close.addEventListener('click',()=>document.body.classList.remove('analysis-open'));if(aside)aside.prepend(close);const analysisButton=rail.querySelector('button[aria-label="Analiz paneli"]');if(analysisButton)analysisButton.addEventListener('click',()=>document.body.classList.toggle('analysis-open'));backdrop?.addEventListener('click',()=>document.body.classList.remove('analysis-open'));document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('analysis-open')});document.body.classList.remove('analysis-open');
 })();
 
 
-/* Adaptive panel navigation: reuses existing LOTUSERIC panels and actions only. */
+/* Robust responsive panel controls: mobile drawer + desktop collapsible sidebar. */
 (function setupAdaptivePanels(){
+ const workspace=document.querySelector('.workspace');
  const aside=document.querySelector('.workspace>.secondary');
  const rail=document.getElementById('tvRightRail');
- if(!aside||!rail||aside.dataset.tvPanelsReady)return;
+ if(!workspace||!aside||!rail||aside.dataset.tvPanelsReady)return;
  aside.dataset.tvPanelsReady='1';
  const sections=[...aside.querySelectorAll(':scope > .section')];
- const ids=['signalPanel','mtfPanel','coinCenter'];
  const labels=[['signalPanel','Sinyal'],['mtfPanel','Trend'],['coinCenter','Coin']];
+ const isMobile=()=>window.matchMedia('(max-width:759px)').matches;
+ const closePanel=()=>{
+  document.body.classList.remove('analysis-open');
+  workspace.classList.add('panels-hidden');
+  const backdrop=document.getElementById('analysisPanelBackdrop');
+  backdrop?.classList.add('hidden');
+ };
+ const openPanel=(id)=>{
+  const active=aside.querySelector('.analysisPanelTabs button.active')?.dataset.panel;
+  const open=isMobile()?document.body.classList.contains('analysis-open'):!workspace.classList.contains('panels-hidden');
+  if(open&&active===id){closePanel();return}
+  sections.forEach(sec=>sec.classList.toggle('panel-hidden',sec.id!==id));
+  tabs.querySelectorAll('button').forEach(b=>{const on=b.dataset.panel===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on))});
+  if(isMobile()){workspace.classList.remove('panels-hidden');document.body.classList.add('analysis-open')}
+  else{document.body.classList.remove('analysis-open');workspace.classList.remove('panels-hidden')}
+ };
  const head=document.createElement('div');head.className='analysisDrawerHead';
  const title=document.createElement('b');title.textContent='LOTUSERIC PANELİ';
  const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Paneli kapat');
- close.addEventListener('click',()=>document.body.classList.remove('analysis-open'));
+ close.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();closePanel()});
+ close.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();closePanel()});
  head.append(title,close);aside.prepend(head);
  const tabs=document.createElement('div');tabs.className='analysisPanelTabs';tabs.setAttribute('role','tablist');
- const show=(id)=>{
-  sections.forEach(sec=>sec.classList.toggle('panel-hidden',sec.id!==id));
-  tabs.querySelectorAll('button').forEach(b=>{const on=b.dataset.panel===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on))});
-  if(window.matchMedia('(max-width:759px)').matches)document.body.classList.add('analysis-open');else document.querySelector('.workspace')?.classList.remove('panels-hidden');
- };
- labels.forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.panel=id;b.setAttribute('role','tab');b.addEventListener('click',()=>show(id));tabs.appendChild(b)});
+ labels.forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.panel=id;b.setAttribute('role','tab');b.addEventListener('click',()=>{sections.forEach(sec=>sec.classList.toggle('panel-hidden',sec.id!==id));tabs.querySelectorAll('button').forEach(x=>{const on=x===b;x.classList.toggle('active',on);x.setAttribute('aria-selected',String(on))})});tabs.appendChild(b)});
  aside.insertBefore(tabs,sections[0]||null);
- show('signalPanel');
+ sections.forEach(sec=>sec.classList.toggle('panel-hidden',sec.id!=='signalPanel'));
  const backdrop=document.getElementById('analysisPanelBackdrop');
- const closePanel=()=>{if(window.matchMedia('(max-width:759px)').matches)document.body.classList.remove('analysis-open');else document.querySelector('.workspace')?.classList.add('panels-hidden')};
+ backdrop?.classList.add('hidden');
+ backdrop?.addEventListener('pointerdown',e=>{e.preventDefault();closePanel()});
  backdrop?.addEventListener('click',closePanel);
- document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel()});
  const makeRailButton=(label,glyph,fn)=>{const b=document.createElement('button');b.type='button';b.title=label;b.setAttribute('aria-label',label);b.textContent=glyph;b.addEventListener('click',fn);rail.appendChild(b);return b};
  rail.innerHTML='';
  makeRailButton('İzleme listesi','☷',()=>document.getElementById('openMarketPanel')?.click());
- makeRailButton('Sinyal paneli','◉',()=>show('signalPanel'));
- makeRailButton('Trend paneli','⌁',()=>show('mtfPanel'));
- makeRailButton('Coin detayları ve haberler','▤',()=>show('coinCenter'));
+ makeRailButton('Sinyal paneli','◉',()=>openPanel('signalPanel'));
+ makeRailButton('Trend paneli','⌁',()=>openPanel('mtfPanel'));
+ makeRailButton('Coin detayları ve haberler','▤',()=>openPanel('coinCenter'));
  makeRailButton('Alarmlar','♧',()=>document.querySelector('.nav [data-page="alerts"]')?.click());
- makeRailButton('Panelleri göster','▣',()=>{document.querySelector('.workspace')?.classList.remove('panels-hidden');show('signalPanel')});
- const mobileToggle=document.getElementById('mobileLayoutToggle');mobileToggle?.remove();
- window.addEventListener('resize',()=>{if(!window.matchMedia('(max-width:759px)').matches)document.body.classList.remove('analysis-open')});
+ makeRailButton('Paneli göster/gizle','▣',()=>{const open=isMobile()?document.body.classList.contains('analysis-open'):!workspace.classList.contains('panels-hidden');if(open)closePanel();else openPanel('signalPanel')});
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel()});
+ document.addEventListener('click',e=>{const x=e.target.closest('.analysisDrawerHead button[aria-label="Paneli kapat"]');if(x)closePanel()},true);
+ document.getElementById('mobileLayoutToggle')?.remove();
+ window.addEventListener('resize',()=>{if(!isMobile()){document.body.classList.remove('analysis-open');backdrop?.classList.add('hidden')}});
+ closePanel();
 })();
 
 async function startApp(){
