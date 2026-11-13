@@ -411,7 +411,7 @@
               if(targetMs%baseMs!==0)throw new PineExecutionError("İstenen zaman dilimi grafik zaman diliminin tam katı olmalı.",n,"PINE_MTF_ALIGNMENT");
               if(String(sym)!==String(opts.symbol||""))throw new PineExecutionError("Harici sembol request.security henüz desteklenmiyor: "+sym,n,"PINE_MTF_SYMBOL");
               const mtfBars=targetMs===baseMs?cleanBars:aggregateBars(cleanBars,targetMs,baseMs);
-              const mini={type:"Program",body:[{type:"ExpressionStatement",expression:exprNode}],diagnostics:[]};
+              const mini={type:"Program",body:[...ast.body.filter(node=>node&&node.type==="FunctionDeclaration"),{type:"ExpressionStatement",expression:exprNode}],diagnostics:[]};
               const res=runPine(mini,mtfBars,{...opts,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityData:null});
               const vals=res.expression||[];
               const gaps=n.arguments.slice(3).find(a=>a.type==="NamedArgument"&&a.name==="gaps");
