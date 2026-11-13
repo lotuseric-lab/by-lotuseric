@@ -6,7 +6,7 @@ const { mount } = require("./pine-chart-adapter.js");
 
 const source = `//@version=6
 indicator("Merged table", overlay=true)
-var table t = table.new(position.top_right, 3, 2)
+var table t = table.new(position.bottom_left, 3, 2)
 if barstate.isfirst
     table.merge_cells(t, 0, 0, 2, 0)
     table.cell(t, 0, 0, "BY LOTUSERIC")
@@ -28,6 +28,9 @@ global.document={createElement:element,createElementNS(_ns,tag){return element(t
 const drawingHost=element("host"),chart={removeSeries(){}};
 const state=mount({chart,addChartSeries(){return {setData(){}};},bars, drawingHost,output});
 const outer=drawingHost.children[0],table=outer.children[0];
+assert.equal(outer.style.bottom,"8px","table.new position should anchor the overlay to the requested corner");
+assert.equal(outer.style.left,"8px");
+assert.equal(outer.style.right,undefined);
 assert.equal(table.children[0].children.length,1,"covered cells must be omitted");
 assert.equal(table.children[0].children[0].colSpan,3,"merged cell must span three columns");
 assert.equal(table.children[0].children[0].textContent,"BY LOTUSERIC");
