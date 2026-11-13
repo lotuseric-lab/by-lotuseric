@@ -6,10 +6,12 @@ on:
       - experiment/piner-engine-evaluation
     paths:
       - "pine-lab/**"
+      - "pine/**"
       - ".github/workflows/pine-lab-smoke.yml"
   pull_request:
     paths:
       - "pine-lab/**"
+      - "pine/**"
       - ".github/workflows/pine-lab-smoke.yml"
   workflow_dispatch:
 
@@ -27,3 +29,5 @@ jobs:
       - run: npm install --no-audit --no-fund
       - run: npm run smoke
       - run: npm run test:v14
+      - name: Test BY LOTUSERIC own Pine runtime
+        run: node own-engine-regression.mjs
