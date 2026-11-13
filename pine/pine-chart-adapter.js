@@ -103,17 +103,27 @@
       const data=output.candles.filter(x=>bars[x.bar]).map(x=>({time:bars[x.bar].time,open:x.open,high:x.high,low:x.low,close:x.close,color:x.color,wickColor:x.wickcolor,borderColor:x.bordercolor}));
       series.setData(data);state.series.push({chart:target,series});
     }
-    if(overlay&&output.shapes?.length){
+    if(output.shapes?.length){
       const visible=output.shapes.filter(x=>x.value&&bars[x.bar]);
-      if(priceSeries&&typeof LightweightCharts.createSeriesMarkers==="function"){
-        const shapeMap={"shape.triangleup":"arrowUp","shape.arrowup":"arrowUp","shape.labelup":"arrowUp","shape.triangledown":"arrowDown","shape.arrowdown":"arrowDown","shape.labeldown":"arrowDown","shape.square":"square","shape.circle":"circle","shape.diamond":"square","shape.cross":"cross","shape.xcross":"cross"};
-        const sizeMap={tiny:1,small:1,normal:2,large:3,huge:4};
-        const markers=visible.map(x=>({time:bars[x.bar].time,position:x.location==="belowbar"||x.location==="bottom"?"belowBar":x.location==="abovebar"||x.location==="top"?"aboveBar":"inBar",color:x.color||"#2962ff",shape:shapeMap[x.style]||"circle",text:x.text||"",size:sizeMap[x.size]||2}));
-        state.markers.push(LightweightCharts.createSeriesMarkers(priceSeries,markers));
-      }else{
-        const markerSeries=addChartSeries.call(null,target,"LineSeries",{color:"#ffffff",lineVisible:false,pointMarkersVisible:true,pointMarkersRadius:5,priceLineVisible:false,lastValueVisible:false});
-        const points=visible.map(x=>({time:bars[x.bar].time,value:bars[x.bar].close,color:x.color||"#2962ff"}));
-        markerSeries.setData(points);state.series.push({chart:target,series:markerSeries});
+      const priceVisible=visible.filter(x=>overlay||x.force_overlay===true);
+      const paneVisible=visible.filter(x=>!overlay&&x.force_overlay!==true);
+      const shapeMap={"shape.triangleup":"arrowUp","shape.arrowup":"arrowUp","shape.labelup":"arrowUp","shape.triangledown":"arrowDown","shape.arrowdown":"arrowDown","shape.labeldown":"arrowDown","shape.square":"square","shape.circle":"circle","shape.diamond":"square","shape.cross":"cross","shape.xcross":"cross"};
+      const sizeMap={tiny:1,small:1,normal:2,large:3,huge:4};
+      const renderMarkers=(series,items,chartForFallback)=>{
+        if(!series||!items.length)return;
+        if(typeof LightweightCharts.createSeriesMarkers==="function"){
+          const markers=items.map(x=>({time:bars[x.bar].time,position:x.location==="belowbar"||x.location==="bottom"?"belowBar":x.location==="abovebar"||x.location==="top"?"aboveBar":"inBar",color:x.color||"#2962ff",shape:shapeMap[x.style]||"circle",text:x.text||"",size:sizeMap[x.size]||2}));
+          state.markers.push(LightweightCharts.createSeriesMarkers(series,markers));
+        }else{
+          const markerSeries=addChartSeries.call(null,chartForFallback,"LineSeries",{color:"#ffffff",lineVisible:false,pointMarkersVisible:true,pointMarkersRadius:5,priceLineVisible:false,lastValueVisible:false});
+          markerSeries.setData(items.map(x=>({time:bars[x.bar].time,value:bars[x.bar].close,color:x.color||"#2962ff"})));
+          state.series.push({chart:chartForFallback,series:markerSeries});
+        }
+      };
+      if(priceVisible.length)renderMarkers(priceSeries,priceVisible,chart);
+      if(paneVisible.length){
+        const paneSeries=state.series.find(s=>s.chart===target)?.series;
+        renderMarkers(paneSeries,paneVisible,target);
       }
     }
     state.clear=()=>remove(state);
