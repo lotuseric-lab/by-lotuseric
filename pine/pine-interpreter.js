@@ -529,7 +529,7 @@
             }
             const tupleSample=mapped.flat().find(Array.isArray);
             let tupleNode=exprNode;while(tupleNode&&tupleNode.type==="GroupExpression")tupleNode=tupleNode.expression;
-            const tupleLength=tupleSample?tupleSample.length:tupleNode?.type==="TupleExpression"?tupleNode.elements.length:0;
+            const tupleLength=tupleSample?tupleSample.length:tupleNode&&["TupleExpression","ArrayExpression"].includes(tupleNode.type)&&Array.isArray(tupleNode.elements)?tupleNode.elements.length:0;
             if(tupleLength){
               return Array.from({length:tupleLength},(_,tupleIndex)=>mapped[currentIndex].map(entry=>Array.isArray(entry)?entry[tupleIndex]:NA));
             }
