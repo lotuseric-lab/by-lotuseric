@@ -298,6 +298,40 @@ body>.nav{position:fixed;z-index:50;left:0;right:0;bottom:0;padding:6px 8px calc
  .workspace:not(.analysis-hidden){grid-template-columns:minmax(0,1.8fr) minmax(260px,.8fr)}
 }
 
+
+/* Full chart workspace: TradingView-inspired, responsive all-platform layout */
+:root{--tv-black:#080808;--tv-panel:#111315;--tv-border:#292d32}
+body{background:var(--tv-black)}header{background:#090a0c;border-bottom:1px solid #30343a;padding:7px 10px;z-index:30}.brand{display:none}
+main{max-width:none!important;padding:0!important;margin:0!important}
+.tvTopbar{display:flex;align-items:center;gap:7px;min-height:48px;overflow-x:auto;scrollbar-width:none;background:#090a0c;border-bottom:1px solid #292d32;padding:5px 9px}
+.tvTopbar>*{flex:0 0 auto}.tvTopbar select,.tvTopbar button,.tvTopbar input{height:36px;padding:6px 10px;border-radius:7px;background:#151719;border-color:#353a40;font-size:12px}
+.tvTopbar #symbol{width:175px;font-weight:700}.tvTopbar #exchange{width:116px}.tvTopbar #search{width:150px}
+.tvTopbar #timeframes{display:flex;gap:3px;overflow:visible;padding:0;margin:0}.tvTopbar #timeframes button{min-width:32px;height:32px;padding:5px 7px;border:0;background:transparent}.tvTopbar #timeframes button.active{background:#30363d;color:#fff}
+.tvTopbar .tvDivider{height:26px;width:1px;background:#363b40}
+.workspace{display:block!important;min-width:0}.primary{min-width:0}.secondary{position:fixed!important;z-index:43;top:0;right:0;bottom:0;width:min(390px,90vw);max-height:100dvh!important;overflow:auto!important;background:#101316;border-left:1px solid #353a40;padding:14px 12px calc(20px + env(safe-area-inset-bottom));transform:translateX(105%);transition:transform .2s ease}
+body.analysis-open .secondary{transform:translateX(0)}body.analysis-open .analysisPanelBackdrop{display:block}.analysisPanelBackdrop{position:fixed;inset:0;z-index:42;background:#0009;display:none}
+#mainChartCard{border:0;border-radius:0;background:#080808;min-height:calc(100dvh - 145px);position:relative}
+#mainChartCard .charthead{background:#090a0c;border-bottom:1px solid #272b30;padding:8px 12px}#mainChartCard .charthead b{font-size:14px}
+#mainChartCard #chart{height:calc(100dvh - 245px);min-height:390px;width:calc(100% - 48px);margin-right:48px}
+#mainChartCard .drawDock{left:8px;top:54px;z-index:12;pointer-events:none}#mainChartCard .drawDock.open .drawRail{display:flex}
+#mainChartCard .drawDock .drawRail{background:#111315;border-color:#33383e}#mainChartCard .drawDock .drawRail button{background:#171a1d;color:#d0d4d8}
+#mainChartCard .drawDock .drawDockToggle{display:none}#mainChartCard .drawDock .drawRail,#mainChartCard .drawDock .drawFlyout{pointer-events:auto}
+#mainChartCard .drawDock .drawFlyout{margin-left:4px}
+.tvRightRail{position:absolute;z-index:13;right:0;top:48px;bottom:0;width:48px;display:flex;flex-direction:column;align-items:center;gap:5px;padding:7px 4px;background:#090a0c;border-left:1px solid #292d32}
+.tvRightRail button{width:38px;height:38px;padding:0;background:transparent;border:0;border-radius:7px;color:#c2c7cc;font-size:19px}.tvRightRail button:active{background:#282d33;color:#fff}
+#mainChartCard .charthead{padding-right:58px}
+.tvBottomBar{display:flex;align-items:center;gap:5px;min-height:42px;overflow-x:auto;background:#0b0c0e;border-top:1px solid #292d32;padding:5px 8px}
+.tvBottomBar button{flex:0 0 auto;padding:6px 10px;background:transparent;border:0;color:#aeb4ba;font-size:11px}.tvBottomBar button.active{background:#30363d;color:#fff}
+.chartControlsDetails{display:none!important}.quick{display:flex;align-items:center;min-height:38px;background:#0c0d0f;border-top:1px solid #252a30;padding:4px 8px}
+.quick .chip{border-radius:6px;background:transparent}#layoutControls{background:#0d0f11;border:0;border-radius:0;padding:5px 8px}#layoutControls button{background:#171a1d;border-color:#343a40}
+#multiCharts{padding:8px;background:#080808}#toggleAnalysisPanel{display:none}
+@media(min-width:760px){.workspace:not(.analysis-hidden){display:block!important}.workspace.analysis-hidden>.secondary{display:block!important}#mainChartCard #chart{height:calc(100dvh - 230px);min-height:430px}}
+@media(max-width:759px){header{padding-top:calc(5px + env(safe-area-inset-top))}.tvTopbar{gap:5px;padding:4px 6px}.tvTopbar #symbol{width:145px}.tvTopbar #exchange{width:95px}.tvTopbar #search{width:112px}
+#mainChartCard #chart{height:calc(100dvh - 260px);min-height:300px;width:calc(100% - 42px);margin-right:42px}.tvRightRail{width:42px}
+#mainChartCard .charthead{padding:6px 48px 6px 9px}#mainChartCard .drawDock{left:4px;top:46px}#mainChartCard .drawRail{gap:2px;padding:3px}#mainChartCard .drawRail button{width:31px;height:31px;font-size:16px}
+.tvBottomBar{min-height:36px}.nav{display:none!important}body{padding-bottom:0}}
+@media(min-width:1200px){#mainChartCard #chart{height:calc(100dvh - 215px);min-height:500px}}
+
 </style>
 </head>
 <body>
@@ -731,7 +765,38 @@ async function startApp(){
 }
 
 // Responsive analysis rail and independently collapsible analysis cards.
-(function setupResponsiveAnalysisRail(){
+(
+(function buildTradingWorkspace(){
+ const header=document.querySelector('body>header'),primary=document.querySelector('.primary'),card=document.getElementById('mainChartCard');
+ const details=document.getElementById('chartControlsDetails'),exchangeBar=details?.querySelector('.exchangeBar'),tf=document.getElementById('timeframes');
+ if(!header||!primary||!card||!exchangeBar||!tf)return;
+ const top=document.createElement('div');top.className='tvTopbar';top.id='tvTopbar';
+ const move=el=>{if(el)top.appendChild(el)};
+ ['exchange','symbol','topTfButton','chartTypeBtn'].forEach(id=>move(document.getElementById(id)));
+ const sep=()=>{const d=document.createElement('span');d.className='tvDivider';top.appendChild(d)};
+ sep();move(tf);sep();move(document.getElementById('manageIndicators'));move(document.getElementById('search'));move(document.getElementById('refresh'));header.appendChild(top);
+ const layout=document.getElementById('layoutControls');if(layout)primary.insertBefore(layout,card);
+ const rail=document.createElement('div');rail.className='tvRightRail';rail.id='tvRightRail';
+ const add=(label,glyph,fn)=>{const b=document.createElement('button');b.type='button';b.title=label;b.setAttribute('aria-label',label);b.textContent=glyph;b.addEventListener('click',fn);rail.appendChild(b)};
+ add('İzleme listesi','☷',()=>document.getElementById('openMarketPanel')?.click());
+ add('Analiz paneli','▤',()=>document.body.classList.toggle('analysis-open'));
+ add('İndikatörler','ƒ',()=>document.getElementById('manageIndicators')?.click());
+ add('Alarmlar','♧',()=>document.querySelector('[data-page="alerts"]')?.click());
+ card.appendChild(rail);
+ const bottom=document.createElement('div');bottom.className='tvBottomBar';bottom.id='tvBottomBar';
+ ['1G','5G','1A','3A','6A','1Y','5Y','Tümü'].forEach((label,i)=>{const b=document.createElement('button');b.textContent=label;b.addEventListener('click',()=>{bottom.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active')});bottom.appendChild(b)});
+ const sep2=document.createElement('span');sep2.className='tvDivider';bottom.appendChild(sep2);
+ const layoutBtn=document.createElement('button');layoutBtn.textContent='▦ Düzen';layoutBtn.addEventListener('click',()=>layout?.classList.toggle('mobile-open'));bottom.appendChild(layoutBtn);
+ card.insertAdjacentElement('afterend',bottom);
+ const quick=document.querySelector('.quick');if(quick)bottom.insertAdjacentElement('afterend',quick);
+ details?.remove();
+ document.getElementById('drawDock')?.classList.add('open');
+ document.getElementById('drawingPanel')?.classList.remove('open');
+ document.getElementById('analysisPanelBackdrop')?.addEventListener('click',()=>document.body.classList.remove('analysis-open'));
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('analysis-open')});
+})();
+
+function setupResponsiveAnalysisRail(){
  const workspace=document.querySelector('.workspace');
  const aside=document.querySelector('.workspace>.secondary');
  const toggle=document.getElementById('toggleAnalysisPanel');
