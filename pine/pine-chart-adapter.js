@@ -213,7 +213,12 @@
       for(const t of output.tables){
         if(t.deleted)continue;
         const el=document.createElement("div");el.className="pineTableOverlay";
-        Object.assign(el.style,{position:"absolute",right:"8px",top:"8px",zIndex:"8",background:t.bgcolor||"#142033",color:"#fff",border:(t.frame_width??1)+"px solid "+(t.frame_color||"#64748b"),padding:"4px",fontSize:"11px",pointerEvents:"none"});
+        const tableAnchors={
+          top_left:{top:"8px",left:"8px"},top_center:{top:"8px",left:"50%",transform:"translateX(-50%)"},top_right:{top:"8px",right:"8px"},
+          middle_left:{top:"50%",left:"8px",transform:"translateY(-50%)"},middle_center:{top:"50%",left:"50%",transform:"translate(-50%,-50%)"},middle_right:{top:"50%",right:"8px",transform:"translateY(-50%)"},
+          bottom_left:{bottom:"8px",left:"8px"},bottom_center:{bottom:"8px",left:"50%",transform:"translateX(-50%)"},bottom_right:{bottom:"8px",right:"8px"}
+        };
+        Object.assign(el.style,{position:"absolute",...(tableAnchors[t.position]||tableAnchors.top_right),zIndex:"8",background:t.bgcolor||"#142033",color:"#fff",border:(t.frame_width??1)+"px solid "+(t.frame_color||"#64748b"),padding:"4px",fontSize:"11px",pointerEvents:"none"});
         const table=document.createElement("table"),merged=new Map(),covered=new Set();
         for(const m of t.mergedCells||[]){
           merged.set(m.start_column+":"+m.start_row,m);
