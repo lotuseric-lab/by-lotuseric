@@ -417,6 +417,14 @@ main{width:100%!important;max-width:none!important;margin:0!important;padding:0!
  #mainChartCard #chart{height:calc(100dvh - 170px)!important;min-height:210px!important}
 }
 
+
+/* Desktop panel rail collapse/restore */
+@media(min-width:760px){
+ .workspace.panels-hidden{grid-template-columns:minmax(0,1fr)!important}
+ .workspace.panels-hidden>.secondary{display:none!important}
+ #mainChartCard #chart{width:calc(100% - 44px)!important;margin-right:44px!important}
+}
+
 </style>
 </head>
 <body>
@@ -882,13 +890,13 @@ async function ensureChartLibrary(){
  const show=(id)=>{
   sections.forEach(sec=>sec.classList.toggle('panel-hidden',sec.id!==id));
   tabs.querySelectorAll('button').forEach(b=>{const on=b.dataset.panel===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on))});
-  if(window.matchMedia('(max-width:759px)').matches)document.body.classList.add('analysis-open');
+  if(window.matchMedia('(max-width:759px)').matches)document.body.classList.add('analysis-open');else document.querySelector('.workspace')?.classList.remove('panels-hidden');
  };
  labels.forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.panel=id;b.setAttribute('role','tab');b.addEventListener('click',()=>show(id));tabs.appendChild(b)});
  aside.insertBefore(tabs,sections[0]||null);
  show('signalPanel');
  const backdrop=document.getElementById('analysisPanelBackdrop');
- const closePanel=()=>document.body.classList.remove('analysis-open');
+ const closePanel=()=>{if(window.matchMedia('(max-width:759px)').matches)document.body.classList.remove('analysis-open');else document.querySelector('.workspace')?.classList.add('panels-hidden')};
  backdrop?.addEventListener('click',closePanel);
  document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel()});
  const makeRailButton=(label,glyph,fn)=>{const b=document.createElement('button');b.type='button';b.title=label;b.setAttribute('aria-label',label);b.textContent=glyph;b.addEventListener('click',fn);rail.appendChild(b);return b};
@@ -898,6 +906,7 @@ async function ensureChartLibrary(){
  makeRailButton('Trend paneli','⌁',()=>show('mtfPanel'));
  makeRailButton('Coin detayları ve haberler','▤',()=>show('coinCenter'));
  makeRailButton('Alarmlar','♧',()=>document.querySelector('.nav [data-page="alerts"]')?.click());
+ makeRailButton('Panelleri göster','▣',()=>{document.querySelector('.workspace')?.classList.remove('panels-hidden');show('signalPanel')});
  const mobileToggle=document.getElementById('mobileLayoutToggle');mobileToggle?.remove();
  window.addEventListener('resize',()=>{if(!window.matchMedia('(max-width:759px)').matches)document.body.classList.remove('analysis-open')});
 })();
