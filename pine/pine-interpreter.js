@@ -323,12 +323,37 @@
     const boxNS={new:(left,top,right,bottom,...args)=>{const c=drawCfg(args),o={id:drawingId++,left:value(left),top:value(top),right:value(right),bottom:value(bottom),border_color:c.border_color||"#2962ff",bgcolor:c.bgcolor||"rgba(41,98,255,0.12)",border_width:c.border_width||1,xloc:c.xloc||"bar_index",force_overlay:!!c.force_overlay};outputs.boxes.push(o);return o;},
       set_left:(o,v)=>{o=value(o);if(o)o.left=value(v);},set_top:(o,v)=>{o=value(o);if(o)o.top=value(v);},set_right:(o,v)=>{o=value(o);if(o)o.right=value(v);},set_bottom:(o,v)=>{o=value(o);if(o)o.bottom=value(v);},set_bgcolor:(o,v)=>{o=value(o);if(o)o.bgcolor=value(v);},set_border_color:(o,v)=>{o=value(o);if(o)o.border_color=value(v);},set_border_width:(o,v)=>{o=value(o);if(o)o.border_width=value(v);},delete:o=>{o=value(o);if(o)o.deleted=true;}
     };
-    const tableNS={new:(position,columns,rows,...args)=>{const c=drawCfg(args),o={id:drawingId++,position:value(position),columns:Math.max(1,Math.trunc(num(value(columns)))),rows:Math.max(1,Math.trunc(num(value(rows)))),cells:{},bgcolor:c.bgcolor||"rgba(20,30,45,0.9)",frame_color:c.frame_color||"#64748b"};outputs.tables.push(o);return o;},
-      cell:(t,column,row,txt,...args)=>{const c=drawCfg(args);t.cells[String(value(column))+":"+String(value(row))]={text:String(value(txt)||""),text_color:c.text_color||"#ffffff",bgcolor:c.bgcolor||t.bgcolor};},
-      cell_set_text:(t,column,row,txt)=>{const k=String(value(column))+":"+String(value(row));if(t.cells[k])t.cells[k].text=String(value(txt)||"");},
-      cell_set_text_color:(t,column,row,c)=>{const k=String(value(column))+":"+String(value(row));if(t.cells[k])t.cells[k].text_color=value(c);},
-      cell_set_bgcolor:(t,column,row,c)=>{const k=String(value(column))+":"+String(value(row));if(t.cells[k])t.cells[k].bgcolor=value(c);},
-      clear:(t)=>{t.cells={};},delete:t=>{if(t)t.deleted=true;}
+    const tableNS={
+      new:(position,columns,rows,...args)=>{
+        const c=drawCfg(args),o={
+          id:drawingId++,position:value(position),
+          columns:Math.max(1,Math.trunc(num(value(columns)))),
+          rows:Math.max(1,Math.trunc(num(value(rows)))),
+          cells:{},mergedCells:[],
+          bgcolor:c.bgcolor||"rgba(20,30,45,0.9)",
+          frame_color:c.frame_color||"#64748b",frame_width:c.frame_width??1,
+          border_color:c.border_color||"#64748b",border_width:c.border_width??1
+        };
+        outputs.tables.push(o);return o;
+      },
+      merge_cells:(t,startColumn,startRow,endColumn,endRow)=>{
+        t=value(t);if(!t)return;
+        const c1=Math.trunc(num(value(startColumn))),r1=Math.trunc(num(value(startRow))),
+          c2=Math.trunc(num(value(endColumn))),r2=Math.trunc(num(value(endRow)));
+        if(![c1,r1,c2,r2].every(Number.isInteger)||c1<0||r1<0||c2<c1||r2<r1||c2>=t.columns||r2>=t.rows)
+          throw new RangeError("table.merge_cells aralığı tablo sınırlarının dışında.");
+        if(!t.mergedCells)t.mergedCells=[];
+        if(!t.mergedCells.some(m=>m.start_column===c1&&m.start_row===r1&&m.end_column===c2&&m.end_row===r2))
+          t.mergedCells.push({start_column:c1,start_row:r1,end_column:c2,end_row:r2});
+      },
+      cell:(t,column,row,txt,...args)=>{
+        t=value(t);const c=drawCfg(args),key=String(value(column))+":"+String(value(row));
+        if(t)t.cells[key]={text:String(value(txt)||""),text_color:c.text_color||"#ffffff",bgcolor:c.bgcolor||t.bgcolor,text_size:value(c.text_size)||"small",text_halign:value(c.text_halign)||"center",text_valign:value(c.text_valign)||"middle"};
+      },
+      cell_set_text:(t,column,row,txt)=>{t=value(t);const k=String(value(column))+":"+String(value(row));if(t?.cells[k])t.cells[k].text=String(value(txt)||"");},
+      cell_set_text_color:(t,column,row,c)=>{t=value(t);const k=String(value(column))+":"+String(value(row));if(t?.cells[k])t.cells[k].text_color=value(c);},
+      cell_set_bgcolor:(t,column,row,c)=>{t=value(t);const k=String(value(column))+":"+String(value(row));if(t?.cells[k])t.cells[k].bgcolor=value(c);},
+      clear:(t)=>{t=value(t);if(t)t.cells={};},delete:t=>{t=value(t);if(t)t.deleted=true;}
     };
     Object.assign(builtins.plot,{style_line:"line",style_stepline:"stepline",style_histogram:"histogram",style_columns:"columns",style_area:"area",style_circles:"circles",style_cross:"cross",style_linebr:"linebr"});
     builtins.shape={circle:"shape.circle",square:"shape.square",diamond:"shape.diamond",triangleup:"shape.triangleup",triangledown:"shape.triangledown",cross:"shape.cross",xcross:"shape.xcross",flag:"shape.flag",arrowup:"shape.arrowup",arrowdown:"shape.arrowdown",labelup:"shape.labelup",labeldown:"shape.labeldown",none:"shape.none"};
