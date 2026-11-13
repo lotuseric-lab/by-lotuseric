@@ -448,6 +448,17 @@ main{width:100%!important;max-width:none!important;margin:0!important;padding:0!
 #mainChartCard .drawDock .drawFlyout{display:none!important}
 #mainChartCard .drawDock.open .drawFlyout.open{display:block!important}
 
+
+/* Modal priority and touch scrolling: keep settings above the side drawer */
+@media(max-width:759px){
+ .modal{position:fixed!important;inset:0!important;z-index:300!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:12px 10px calc(12px + env(safe-area-inset-bottom))!important;overflow-y:auto!important;overscroll-behavior:contain!important;pointer-events:auto!important}
+ .modal .sheet{position:relative!important;z-index:301!important;display:block!important;width:100%!important;max-width:720px!important;max-height:calc(100dvh - 30px - env(safe-area-inset-top) - env(safe-area-inset-bottom))!important;height:auto!important;margin:auto!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain!important;touch-action:pan-y!important;-webkit-overflow-scrolling:touch!important;border-radius:16px!important;padding:16px 14px calc(22px + env(safe-area-inset-bottom))!important;pointer-events:auto!important}
+ .modal .sheet>*{pointer-events:auto}
+ .modal .sheet input,.modal .sheet button,.modal .sheet select,.modal .sheet label{position:relative;z-index:302;pointer-events:auto!important;touch-action:manipulation}
+ body.analysis-open .secondary{z-index:120!important}
+ .tvRightRail{z-index:40!important}
+}
+
 </style>
 </head>
 <body>
@@ -947,6 +958,20 @@ async function ensureChartLibrary(){
  document.getElementById('mobileLayoutToggle')?.remove();
  window.addEventListener('resize',()=>{if(!isMobile()){document.body.classList.remove('analysis-open');backdrop?.classList.add('hidden')}});
  closePanel();
+})();
+
+
+/* Close the side drawer whenever a full-screen settings modal is opened. */
+(function modalDrawerCoordination(){
+ const selectors=['#trendConfig','#manageIndicators','#drawingToggle'];
+ document.addEventListener('click',e=>{
+  if(!selectors.some(sel=>e.target.closest(sel)))return;
+  document.body.classList.remove('analysis-open');
+  document.querySelector('.analysisPanelBackdrop')?.classList.add('hidden');
+ },true);
+ document.querySelectorAll('.modal').forEach(modal=>{
+  modal.addEventListener('pointerdown',e=>{if(e.target===modal)modal.classList.add('modal-background-tap')});
+ });
 })();
 
 async function startApp(){
