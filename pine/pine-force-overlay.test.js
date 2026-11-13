@@ -37,4 +37,4 @@ for (const key of ["lines", "labels", "boxes"]) {
   assert.equal(output[key].filter(x => x.force_overlay === true).length, bars.length, key + " should retain force_overlay=true");
   assert.equal(output[key].filter(x => x.force_overlay === false).length, bars.length, key + " should retain force_overlay=false");
 }
-console.log(JSON.stringify({ status: "PASS", test: "force_overlay marker metadata", shapes: output.shapes.map(x => ({ bar: x.bar, force_overlay: x.force_overlay })) }, null, 2));
+console.log(JSON.stringify({ status: "PASS", test: "force_overlay marker and drawing metadata", shapes: output.shapes.map(x => ({ bar: x.bar, force_overlay: x.force_overlay })) }, null, 2));
