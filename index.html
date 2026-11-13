@@ -348,6 +348,75 @@ body.analysis-open .analysisPanelBackdrop{display:block}
 #mainChartCard .drawDock .drawRail button{pointer-events:auto!important;touch-action:manipulation!important}
 @media(max-width:759px){#mainChartCard .drawDock{left:5px!important;top:48px!important}#mainChartCard .drawDock .drawDockToggle{width:36px!important;height:36px!important}}
 
+
+/* Cross-device workspace and TradingView-style panel navigation */
+*{box-sizing:border-box}
+html,body{width:100%;min-height:100%;overflow-x:hidden}
+body{--tv-toolbar:#090b0e;--tv-border:#29313b}
+body>header{min-height:0;padding:0!important;background:var(--tv-toolbar)!important;border:0!important}
+body>header .brand{display:none!important}
+main{width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+.tvTopbar{width:100%;max-width:100%;min-height:48px;display:flex;align-items:center;gap:6px;padding:5px 8px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:thin;background:#090b0e;border-bottom:1px solid var(--tv-border)}
+.tvTopbar>*{flex:0 0 auto;min-width:0}
+.tvTopbar #exchange{width:112px}.tvTopbar #symbol{width:168px}.tvTopbar #search{width:130px}
+.tvTopbar #timeframes{display:flex;align-items:center;gap:2px;flex:0 0 auto}
+.tvTopbar #timeframes button{min-width:32px;padding:6px 8px}
+.tvTopbar button,.tvTopbar select,.tvTopbar input{max-width:100%}
+.workspace{display:grid!important;grid-template-columns:minmax(0,1fr) 320px!important;gap:0!important;align-items:stretch;min-height:calc(100dvh - 50px)}
+.primary{min-width:0!important;width:100%;overflow:hidden}
+#mobileLayoutToggle{display:none!important}
+#layoutControls{display:flex!important;flex-wrap:nowrap;align-items:center;gap:5px;max-width:100%;overflow-x:auto;white-space:nowrap;scrollbar-width:thin;margin:0!important;border-radius:0!important}
+#layoutControls>*{flex:0 0 auto}
+#mainChartCard{min-width:0!important;width:100%;border-radius:0!important;position:relative}
+#mainChartCard #chart{width:100%;min-height:320px}
+.tvRightRail{position:absolute!important;z-index:35!important;right:0!important;top:45px!important;bottom:0!important;width:44px!important;display:flex!important;flex-direction:column;align-items:center;gap:5px;padding:7px 3px;background:#090b0e;border-left:1px solid var(--tv-border)}
+.tvRightRail button{width:36px;height:38px;flex:0 0 38px;border:0;border-radius:7px;background:transparent;color:#cbd2da;font-size:19px;cursor:pointer;touch-action:manipulation}
+.tvRightRail button.active,.tvRightRail button:hover{background:#263142;color:#fff}
+#mainChartCard #chart{padding-right:44px}
+.secondary{position:relative!important;inset:auto!important;width:100%!important;max-height:none!important;height:auto!important;min-width:0;overflow:auto!important;transform:none!important;visibility:visible!important;box-shadow:none!important;border-left:1px solid var(--tv-border);background:#0d1420;padding:48px 10px 16px!important}
+.analysisPanelBackdrop{display:none!important}
+.analysisDrawerHead{position:sticky;top:-48px;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:7px 0 9px;background:#0d1420;border-bottom:1px solid var(--tv-border)}
+.analysisDrawerHead b{font-size:13px;letter-spacing:.04em}
+.analysisDrawerHead button{width:34px;height:32px;border:1px solid #35445a;border-radius:8px;background:#172337;color:#fff}
+.analysisPanelTabs{position:sticky;top:0;z-index:3;display:flex;gap:4px;overflow-x:auto;padding:7px 0;background:#0d1420}
+.analysisPanelTabs button{flex:0 0 auto;padding:7px 9px;border:1px solid #303d50;border-radius:8px;background:#121e30;color:#b9c5d5;font-size:12px}
+.analysisPanelTabs button.active{background:#23466d;border-color:#5794d5;color:#fff}
+.secondary .section{min-width:0}
+.secondary .section.panel-hidden{display:none!important}
+.tvBottomBar{display:flex;gap:4px;overflow-x:auto;white-space:nowrap;max-width:100%}
+#coinDrawer{z-index:70}
+@media(min-width:1200px){
+ .workspace{grid-template-columns:minmax(0,1fr) 340px!important}
+ #mainChartCard #chart{min-height:480px}
+}
+@media(min-width:760px) and (max-width:1199px){
+ .workspace{grid-template-columns:minmax(0,1fr) 290px!important}
+ .tvTopbar #search{width:110px}
+}
+@media(max-width:759px){
+ .workspace{display:block!important;min-height:0}
+ .primary{width:100%!important}
+ .tvTopbar{min-height:44px;padding:4px 5px;gap:4px}
+ .tvTopbar #exchange{width:96px}.tvTopbar #symbol{width:142px}.tvTopbar #search{width:110px}
+ #layoutControls{min-height:34px;padding:3px 5px!important}
+ #mainChartCard{min-height:0}
+ #mainChartCard #chart{height:calc(100dvh - 255px)!important;min-height:290px!important;width:100%!important;padding-right:40px}
+ .tvRightRail{position:absolute!important;right:0!important;width:40px!important;top:43px!important}
+ .tvRightRail button{width:34px;height:36px;flex-basis:36px}
+ .secondary{position:fixed!important;z-index:61!important;top:0!important;right:0!important;bottom:0!important;width:min(390px,92vw)!important;height:100dvh!important;max-height:100dvh!important;overflow-y:auto!important;transform:translateX(105%)!important;visibility:hidden!important;transition:transform .22s ease,visibility .22s ease!important;padding:12px 10px calc(22px + env(safe-area-inset-bottom))!important;box-shadow:-18px 0 48px #000a!important}
+ body.analysis-open .secondary{transform:translateX(0)!important;visibility:visible!important}
+ .analysisPanelBackdrop{position:fixed!important;inset:0!important;z-index:60!important;background:#0009!important;display:none!important}
+ body.analysis-open .analysisPanelBackdrop{display:block!important}
+ .analysisDrawerHead{top:0}
+ .analysisPanelTabs{top:45px}
+ .tvBottomBar{min-height:34px}
+ .quick{max-width:100%;overflow-x:auto}
+}
+@media(orientation:landscape) and (max-height:520px) and (max-width:1000px){
+ .tvTopbar{min-height:38px}.tvTopbar>*{transform:scale(.94);transform-origin:left center}
+ #mainChartCard #chart{height:calc(100dvh - 170px)!important;min-height:210px!important}
+}
+
 </style>
 </head>
 <body>
@@ -792,6 +861,45 @@ async function ensureChartLibrary(){
  const searchToolbar=controls.querySelector('.toolbar');if(searchToolbar)searchToolbar.classList.add('hidden');
  const dock=document.getElementById('drawDock');if(dock){dock.classList.add('open');dock.style.left='6px';dock.style.top='54px';}
  const backdrop=document.getElementById('analysisPanelBackdrop');const aside=document.querySelector('.workspace>.secondary');const close=document.createElement('button');close.type='button';close.className='analysisDrawerClose';close.textContent='×';close.setAttribute('aria-label','Analiz panelini kapat');close.addEventListener('click',()=>document.body.classList.remove('analysis-open'));if(aside)aside.prepend(close);const analysisButton=rail.querySelector('button[aria-label="Analiz paneli"]');if(analysisButton)analysisButton.addEventListener('click',()=>document.body.classList.toggle('analysis-open'));backdrop?.addEventListener('click',()=>document.body.classList.remove('analysis-open'));document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('analysis-open')});document.body.classList.remove('analysis-open');
+})();
+
+
+/* Adaptive panel navigation: reuses existing LOTUSERIC panels and actions only. */
+(function setupAdaptivePanels(){
+ const aside=document.querySelector('.workspace>.secondary');
+ const rail=document.getElementById('tvRightRail');
+ if(!aside||!rail||aside.dataset.tvPanelsReady)return;
+ aside.dataset.tvPanelsReady='1';
+ const sections=[...aside.querySelectorAll(':scope > .section')];
+ const ids=['signalPanel','mtfPanel','coinCenter'];
+ const labels=[['signalPanel','Sinyal'],['mtfPanel','Trend'],['coinCenter','Coin']];
+ const head=document.createElement('div');head.className='analysisDrawerHead';
+ const title=document.createElement('b');title.textContent='LOTUSERIC PANELİ';
+ const close=document.createElement('button');close.type='button';close.textContent='×';close.setAttribute('aria-label','Paneli kapat');
+ close.addEventListener('click',()=>document.body.classList.remove('analysis-open'));
+ head.append(title,close);aside.prepend(head);
+ const tabs=document.createElement('div');tabs.className='analysisPanelTabs';tabs.setAttribute('role','tablist');
+ const show=(id)=>{
+  sections.forEach(sec=>sec.classList.toggle('panel-hidden',sec.id!==id));
+  tabs.querySelectorAll('button').forEach(b=>{const on=b.dataset.panel===id;b.classList.toggle('active',on);b.setAttribute('aria-selected',String(on))});
+  if(window.matchMedia('(max-width:759px)').matches)document.body.classList.add('analysis-open');
+ };
+ labels.forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.panel=id;b.setAttribute('role','tab');b.addEventListener('click',()=>show(id));tabs.appendChild(b)});
+ aside.insertBefore(tabs,sections[0]||null);
+ show('signalPanel');
+ const backdrop=document.getElementById('analysisPanelBackdrop');
+ const closePanel=()=>document.body.classList.remove('analysis-open');
+ backdrop?.addEventListener('click',closePanel);
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel()});
+ const makeRailButton=(label,glyph,fn)=>{const b=document.createElement('button');b.type='button';b.title=label;b.setAttribute('aria-label',label);b.textContent=glyph;b.addEventListener('click',fn);rail.appendChild(b);return b};
+ rail.innerHTML='';
+ makeRailButton('İzleme listesi','☷',()=>document.getElementById('openMarketPanel')?.click());
+ makeRailButton('Sinyal paneli','◉',()=>show('signalPanel'));
+ makeRailButton('Trend paneli','⌁',()=>show('mtfPanel'));
+ makeRailButton('Coin detayları ve haberler','▤',()=>show('coinCenter'));
+ makeRailButton('Alarmlar','♧',()=>document.querySelector('.nav [data-page="alerts"]')?.click());
+ const mobileToggle=document.getElementById('mobileLayoutToggle');mobileToggle?.remove();
+ window.addEventListener('resize',()=>{if(!window.matchMedia('(max-width:759px)').matches)document.body.classList.remove('analysis-open')});
 })();
 
 async function startApp(){
