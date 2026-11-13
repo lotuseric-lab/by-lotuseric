@@ -1,4 +1,5 @@
 //@version=6
+// BY LOTUSERIC TEST FIXTURE: MTF lookahead_off for close-confirmed, non-repainting evaluation.
 indicator("AL ONAY SCALP V14 [SMART FIRE + UT BOT + TF HACİM]", overlay=true, max_labels_count=500, max_lines_count=50, max_boxes_count=100, max_bars_back=2000, dynamic_requests=true)
 
 //━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -270,17 +271,17 @@ f_mtfPack() =>
 
     [direction[1], vdirection[1], adirection[1], buyPct[1], sellPct[1], volumeRatio[1]]
 
-[t1,v1,a1,bp1,sp1,vr1] = request.security(syminfo.tickerid, "1", f_mtfPack(), lookahead=barmerge.lookahead_on)
-[t2,v2,a2,bp2,sp2,vr2] = request.security(syminfo.tickerid, "2", f_mtfPack(), lookahead=barmerge.lookahead_on)
-[t3,v3,a3,bp3,sp3,vr3] = request.security(syminfo.tickerid, "3", f_mtfPack(), lookahead=barmerge.lookahead_on)
-[t4,v4,a4,bp4,sp4,vr4] = request.security(syminfo.tickerid, "4", f_mtfPack(), lookahead=barmerge.lookahead_on)
-[t5,v5,a5,bp5,sp5,vr5] = request.security(syminfo.tickerid, "5", f_mtfPack(), lookahead=barmerge.lookahead_on)
-[t6,v6,a6,bp6,sp6,vr6] = request.security(syminfo.tickerid, "6", f_mtfPack(), lookahead=barmerge.lookahead_on)
-[t7,v7,a7,bp7,sp7,vr7] = request.security(syminfo.tickerid, "7", f_mtfPack(), lookahead=barmerge.lookahead_on)
-[t8,v8,a8,bp8,sp8,vr8] = request.security(syminfo.tickerid, "8", f_mtfPack(), lookahead=barmerge.lookahead_on)
-[t9,v9,a9,bp9,sp9,vr9] = request.security(syminfo.tickerid, "9", f_mtfPack(), lookahead=barmerge.lookahead_on)
-[t10,v10,a10,bp10,sp10,vr10] = request.security(syminfo.tickerid, "10", f_mtfPack(), lookahead=barmerge.lookahead_on)
-[t15,v15,a15,bp15,sp15,vr15] = request.security(syminfo.tickerid, "15", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t1,v1,a1,bp1,sp1,vr1] = request.security(syminfo.tickerid, "1", f_mtfPack(), lookahead=barmerge.lookahead_off)
+[t2,v2,a2,bp2,sp2,vr2] = request.security(syminfo.tickerid, "2", f_mtfPack(), lookahead=barmerge.lookahead_off)
+[t3,v3,a3,bp3,sp3,vr3] = request.security(syminfo.tickerid, "3", f_mtfPack(), lookahead=barmerge.lookahead_off)
+[t4,v4,a4,bp4,sp4,vr4] = request.security(syminfo.tickerid, "4", f_mtfPack(), lookahead=barmerge.lookahead_off)
+[t5,v5,a5,bp5,sp5,vr5] = request.security(syminfo.tickerid, "5", f_mtfPack(), lookahead=barmerge.lookahead_off)
+[t6,v6,a6,bp6,sp6,vr6] = request.security(syminfo.tickerid, "6", f_mtfPack(), lookahead=barmerge.lookahead_off)
+[t7,v7,a7,bp7,sp7,vr7] = request.security(syminfo.tickerid, "7", f_mtfPack(), lookahead=barmerge.lookahead_off)
+[t8,v8,a8,bp8,sp8,vr8] = request.security(syminfo.tickerid, "8", f_mtfPack(), lookahead=barmerge.lookahead_off)
+[t9,v9,a9,bp9,sp9,vr9] = request.security(syminfo.tickerid, "9", f_mtfPack(), lookahead=barmerge.lookahead_off)
+[t10,v10,a10,bp10,sp10,vr10] = request.security(syminfo.tickerid, "10", f_mtfPack(), lookahead=barmerge.lookahead_off)
+[t15,v15,a15,bp15,sp15,vr15] = request.security(syminfo.tickerid, "15", f_mtfPack(), lookahead=barmerge.lookahead_off)
 
 bullTF = (t1==1?1:0)+(t2==1?1:0)+(t3==1?1:0)+(t4==1?1:0)+(t5==1?1:0)+(t6==1?1:0)+(t7==1?1:0)+(t8==1?1:0)+(t9==1?1:0)+(t10==1?1:0)+(t15==1?1:0)
 bearTF = (t1==-1?1:0)+(t2==-1?1:0)+(t3==-1?1:0)+(t4==-1?1:0)+(t5==-1?1:0)+(t6==-1?1:0)+(t7==-1?1:0)+(t8==-1?1:0)+(t9==-1?1:0)+(t10==-1?1:0)+(t15==-1?1:0)
