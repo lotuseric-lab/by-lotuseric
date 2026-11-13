@@ -472,6 +472,51 @@
             const active=start<=end?(now>=start&&now<end):(now>=start||now<end);
             return active&&days.includes(day)?ctxBars[currentIndex].time:NA;
           }
+          if(n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="request"&&n.callee.property.name==="security_lower_tf"){
+            const sym=n.arguments[0]?value(evalExpr(n.arguments[0],scope)):String(opts.symbol||"");
+            const tf=n.arguments[1]?value(evalExpr(n.arguments[1],scope)):String(opts.timeframe||"");
+            const exprNode=n.arguments[2]&&n.arguments[2].type==="NamedArgument"?n.arguments[2].value:n.arguments[2];
+            if(!exprNode)throw new PineExecutionError("request.security_lower_tf için ifade argümanı gerekli.",n);
+            const cacheKey=String(sym)+"|"+String(tf)+"|"+JSON.stringify(exprNode);
+            let mapped=securityCache.get("lower|"+cacheKey);
+            if(!mapped){
+              const targetMs=timeframeMs(tf),baseMs=timeframeMs(opts.timeframe||"5");
+              if(!Number.isFinite(targetMs)||!Number.isFinite(baseMs))throw new PineExecutionError("request.security_lower_tf zaman dilimi tanınmadı: "+tf,n,"PINE_MTF_UNSUPPORTED");
+              if(targetMs>=baseMs)throw new PineExecutionError("security_lower_tf zaman dilimi grafik zaman diliminden küçük olmalı.",n,"PINE_MTF_LOWER_TF");
+              if(baseMs%targetMs!==0)throw new PineExecutionError("Alt zaman dilimi grafik zaman dilimini tam bölmeli.",n,"PINE_MTF_ALIGNMENT");
+              if(String(sym)!==String(opts.symbol||""))throw new PineExecutionError("Harici sembol security_lower_tf henüz desteklenmiyor: "+sym,n,"PINE_MTF_SYMBOL");
+              const supplied=opts.securityLowerTfData||opts.lowerTimeframeData||{};
+              const lowerBars=supplied[String(tf)]||supplied[String(sym)+"|"+String(tf)];
+              if(!Array.isArray(lowerBars)||!lowerBars.length)throw new PineExecutionError("security_lower_tf için opts.lowerTimeframeData['"+tf+"'] alt mum verisi gerekli.",n,"PINE_MTF_DATA_REQUIRED");
+              let previousTime=-Infinity;
+              for(let i=0;i<lowerBars.length;i++){
+                const t=Number(lowerBars[i]?.time);
+                if(!Number.isFinite(t)||t<=previousTime)throw new PineExecutionError("Alt zaman dilimi mumları artan ve benzersiz zaman damgalı olmalı.",n,"PINE_MTF_DATA_INVALID");
+                previousTime=t;
+              }
+              const hasInputCall=(node)=>{if(!node||typeof node!=="object")return false;if(node.type==="CallExpression"&&node.callee&&node.callee.type==="MemberExpression"&&node.callee.object&&node.callee.object.type==="Identifier"&&node.callee.object.name==="input")return true;return Object.keys(node).some(k=>{const v=node[k];return Array.isArray(v)?v.some(hasInputCall):v&&typeof v==="object"?hasInputCall(v):false;});};
+              const isLiteralSetup=(node)=>node&&["StringLiteral","NumericLiteral","Literal"].includes(node.type);
+              const setupNodes=ast.body.filter(node=>node&&node.type==="AssignmentStatement"&&node.target&&node.target.type==="Identifier"&&(hasInputCall(node.value)||isLiteralSetup(node.value)));
+              const mini={type:"Program",body:[...setupNodes,...ast.body.filter(node=>node&&node.type==="FunctionDeclaration")],diagnostics:[]};
+              const res=runPine(mini,lowerBars,{...opts,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityLowerTfData:null,lowerTimeframeData:null});
+              const intrabarValues=res.expression||[];
+              mapped=cleanBars.map(bar=>{
+                const start=bar.time*1000,end=start+baseMs;
+                const bucket=[];
+                for(let i=0;i<lowerBars.length;i++){
+                  const t=Number(lowerBars[i].time)*1000;
+                  if(t>=start&&t<end)bucket.push(intrabarValues[i]===undefined?NA:intrabarValues[i]);
+                }
+                return bucket;
+              });
+              securityCache.set("lower|"+cacheKey,mapped);
+            }
+            const tupleSample=mapped.flat().find(Array.isArray);
+            if(tupleSample){
+              return tupleSample.map((_,tupleIndex)=>mapped[currentIndex].map(entry=>Array.isArray(entry)?entry[tupleIndex]:NA));
+            }
+            return mapped[currentIndex].slice();
+          }
           if(n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="request"&&n.callee.property.name==="security"){
             const sym=n.arguments[0]?value(evalExpr(n.arguments[0],scope)):String(opts.symbol||"");
             const tf=n.arguments[1]?value(evalExpr(n.arguments[1],scope)):String(opts.timeframe||"");
