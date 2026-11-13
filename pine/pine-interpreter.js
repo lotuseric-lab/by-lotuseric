@@ -520,6 +520,9 @@
         default:throw new PineExecutionError("Desteklenmeyen statement: "+n.type,n,"PINE_UNSUPPORTED_AST");
       }
     }
+    // Pine user-defined functions are globally visible regardless of declaration order.
+    // Register top-level functions before evaluating the first bar so earlier calls resolve.
+    for(const node of ast.body){if(node&&node.type==="FunctionDeclaration")execStatement(node,global);}
     // Install OHLCV series progressively; each bar is evaluated in source order.
     const barKeys=["open","high","low","close","volume","time"];
     for(let i=0;i<cleanBars.length;i++){
