@@ -411,7 +411,10 @@
               if(targetMs%baseMs!==0)throw new PineExecutionError("İstenen zaman dilimi grafik zaman diliminin tam katı olmalı.",n,"PINE_MTF_ALIGNMENT");
               if(String(sym)!==String(opts.symbol||""))throw new PineExecutionError("Harici sembol request.security henüz desteklenmiyor: "+sym,n,"PINE_MTF_SYMBOL");
               const mtfBars=targetMs===baseMs?cleanBars:aggregateBars(cleanBars,targetMs,baseMs);
-              const mini={type:"Program",body:[...ast.body.filter(node=>node&&node.type==="FunctionDeclaration"),{type:"ExpressionStatement",expression:exprNode}],diagnostics:[]};
+              const hasInputCall=(node)=>{if(!node||typeof node!=="object")return false;if(node.type==="CallExpression"&&node.callee&&node.callee.type==="MemberExpression"&&node.callee.object&&node.callee.object.type==="Identifier"&&node.callee.object.name==="input")return true;return Object.keys(node).some(k=>{const v=node[k];return Array.isArray(v)?v.some(hasInputCall):v&&typeof v==="object"?hasInputCall(v):false;});};
+              const isLiteralSetup=(node)=>node&&["StringLiteral","NumericLiteral","Literal"].includes(node.type);
+              const setupNodes=ast.body.filter(node=>node&&node.type==="AssignmentStatement"&&node.target&&node.target.type==="Identifier"&&(hasInputCall(node.value)||isLiteralSetup(node.value)));
+              const mini={type:"Program",body:[...setupNodes,...ast.body.filter(node=>node&&node.type==="FunctionDeclaration"),{type:"ExpressionStatement",expression:exprNode}],diagnostics:[]};
               const res=runPine(mini,mtfBars,{...opts,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityData:null});
               const vals=res.expression||[];
               const gaps=n.arguments.slice(3).find(a=>a.type==="NamedArgument"&&a.name==="gaps");
