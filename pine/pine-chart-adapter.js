@@ -147,7 +147,34 @@
     const drawingHasPane=paneLines.length||paneLabels.length||paneBoxes.length||paneLinefills.length;
     if(drawingHasPrice)state.svg=renderDrawingLayer(chart,drawingHost,priceSeries,priceLines,priceLabels,priceBoxes,priceLinefills,"price");
     if(drawingHasPane&&!overlay&&state.panes[0]){
-      const paneSeries=state.series.find(s=>s.chart===target)?.series;
+      // Drawings can exist without plot()/hline() output. In that case the pane
+      // has no series to provide priceToCoordinate(), so add an invisible scale
+      // anchor spanning every drawing y-value. It also expands an existing pane
+      // scale when a drawing extends beyond the plotted oscillator range.
+      const drawingY=[];
+      for(const o of paneLines){drawingY.push(Number(o.y1),Number(o.y2));}
+      for(const o of paneLabels)drawingY.push(Number(o.y));
+      for(const o of paneBoxes)drawingY.push(Number(o.top),Number(o.bottom));
+      for(const f of paneLinefills){
+        const a=lineById.get(f.line1?.id),b=lineById.get(f.line2?.id);
+        if(a)drawingY.push(Number(a.y1),Number(a.y2));
+        if(b)drawingY.push(Number(b.y1),Number(b.y2));
+      }
+      const finiteY=drawingY.filter(Number.isFinite);
+      let paneSeries=state.series.find(s=>s.chart===target)?.series;
+      if(finiteY.length){
+        const minY=Math.min(...finiteY),maxY=Math.max(...finiteY);
+        const anchor=addChartSeries.call(null,target,"LineSeries",{
+          color:"rgba(0,0,0,0)",lineVisible:false,pointMarkersVisible:false,
+          priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false
+        });
+        const anchorData=bars.length>1
+          ? [{time:bars[0].time,value:minY},{time:bars[bars.length-1].time,value:maxY}]
+          : bars.length===1?[{time:bars[0].time,value:minY}]:[];
+        anchor.setData(anchorData);
+        state.series.push({chart:target,series:anchor});
+        paneSeries=anchor;
+      }
       state.paneSvg=renderDrawingLayer(target,state.panes[0].plot,paneSeries,paneLines,paneLabels,paneBoxes,paneLinefills,"pane");
     }
     if(output.tables?.length&&drawingHost){
