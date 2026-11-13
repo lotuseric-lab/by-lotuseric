@@ -166,8 +166,8 @@
       const shapeMap={"shape.triangleup":"arrowUp","shape.arrowup":"arrowUp","shape.labelup":"arrowUp","shape.triangledown":"arrowDown","shape.arrowdown":"arrowDown","shape.labeldown":"arrowDown","shape.square":"square","shape.circle":"circle","shape.diamond":"square","shape.cross":"cross","shape.xcross":"cross"};
       const sizeMap={tiny:1,small:1,normal:2,large:3,huge:4};
       const renderMarkers=(series,items,chartForFallback)=>{
-        if(!series||!items.length)return;
-        if(typeof LightweightCharts.createSeriesMarkers==="function"){
+        if(!items.length)return;
+        if(series&&typeof LightweightCharts.createSeriesMarkers==="function"){
           const markers=items.map(x=>({time:bars[x.bar].time,position:x.location==="belowbar"||x.location==="bottom"?"belowBar":x.location==="abovebar"||x.location==="top"?"aboveBar":"inBar",color:x.color||"#2962ff",shape:shapeMap[x.style]||"circle",text:x.text||"",size:sizeMap[x.size]||2}));
           state.markers.push(LightweightCharts.createSeriesMarkers(series,markers));
         }else{
