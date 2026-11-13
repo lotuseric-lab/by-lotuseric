@@ -323,7 +323,10 @@
     const securityCache=new Map();
     const crossHistory=new WeakMap();
     const plotCallIds=new WeakMap(),callSiteIds=new WeakMap(),functionCallSiteIds=new WeakMap();let nextPlotCallId=0,nextCallSiteId=0,nextFunctionCallSiteId=0;
-    const maxSteps=opts.maxSteps||100000;
+    // Bound execution proportionally to the history window: realistic Pine
+    // indicators evaluate hundreds of AST operations per bar, especially with MTF.
+    // Callers can still provide a stricter explicit maxSteps budget.
+    const maxSteps=opts.maxSteps||Math.max(100000,cleanBars.length*1000);
     function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı.",node,"PINE_EXECUTION_LIMIT");}
     function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name],()=>currentIndex);}
     function getFunctionSeriesKey(scope){
