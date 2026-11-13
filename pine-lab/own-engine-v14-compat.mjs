@@ -25,6 +25,17 @@ if (lexical.diagnostics.length) {
   try {
     const ast = parser.parsePine(lexical.tokens);
     report.astStatements = ast.body.length;
+    const functionNodes = [];
+    const walkAst = (node, path = "root") => {
+      if (!node || typeof node !== "object") return;
+      if (node.type === "FunctionDeclaration") functionNodes.push({ name: node.name, path });
+      for (const [key, child] of Object.entries(node)) {
+        if (Array.isArray(child)) child.forEach((item, index) => walkAst(item, path + "." + key + "[" + index + "]"));
+        else if (child && typeof child === "object") walkAst(child, path + "." + key);
+      }
+    };
+    walkAst(ast);
+    report.functionDeclarations = functionNodes;
     if (ast.diagnostics?.length) {
       report.parse = "FAIL";
       report.blockers.push(...ast.diagnostics);
