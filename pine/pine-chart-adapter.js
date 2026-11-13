@@ -178,7 +178,35 @@
       state.paneSvg=renderDrawingLayer(target,state.panes[0].plot,paneSeries,paneLines,paneLabels,paneBoxes,paneLinefills,"pane");
     }
     if(output.tables?.length&&drawingHost){
-      for(const t of output.tables){if(t.deleted)continue;const el=document.createElement("div");el.className="pineTableOverlay";Object.assign(el.style,{position:"absolute",right:"8px",top:"8px",zIndex:"8",background:t.bgcolor||"#142033",color:"#fff",border:"1px solid "+(t.frame_color||"#64748b"),padding:"4px",fontSize:"11px",pointerEvents:"none"});const table=document.createElement("table");for(let r=0;r<t.rows;r++){const tr=document.createElement("tr");for(let c=0;c<t.columns;c++){const td=document.createElement("td"),cell=t.cells[c+":"+r];td.textContent=cell?.text||"";td.style.padding="3px 5px";td.style.color=cell?.text_color||"#fff";if(cell?.bgcolor)td.style.background=cell.bgcolor;tr.append(td);}table.append(tr);}el.append(table);drawingHost.append(el);state.tableEls.push(el);}
+      for(const t of output.tables){
+        if(t.deleted)continue;
+        const el=document.createElement("div");el.className="pineTableOverlay";
+        Object.assign(el.style,{position:"absolute",right:"8px",top:"8px",zIndex:"8",background:t.bgcolor||"#142033",color:"#fff",border:(t.frame_width??1)+"px solid "+(t.frame_color||"#64748b"),padding:"4px",fontSize:"11px",pointerEvents:"none"});
+        const table=document.createElement("table"),merged=new Map(),covered=new Set();
+        for(const m of t.mergedCells||[]){
+          merged.set(m.start_column+":"+m.start_row,m);
+          for(let r=m.start_row;r<=m.end_row;r++)for(let c=m.start_column;c<=m.end_column;c++)
+            if(c!==m.start_column||r!==m.start_row)covered.add(c+":"+r);
+        }
+        table.style.borderCollapse="collapse";
+        for(let r=0;r<t.rows;r++){
+          const tr=document.createElement("tr");
+          for(let c=0;c<t.columns;c++){
+            const key=c+":"+r;if(covered.has(key))continue;
+            const td=document.createElement("td"),cell=t.cells[key],merge=merged.get(key);
+            td.textContent=cell?.text||"";
+            if(merge){td.colSpan=merge.end_column-merge.start_column+1;td.rowSpan=merge.end_row-merge.start_row+1;}
+            td.style.padding="3px 5px";td.style.color=cell?.text_color||"#fff";
+            td.style.border=(t.border_width??1)+"px solid "+(t.border_color||"#64748b");
+            if(cell?.bgcolor)td.style.background=cell.bgcolor;
+            if(cell?.text_halign)td.style.textAlign=cell.text_halign;
+            if(cell?.text_valign)td.style.verticalAlign=cell.text_valign;
+            tr.append(td);
+          }
+          table.append(tr);
+        }
+        el.append(table);drawingHost.append(el);state.tableEls.push(el);
+      }
     }
     if(output.candles?.length){
       const kind=output.candles[0].type==="bar"?"BarSeries":"CandlestickSeries";
