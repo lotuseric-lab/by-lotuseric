@@ -533,6 +533,18 @@
             const ref=new SeriesRef(a,()=>currentIndex);scope.define(n.target.name,ref);
             return ref;
           }
+          const functionKey=n.target.type==="Identifier"?getFunctionSeriesKey(scope):null;
+          if(n.target.type==="Identifier"&&old===undefined&&functionKey!==null&&(v===null||typeof v!=="object")){
+            let byName=functionSeriesHistory.get(functionKey);
+            if(!byName){byName=new Map();functionSeriesHistory.set(functionKey,byName);}
+            let history=byName.get(n.target.name);
+            if(!history){history=[];byName.set(n.target.name,history);}
+            while(history.length<currentIndex)history.push(NA);
+            if(history.length===currentIndex)history.push(value(v));else history[currentIndex]=value(v);
+            seriesVarNames.add(n.target.name);
+            const ref=new SeriesRef(history,()=>currentIndex);scope.define(n.target.name,ref);
+            return ref;
+          }
           assignTarget(n.target,v,scope,n);if(n.target.type==="Identifier"&&Object.prototype.hasOwnProperty.call(persistent,n.target.name))persistent[n.target.name]=value(v);return v;
         }
         case "TypeDeclaration":{
