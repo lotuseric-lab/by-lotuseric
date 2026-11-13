@@ -273,6 +273,52 @@ body>.nav{position:fixed;z-index:50;left:0;right:0;bottom:0;padding:6px 8px calc
 #indicatorLegend{position:absolute;z-index:7;top:8px;left:8px;max-width:min(340px,calc(100% - 16px));display:flex;flex-direction:column;align-items:flex-start;gap:5px;pointer-events:auto;font-size:11px}#indicatorLegend:empty{display:none}.indLegendToggle{display:flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid #344963;border-radius:9px;background:rgba(8,15,27,.94);color:#e5efff;font-size:11px;font-weight:700;backdrop-filter:blur(6px)}.indLegendList{display:none;max-width:100%;max-height:190px;overflow:auto;gap:4px;padding:5px;border:1px solid #344963;border-radius:9px;background:rgba(8,15,27,.94);backdrop-filter:blur(6px)}#indicatorLegend.expanded .indLegendList{display:grid}.indLegendRow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:4px 6px;border:1px solid #344963;border-radius:7px;background:rgba(8,15,27,.88);backdrop-filter:blur(5px)}.indLegendName{font-weight:700;color:#e5efff;min-width:68px}.indLegendValue{color:#a9bed8;font-variant-numeric:tabular-nums}.indLegendRow button{padding:3px 6px;border:0;background:#1b2c43;border-radius:5px;font-size:12px;line-height:1.2}.indLegendRow button.active{color:#8ce8c7}.indLegendSettings{display:flex;align-items:center;gap:5px;flex-basis:100%;padding-top:5px;border-top:1px solid #344963}.indLegendSettings input{width:62px;padding:5px;font-size:11px}.indLegendSettings input[type=color]{width:30px;height:28px;padding:2px}.indLegendSettings select{width:58px;padding:5px;font-size:11px}
 /* Indicator library panel */
 .indicatorLibrary{position:fixed;inset:0;z-index:120;background:rgba(3,8,16,.78);display:flex;align-items:flex-end;justify-content:center;padding:12px}.indicatorLibrary.hidden{display:none}.indicatorLibrarySheet{width:min(980px,100%);max-height:min(88vh,900px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 12px 12px;padding:16px;box-shadow:0 18px 60px #0009}.indicatorLibraryHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.indicatorLibraryTabs{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px}.indicatorLibraryTabs button,.indicatorLibrary button{border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:9px 12px}.indicatorLibraryTabs button.active{border-color:var(--blue);background:#18314d;color:#c5dcff}.indicatorLibrarySearch{width:100%;margin:5px 0 12px}.indicatorCatalog{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.indicatorItem{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:11px;padding:11px;background:var(--panel2)}.indicatorItem small{display:block;color:var(--muted);margin-top:3px}.indicatorEditor{width:100%;min-height:230px;background:#080f1c;color:#dce8f8;border:1px solid var(--line);border-radius:10px;padding:12px;font:12px/1.5 ui-monospace,monospace;resize:vertical}.indicatorSavedList{display:grid;gap:8px;margin-top:12px}.indicatorSavedItem{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px}@media(max-width:600px){.indicatorLibrary{padding:0}.indicatorLibrarySheet{max-height:92vh;border-radius:18px 18px 0 0;padding:13px}.indicatorCatalog{grid-template-columns:1fr}}
+
+/* LOTUSERIC TradingView-inspired layout only. Data, exchange and chart logic untouched. */
+body{background:#08090b}
+body>header{background:#090a0c;border-bottom:1px solid #30343a;padding:5px 10px}
+.brand{display:none}
+main{max-width:none!important;padding:0!important;margin:0!important}
+.tvTopbar{display:flex;align-items:center;gap:6px;min-height:48px;overflow-x:auto;scrollbar-width:none;background:#090a0c;border-bottom:1px solid #292d32;padding:5px 8px}
+.tvTopbar>*{flex:0 0 auto}.tvTopbar select,.tvTopbar button,.tvTopbar input{height:35px;padding:5px 9px;border-radius:7px;background:#151719;border-color:#353a40;font-size:12px}
+.tvTopbar #exchange{width:108px}.tvTopbar #symbol{width:165px;font-weight:700}.tvTopbar #search{width:130px}
+.tvTopbar #timeframes{display:flex;gap:2px;padding:0;margin:0;overflow:visible}.tvTopbar #timeframes button{min-width:31px;height:31px;padding:5px 7px;border:0;background:transparent}.tvTopbar #timeframes button.active{background:#30363d;color:white}
+.tvSep{width:1px;height:25px;background:#343a40;flex:0 0 1px}
+.workspace{display:block!important;min-width:0}.primary{min-width:0}
+#layoutControls{display:flex;gap:5px;overflow-x:auto;white-space:nowrap;background:#0d0f11;border:0;border-radius:0;padding:5px 8px}
+#layoutControls button{background:#171a1d;border-color:#343a40}
+#mainChartCard{position:relative;border:0;border-radius:0;background:#08090b;min-height:calc(100dvh - 150px)}
+#mainChartCard .charthead{background:#090a0c;border-bottom:1px solid #292d32;padding:7px 58px 7px 12px}
+#mainChartCard #chart{height:calc(100dvh - 250px);min-height:380px;width:calc(100% - 48px);margin-right:48px}
+#mainChartCard .drawDock{left:6px;right:auto;top:54px;z-index:15;display:flex;flex-direction:row;align-items:flex-start}
+#mainChartCard .drawDock.open .drawRail{display:flex}
+#mainChartCard .drawDock .drawDockToggle{display:none}
+#mainChartCard .drawDock .drawRail{background:#101316;border-color:#33383e}
+#mainChartCard .drawDock .drawRail button{background:#171a1d;color:#d0d4d8}
+#mainChartCard .drawDock .drawFlyout{margin-left:4px}
+.tvRightRail{position:absolute;z-index:14;right:0;top:45px;bottom:0;width:48px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:7px 4px;background:#090a0c;border-left:1px solid #292d32}
+.tvRightRail button{width:38px;height:38px;padding:0;background:transparent;border:0;border-radius:7px;color:#c2c7cc;font-size:19px}
+.tvBottomBar{display:flex;align-items:center;gap:5px;min-height:40px;overflow-x:auto;background:#0b0c0e;border-top:1px solid #292d32;padding:4px 8px}
+.tvBottomBar button{flex:0 0 auto;padding:6px 10px;background:transparent;border:0;color:#aeb4ba;font-size:11px}.tvBottomBar button.active{background:#30363d;color:#fff}
+#chartControlsDetails{display:none!important}
+.secondary{position:fixed!important;z-index:51;top:0;right:0;bottom:0;width:min(390px,90vw);max-height:100dvh!important;overflow:auto!important;background:#101316;border-left:1px solid #353a40;padding:14px 12px calc(20px + env(safe-area-inset-bottom));transform:translateX(105%);transition:transform .2s ease}
+body.analysis-open .secondary{transform:translateX(0)}
+.analysisPanelBackdrop{position:fixed;inset:0;z-index:50;background:#0009;display:none}
+body.analysis-open .analysisPanelBackdrop{display:block}
+#toggleAnalysisPanel{display:none}
+.quick{display:flex;align-items:center;min-height:38px;background:#0c0d0f;border-top:1px solid #252a30;padding:4px 8px}
+@media(max-width:759px){
+ body>header{padding-top:calc(5px + env(safe-area-inset-top))}
+ .tvTopbar{gap:4px;padding:4px 5px}.tvTopbar #exchange{width:92px}.tvTopbar #symbol{width:140px}.tvTopbar #search{width:108px}
+ #mainChartCard #chart{height:calc(100dvh - 265px);min-height:290px;width:calc(100% - 42px);margin-right:42px}
+ .tvRightRail{width:42px}.tvRightRail button{width:34px;height:35px}
+ #mainChartCard .charthead{padding:6px 47px 6px 8px}
+ #mainChartCard .drawDock{left:3px;top:48px}
+ #mainChartCard .drawRail{gap:2px;padding:3px}#mainChartCard .drawRail button{width:31px;height:31px;font-size:16px}
+ .tvBottomBar{min-height:35px}.nav{display:none!important}
+}
+@media(min-width:1200px){#mainChartCard #chart{height:calc(100dvh - 220px);min-height:500px}}
+
 </style>
 </head>
 <body>
@@ -685,6 +731,42 @@ async function ensureChartLibrary(){
  for(const src of urls){try{await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src=src;sc.onload=resolve;sc.onerror=()=>reject(Error('CDN yüklenemedi: '+src));document.head.appendChild(sc)});if(valid())return true;}catch(e){console.warn(e.message)}}
  return false;
 }
+
+/* Presentation-only arrangement: keep every original control node and ID alive. */
+(function arrangeTradingViewLayout(){
+ const header=document.querySelector('body>header'),main=document.querySelector('body>main');
+ const primary=document.querySelector('.primary'),card=document.getElementById('mainChartCard');
+ const details=document.getElementById('chartControlsDetails'),controls=details?.querySelector('#chartControlsBelow');
+ const exchangeBar=controls?.querySelector('.exchangeBar'),tf=document.getElementById('timeframes');
+ if(!header||!main||!primary||!card||!details||!controls||!exchangeBar||!tf)return;
+ const top=document.createElement('div');top.className='tvTopbar';top.id='tvTopbar';
+ const move=(el)=>{if(el)top.appendChild(el)};
+ ['exchange','symbol','topTfButton','chartTypeBtn'].forEach(id=>move(document.getElementById(id)));
+ const sep=()=>{const d=document.createElement('span');d.className='tvSep';top.appendChild(d)};
+ sep();move(tf);sep();move(document.getElementById('manageIndicators'));move(document.getElementById('search'));move(document.getElementById('refresh'));
+ header.appendChild(top);
+ const layout=document.getElementById('layoutControls');if(layout)primary.insertBefore(layout,card);
+ const rail=document.createElement('div');rail.className='tvRightRail';rail.id='tvRightRail';
+ const add=(label,glyph,fn)=>{const b=document.createElement('button');b.type='button';b.title=label;b.setAttribute('aria-label',label);b.textContent=glyph;b.addEventListener('click',fn);rail.appendChild(b)};
+ add('İzleme listesi','☷',()=>document.getElementById('openMarketPanel')?.click());
+ add('Analiz paneli','▤',()=>document.body.classList.toggle('analysis-open'));
+ add('İndikatörler','ƒ',()=>document.getElementById('manageIndicators')?.click());
+ add('Alarm merkezi','♧',()=>document.querySelector('[data-page="alerts"]')?.click());
+ card.appendChild(rail);
+ const bottom=document.createElement('div');bottom.className='tvBottomBar';bottom.id='tvBottomBar';
+ ['1G','5G','1A','3A','6A','1Y','5Y','Tümü'].forEach(label=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.addEventListener('click',()=>{bottom.querySelectorAll('button').forEach(x=>x.classList.remove('active'));b.classList.add('active')});bottom.appendChild(b)});
+ card.insertAdjacentElement('afterend',bottom);
+ const quick=document.querySelector('.quick');if(quick)bottom.insertAdjacentElement('afterend',quick);
+ /* Keep details and chart controls in the document; only the native controls are reparented. */
+ const typeMenu=controls.querySelector('#chartTypeMenu');if(typeMenu)header.appendChild(typeMenu);
+ const note=controls.querySelector('#exchangeNote');if(note)note.classList.add('hidden');
+ const searchToolbar=controls.querySelector('.toolbar');if(searchToolbar)searchToolbar.classList.add('hidden');
+ const dock=document.getElementById('drawDock');if(dock){dock.classList.add('open');dock.style.left='6px';dock.style.top='54px';}
+ const backdrop=document.getElementById('analysisPanelBackdrop');
+ backdrop?.addEventListener('click',()=>document.body.classList.remove('analysis-open'));
+ document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('analysis-open')});
+})();
+
 async function startApp(){
  try{
   const libOK=await ensureChartLibrary();console.info('By LOTUSERIC chart engine:',window.__lwcLoadState,window.LightweightCharts?Object.keys(window.LightweightCharts).filter(k=>/Series|version|createChart/.test(k)):null);
