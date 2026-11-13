@@ -1,0 +1,485 @@
+//@version=6
+indicator("SNIPER BOT SIGNALS [ALL BREAKOUTS]", overlay=true, max_boxes_count=500, max_lines_count=500)
+
+// === TIMEZONE ===
+tz = "Europe/Paris"
+
+// === INPUTS ===
+extendLevels = input.bool(true, "Étendre les niveaux après le range", group="Görünüm Ayarları")
+showLevels   = input.bool(true, "Afficher High / Low", group="Görünüm Ayarları")
+showSignals  = input.bool(true, "Afficher les signaux", group="Sinyal Ayarları")
+
+// === BREAKOUT FILTER SETTINGS (PARAZIT ELEME) ===
+breakoutPercent  = input.float(0.2, "Kırılım Yüzdesi (%)", minval=0.0, step=0.1, tooltip="Fiyatın seviyeyi ne kadar aşması gerekir? (0 = Sadece temas)", group="Sinyal Ayarları")
+requireBodyClose = input.bool(false, "Mum Gövdesi Kapanış Şartı", tooltip="Evet ise, mum gövdesi seviyenin dışında kalmalıdır. Hayır ise, fitil (wick) yeterlidir.", group="Sinyal Ayarları")
+
+// === RANGE 1 (MOR/PURPLE) - ASIAN SESSION ===
+range1   = input.session("0000-0705", "Range 1 (Asian)", group="Seans Ayarları")
+color1   = input.color(color.purple, "Couleur Range 1", group="Seans Ayarları")
+opacity1 = input.int(85, "Opacité Range 1 (0-100)", minval=0, maxval=100, group="Seans Ayarları")
+
+// === RANGE 2 (MAVİ/BLUE) - LONDON SESSION ===
+range2   = input.session("0800-1235", "Range 2 (London)", group="Seans Ayarları")
+color2   = input.color(color.blue, "Couleur Range 2", group="Seans Ayarları")
+opacity2 = input.int(85, "Opacité Range 2 (0-100)", minval=0, maxval=100, group="Seans Ayarları")
+
+// === RANGE 3 (KIRMIZI/RED) - NY SESSION ===
+range3   = input.session("1300-1505", "Range 3 (NY)", group="Seans Ayarları")
+color3   = input.color(color.red, "Couleur Range 3", group="Seans Ayarları")
+opacity3 = input.int(85, "Opacité Range 3 (0-100)", minval=0, maxval=100, group="Seans Ayarları")
+
+// === SESSION DETECTION ===
+inR1 = not na(time(timeframe.period, range1, tz))
+inR2 = not na(time(timeframe.period, range2, tz))
+inR3 = not na(time(timeframe.period, range3, tz))
+
+// === GLOBAL DEĞİŞKENLER ===
+var float r1High = na
+var float r1Low  = na
+var float r2High = na
+var float r2Low  = na
+var float r3High = na
+var float r3Low  = na
+
+var box r1Box = na
+var box r2Box = na
+var box r3Box = na
+
+var line r1hLine = na
+var line r1lLine = na
+var line r2hLine = na
+var line r2lLine = na
+var line r3hLine = na
+var line r3lLine = na
+
+// ==========================================
+// === RANGE 1 İŞLEMLERİ ===
+// ==========================================
+newR1 = inR1 and not inR1[1]
+
+if newR1
+    if not na(r1hLine)
+        line.delete(r1hLine)
+    if not na(r1lLine)
+        line.delete(r1lLine)
+    if not na(r1Box)
+        box.delete(r1Box)
+    
+    r1High := high
+    r1Low  := low
+    
+    r1Box := box.new(bar_index, high, bar_index, low, bgcolor=color.new(color1, opacity1), border_width=0)
+
+    if showLevels
+        r1hLine := line.new(bar_index, high, bar_index, high, color=color1, width=2)
+        r1lLine := line.new(bar_index, low, bar_index, low, color=color1, width=2)
+
+if inR1
+    r1High := math.max(r1High, high)
+    r1Low  := math.min(r1Low, low)
+
+    box.set_top(r1Box, r1High)
+    box.set_bottom(r1Box, r1Low)
+    box.set_right(r1Box, bar_index)
+
+    if showLevels
+        line.set_y1(r1hLine, r1High)
+        line.set_y2(r1hLine, r1High)
+        line.set_y1(r1lLine, r1Low)
+        line.set_y2(r1lLine, r1Low)
+        line.set_x2(r1hLine, bar_index)
+        line.set_x2(r1lLine, bar_index)
+
+if not inR1 and inR1[1] and extendLevels and showLevels
+    line.set_x2(r1hLine, bar_index + 200)
+    line.set_x2(r1lLine, bar_index + 200)
+
+
+// ==========================================
+// === RANGE 2 İŞLEMLERİ ===
+// ==========================================
+newR2 = inR2 and not inR2[1]
+
+if newR2
+    if not na(r2hLine)
+        line.delete(r2hLine)
+    if not na(r2lLine)
+        line.delete(r2lLine)
+    if not na(r2Box)
+        box.delete(r2Box)
+    
+    r2High := high
+    r2Low  := low
+    
+    r2Box := box.new(bar_index, high, bar_index, low, bgcolor=color.new(color2, opacity2), border_width=0)
+
+    if showLevels
+        r2hLine := line.new(bar_index, high, bar_index, high, color=color2, width=2)
+        r2lLine := line.new(bar_index, low, bar_index, low, color=color2, width=2)
+
+if inR2
+    r2High := math.max(r2High, high)
+    r2Low  := math.min(r2Low, low)
+
+    box.set_top(r2Box, r2High)
+    box.set_bottom(r2Box, r2Low)
+    box.set_right(r2Box, bar_index)
+
+    if showLevels
+        line.set_y1(r2hLine, r2High)
+        line.set_y2(r2hLine, r2High)
+        line.set_y1(r2lLine, r2Low)
+        line.set_y2(r2lLine, r2Low)
+        line.set_x2(r2hLine, bar_index)
+        line.set_x2(r2lLine, bar_index)
+
+if not inR2 and inR2[1] and extendLevels and showLevels
+    line.set_x2(r2hLine, bar_index + 200)
+    line.set_x2(r2lLine, bar_index + 200)
+
+
+// ==========================================
+// === RANGE 3 İŞLEMLERİ ===
+// ==========================================
+newR3 = inR3 and not inR3[1]
+
+if newR3
+    if not na(r3hLine)
+        line.delete(r3hLine)
+    if not na(r3lLine)
+        line.delete(r3lLine)
+    if not na(r3Box)
+        box.delete(r3Box)
+    
+    r3High := high
+    r3Low  := low
+    
+    r3Box := box.new(bar_index, high, bar_index, low, bgcolor=color.new(color3, opacity3), border_width=0)
+
+    if showLevels
+        r3hLine := line.new(bar_index, high, bar_index, high, color=color3, width=2)
+        r3lLine := line.new(bar_index, low, bar_index, low, color=color3, width=2)
+
+if inR3
+    r3High := math.max(r3High, high)
+    r3Low  := math.min(r3Low, low)
+
+    box.set_top(r3Box, r3High)
+    box.set_bottom(r3Box, r3Low)
+    box.set_right(r3Box, bar_index)
+
+    if showLevels
+        line.set_y1(r3hLine, r3High)
+        line.set_y2(r3hLine, r3High)
+        line.set_y1(r3lLine, r3Low)
+        line.set_y2(r3lLine, r3Low)
+        line.set_x2(r3hLine, bar_index)
+        line.set_x2(r3lLine, bar_index)
+
+if not inR3 and inR3[1] and extendLevels and showLevels
+    line.set_x2(r3hLine, bar_index + 200)
+    line.set_x2(r3lLine, bar_index + 200)
+
+
+// ==========================================
+// === SİNYAL MANTIĞI (TÜM SEVİYELER İÇİN) ===
+// ==========================================
+
+var bool shortCondition = false
+var bool longCondition  = false
+
+shortCondition := false
+longCondition  := false
+
+percentFactor = breakoutPercent / 100.0
+
+// --- Helper Function for Breakout Logic ---
+checkBreakout(levelVal, isSupport, prevCloseCond) =>
+    bool signal = false
+    if showSignals and not na(levelVal)
+        breakoutPrice = isSupport ? levelVal * (1 - percentFactor) : levelVal * (1 + percentFactor)
+        
+        // Önceki kapanış seviye içinde/dışında mı kontrolü (Basit filtre)
+        isValid = isSupport ? (close[1] >= levelVal) : (close[1] <= levelVal)
+        
+        if isValid
+            if requireBodyClose
+                if isSupport and close < breakoutPrice
+                    signal := true
+                else if not isSupport and close > breakoutPrice
+                    signal := true
+            else
+                if isSupport and low < breakoutPrice
+                    signal := true
+                else if not isSupport and high > breakoutPrice
+                    signal := true
+    signal
+
+// --- RANGE 1 (Purple) ---
+r1LowVal  = showLevels and not na(r1lLine) ? line.get_y1(r1lLine) : na
+r1HighVal = showLevels and not na(r1hLine) ? line.get_y1(r1hLine) : na
+
+if checkBreakout(r1LowVal, true, true)
+    shortCondition := true
+if checkBreakout(r1HighVal, false, true)
+    longCondition := true
+
+// --- RANGE 2 (Blue) ---
+r2LowVal  = showLevels and not na(r2lLine) ? line.get_y1(r2lLine) : na
+r2HighVal = showLevels and not na(r2hLine) ? line.get_y1(r2hLine) : na
+
+if checkBreakout(r2LowVal, true, true)
+    shortCondition := true
+if checkBreakout(r2HighVal, false, true)
+    longCondition := true
+
+// --- RANGE 3 (Red) ---
+r3LowVal  = showLevels and not na(r3lLine) ? line.get_y1(r3lLine) : na
+r3HighVal = showLevels and not na(r3hLine) ? line.get_y1(r3hLine) : na
+
+if checkBreakout(r3LowVal, true, true)
+    shortCondition := true
+if checkBreakout(r3HighVal, false, true)
+    longCondition := true
+
+
+// ==========================================
+// === SİNYAL GÖSTERİMİ (FİYAT ETİKETLİ) ===
+// ==========================================
+
+// SHORT Sinyali
+if shortCondition
+    label.new(bar_index, high, 
+         text="SHORT\n" + str.tostring(close, "#.#####"), 
+         style=label.style_label_down, 
+         color=color.new(color.red, 0), 
+         textcolor=color.white,
+         size=size.small)
+
+// LONG Sinyali
+if longCondition
+    label.new(bar_index, low, 
+         text="LONG\n" + str.tostring(close, "#.#####"), 
+         style=label.style_label_up, 
+         color=color.new(color.green, 0), 
+         textcolor=color.white,
+         size=size.small)
+
+plotshape(shortCondition, "SHORT", shape.triangledown, location.abovebar, color.red, size=size.tiny)
+plotshape(longCondition, "LONG", shape.triangleup, location.belowbar, color.green, size=size.tiny)
+
+alertcondition(shortCondition, "SHORT Signal", "Destek/Direnç Kırıldı - SHORT")
+alertcondition(longCondition, "LONG Signal", "Destek/Direnç Kırıldı - LONG")
+
+// UDT  ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+
+type level 
+    int indx
+    float upper
+    float lower 
+    float mid 
+    float vol
+
+type draw 
+    line upper 
+    line lower 
+    line mid 
+    linefill fill 
+    label vol
+// }
+
+
+// ＩＮＰＵＴＳ ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+
+int  length1 = input.int(5, "Sensitivity Detection: ")
+int  length2 = length1 + 13
+bool mid_l  = input.bool(true, "Mid Line")
+bool trend_shadow = input.bool(true, "Trend Shadow")
+color col1   = input.color(#26ba9f, "", inline = "col")
+color col2   = input.color(#6626ba, "", inline = "col")
+// }
+
+// ＣＡＬＣＵＬＡＴＩＯＮＳ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+
+float ema1     = ta.ema(close, length1)
+float ema2     = ta.ema(close, length2)
+
+bool  cross_up = ta.crossover(ema1, ema2) and barstate.isconfirmed
+bool  cross_dn = ta.crossunder(ema1, ema2) and barstate.isconfirmed
+float lowest   = ta.lowest(length2) 
+float highest  = ta.highest(length2)
+
+var upper_draw = array.new<draw>()
+var lower_draw = array.new<draw>()
+
+var upper_lvl = array.new<level>()
+var lower_lvl = array.new<level>()
+
+array_vol_upper = array.new<float>()
+array_vol_lower = array.new<float>()
+
+difff = ema2 - ema1
+color_trend = trend_shadow ? difff > 0 ? color.from_gradient(difff, 0, ta.highest(difff,100), color(na), col2) : color.from_gradient(difff, ta.lowest(difff,100), 0, col1, color(na)) : color(na)
+
+p1 = plot(ema1, "", display = display.none, editable = false)
+p2 = plot(ema2, "", display = display.none, editable = false)
+fill(p1, p2, color_trend)
+
+atr = ta.highest(ta.atr(200),200)*3
+atr1 = ta.highest(ta.atr(200),200)*2
+
+f_clear_previous_lines(draw__) =>
+    if draw__.size() > 0
+        for l in draw__
+            line.delete(l.upper)
+            line.delete(l.lower)
+            line.delete(l.mid)
+            linefill.delete(l.fill)
+            label.delete(l.vol)
+        array.clear(draw__)
+
+
+if cross_up
+    var vol = 0.0
+    vol := 0
+    for i = 1 to length2
+        
+        if low[i] == lowest
+            index = bar_index-i
+
+            for k = 0 to i
+                vol += volume[k]
+
+            src = math.min(open[bar_index-index], close[bar_index-index])
+
+            src := (src-lowest) < atr1*0.5 ? lowest + atr1*0.5 : src
+
+            mid = math.avg(src, lowest)    
+
+            l = level.new(index, src, lowest, mid, vol)
+            lower_lvl.push(l)
+
+if cross_dn
+    var vol = 0.0
+    vol := 0
+    for i = 1 to length2
+        if high[i] == highest
+            index = bar_index-i
+       
+            for k = 0 to i
+                vol += volume[k]
+
+            src = math.max(open[bar_index-index], close[bar_index-index])
+
+            src := (highest-src) < atr1*0.5 ? highest - atr1*0.5 : src
+
+            mid = math.avg(src, highest) 
+
+            l = level.new(index, highest, src, mid, vol)
+            upper_lvl.push(l)
+
+
+// }
+
+
+
+// ＰＬＯＴ ――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――{
+
+// Remove crossed and Overlapped Bullish OB
+if lower_lvl.size() > 0
+    for i = 0 to lower_lvl.size() - 1
+
+        l = lower_lvl.get(i)
+        l1 = lower_lvl.get(i-1)
+
+        mid = l.mid
+        mid1 = l1.mid
+
+        // Overlaps
+        if math.abs(mid - mid1) < atr 
+            l_ = level.new(na, na, na, na, na)
+            lower_lvl.set(i-1, l_)
+
+        // Crossunder
+        if close < l.lower
+            l_ = level.new(na, na, na, na, na)
+            lower_lvl.set(i, l_)
+
+    if lower_lvl.size() > 15 
+        lower_lvl.shift()
+
+// Remove crossed and Overlapped Bearish OB
+if upper_lvl.size() > 0
+    for i = 0 to upper_lvl.size() - 1
+
+        l = upper_lvl.get(i)
+        l1 = upper_lvl.get(i-1)
+
+        upper = l.upper
+
+        mid = l.mid
+        mid1 = l1.mid
+
+        // Overlaps
+        if math.abs(mid - mid1) < atr 
+            l_ = level.new(na, na, na, na, na)
+            upper_lvl.set(i-1, l_)
+
+        // Crossover
+        if close > upper
+            l_ = level.new(na, na, na, na, na)
+            upper_lvl.set(i, l_)
+
+    if upper_lvl.size() > 15 
+        upper_lvl.shift()
+
+
+// Plot Bullish OBs and Colect Volume
+if lower_lvl.size() > 0 and barstate.islast
+    f_clear_previous_lines(lower_draw)
+
+    for i = 0 to lower_lvl.size() - 1
+        l = lower_lvl.get(i)
+        array_vol_lower.push(l.vol)
+    for i = 0 to lower_lvl.size() - 1
+        l = lower_lvl.get(i)
+        
+        txt = "⮜ "+str.tostring(l.vol/array_vol_lower.sum()*100, format.percent) + " ("+str.tostring(l.vol, format.volume)+")"
+ 
+        // Create upper, lower, and mid lines
+        l_1 = line.new(l.indx, l.upper, bar_index, l.upper, color=col1, width = 2)
+        l_2 = line.new(l.indx, l.lower, bar_index, l.lower, color=col1, width = 2)
+        l_mid = line.new(l.indx, l.mid, bar_index, l.mid, color= mid_l ? col1 : color(na), style = line.style_dashed)
+        vol_l = label.new(bar_index, l.mid, txt, style = label.style_label_left, color = color(na), textcolor = chart.fg_color)
+        // Create line fill
+        fill = linefill.new(l_1, l_2, color.new(col1, 90))
+
+        // Store newly created lines and fills
+        draw_ = draw.new(l_1, l_2, l_mid, fill, vol_l)
+        lower_draw.push(draw_)
+
+// Plot Bearish OBs and Colect Volume
+if upper_lvl.size() > 0 and barstate.islast
+    f_clear_previous_lines(upper_draw)
+    for i = 0 to array.size(upper_lvl) - 1
+        l = array.get(upper_lvl, i)
+        array_vol_upper.push(l.vol) 
+
+    for i = 0 to array.size(upper_lvl) - 1
+        l = array.get(upper_lvl, i)
+
+        txt = "⮜ "+str.tostring(l.vol/array_vol_upper.sum()*100, format.percent) + " ("+str.tostring(l.vol, format.volume)+")"
+ 
+        // Create upper, lower, and mid lines
+        l_1 = line.new(l.indx, l.upper, bar_index, l.upper, color=col2, width = 2)
+        l_2 = line.new(l.indx, l.lower, bar_index, l.lower, color=col2, width = 2)
+        l_mid = line.new(l.indx, l.mid, bar_index, l.mid, color= mid_l ? col2 : color(na), style = line.style_dashed)
+        vol_l = label.new(bar_index, l.mid, txt, style = label.style_label_left, color = color(na), textcolor = chart.fg_color)
+
+        // Create line fill
+        fill = linefill.new(l_1, l_2, color.new(col2, 90))
+
+        draw_ = draw.new(l_1, l_2, l_mid, fill, vol_l)
+        upper_draw.push(draw_)
+
+// }

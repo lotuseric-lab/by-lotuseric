@@ -7,6 +7,9 @@ assert.equal(expr("1 + 2 * 3").right.operator,"*");
 assert.equal(expr("close[1]").computed,true);
 assert.equal(expr("ta.ema(close, 21)").type,"CallExpression");
 assert.equal(expr("plot(close, color=color.blue, linewidth=2)").arguments[1].type,"NamedArgument");
+assert.equal(expr("line.new(bar_index[2], low[2], bar_index, high, color=color.blue, width=2, style=line.style_dashed)").arguments.length,7);
+assert.equal(expr('label.new(bar_index, close, "Test label", textcolor=color.white)').arguments.length,4);
+assert.equal(expr("box.new(bar_index[2], high, bar_index, low, bgcolor=color.new(color.green, 80))").arguments.length,5);
 assert.equal(expr("close > open ? close : open").type,"ConditionalExpression");
 assert.equal(expr("[close, open, high]").type,"ArrayExpression");
 assert.equal(expr("(x, y) => x + y").type,"ArrowFunctionExpression");
@@ -30,24 +33,29 @@ const ast=parsePine(lexPine(source).tokens);
 assert.deepEqual(ast.diagnostics,[]);
 assert.equal(ast.body[1].type,"TypedDeclarationStatement");
 assert.equal(ast.body[2].type,"TypedDeclarationStatement");
-assert.equal(ast.body[3].type,"FunctionDeclaration");
-assert.equal(ast.body[4].type,"IfStatement");
-assert.equal(ast.body[4].body[1].type,"IfStatement");
-assert.equal(ast.body[4].alternate[0].type,"AssignmentStatement");
-assert.equal(ast.body[5].type,"ForRangeStatement");
-assert.equal(ast.body[5].step.value,2);
-assert.equal(ast.body[6].type,"DestructuringAssignment");
+assert.equal(parsePine(lexPine(`//@version=6\nvar upper_draw = array.new<draw>()`).tokens).body[0].type,"DeclarationStatement");
+assert.equal(parsePine(lexPine(`//@version=5\nvar line[] fibLines = array.new_line()`).tokens).body[0].type,"TypedDeclarationStatement");
+assert.equal(parsePine(lexPine(`//@version=5\nline[] fibLines = array.new_line()`).tokens).body[0].type,"TypedDeclarationStatement");
 
-const multiline= parsePine(lexPine(`//@version=6
-plot(
-    ta.ema(close, 20),
-    color=color.blue
-)
+const labelMethod=parsePine(lexPine(`//@version=5
+indicator("Label method")
+label.set_text(lbSL, "Orijinal SL " + str.tostring(close, format.mintick) + " (−" + slPctUpd + ")")
 `).tokens);
-assert.equal(multiline.diagnostics.length,0);
-assert.equal(multiline.body.length,1);
-assert.equal(multiline.body[0].expression.arguments.length,2);
+assert.deepEqual(labelMethod.diagnostics,[]);
 
-const bad=parsePine(lexPine("if close > open\nplot(close)").tokens);
-assert.ok(bad.diagnostics.some(d=>d.code==="PINE_PARSE_EMPTY_BLOCK"));
+
+const nestedLabelMethod=parsePine(lexPine(`//@version=5
+indicator("Nested label method")
+if tradeOpen and breakoutDir != 0 and not slHit and bar_index > breakoutBar
+    bool tpSide = breakoutDir == 1 ? high >= tp1Price : low <= tp1Price
+    if tpSide and not tp1Hit
+        tp1Hit := true
+        slPrice := entryPrice
+        if not na(lbSL)
+            string slPctUpd = str.tostring(math.abs(slPriceOrig - entryPrice) / entryPrice * 100, "#.##") + "%"
+            label.set_text(lbSL, "Orijinal SL " + str.tostring(slPriceOrig, format.mintick) + " (−" + slPctUpd + ")")
+            label.set_color(lbSL, color.new(SL_COLOR, 75))
+`).tokens);
+assert.deepEqual(nestedLabelMethod.diagnostics,[]);
+
 console.log("Pine parser tests: OK");

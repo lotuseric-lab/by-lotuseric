@@ -1,0 +1,174 @@
+//@version=5
+indicator("MONEY TRADER - FIBO TRADE", overlay=true, max_lines_count=500, max_labels_count=500)
+
+// ─────────────── AYARLAR ───────────────
+lookback    = input.int(200, "Tepe/Dip İçin Son Kaç Mum?", minval=50, maxval=1000)
+minBarArasi = input.int(30, "İki Sinyal Arası Min. Bar", minval=10, maxval=100)
+toleransPct = input.float(1.0, "Dokunma Toleransı (%)", minval=0.1, maxval=5.0)
+kullanEMA   = input.bool(false, "EMA Trend Filtresi")
+emaLen      = input.int(50, "EMA Periyodu", minval=20)
+
+// ─────────────── TEPE/DİP ───────────────
+gridYuksek = ta.highest(high, lookback)
+gridDusuk  = ta.lowest(low, lookback)
+aralik     = gridYuksek - gridDusuk
+
+// ─────────────── EMA ───────────────
+ema = ta.ema(close, emaLen)
+trendYukari = close > ema
+trendAsagi = close < ema
+plot(kullanEMA ? ema : na, "EMA", color.new(#089981, 0), 2)
+
+// ─────────────── FIBO (GÖRÜNÜR BÖLGEYİ KAPLA) ───────────────
+var line[]  fibCizgiler = array.new_line()
+var label[] fibEtiketler = array.new_label()
+
+if barstate.islast and aralik > 0
+    for c in fibCizgiler
+        line.delete(c)
+    for e in fibEtiketler
+        label.delete(e)
+    array.clear(fibCizgiler)
+    array.clear(fibEtiketler)
+    
+    // Çizgiler SAĞA DOĞRU uzasın (görünür alanı kaplasın)
+    x1 = bar_index - lookback
+    x2 = bar_index + 50
+    oranlar = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)
+    
+    for i = 0 to array.size(oranlar) - 1
+        oran = array.get(oranlar, i)
+        fiyat = gridYuksek - aralik * oran
+        
+        array.push(fibCizgiler, line.new(x1, fiyat, x2, fiyat,
+             color = oran == 0.5 ? color.new(color.yellow, 0) : color.new(color.white, 20), 
+             width = oran == 0.5 ? 2 : 1,
+             style = line.style_solid))
+        
+        array.push(fibEtiketler, label.new(x2, fiyat, 
+             str.tostring(fiyat, format.mintick),
+             style = label.style_label_left, 
+             color = color.new(color.black, 0),
+             textcolor = oran == 0.5 ? color.yellow : color.white, 
+             size = size.normal))
+
+// ─────────────── DOKUNMA ───────────────
+tolerans = aralik > 0 ? aralik * (toleransPct / 100.0) : 0
+dipTouch = aralik > 0 and low <= (gridDusuk + tolerans)
+tepeTouch = aralik > 0 and high >= (gridYuksek - tolerans)
+
+// ─────────────── SİNYAL ───────────────
+var int sonALBar = -999
+var int sonSATBar = -999
+var bool alBekliyor = false
+var bool satBekliyor = false
+
+if dipTouch and (bar_index - sonALBar > minBarArasi)
+    alBekliyor := true
+if tepeTouch and (bar_index - sonSATBar > minBarArasi)
+    satBekliyor := true
+
+dipAL = alBekliyor and close > open and (bar_index - sonALBar > minBarArasi) and (not kullanEMA or not trendAsagi)
+tepeSAT = satBekliyor and close < open and (bar_index - sonSATBar > minBarArasi) and (not kullanEMA or not trendYukari)
+
+if dipAL
+    alBekliyor := false
+    sonALBar := bar_index
+if tepeSAT
+    satBekliyor := false
+    sonSATBar := bar_index
+
+if dipAL
+    label.new(bar_index, low, "DİPTEN AL\n" + str.tostring(close, format.mintick),
+         style=label.style_label_up, color=color.new(#089981, 0), textcolor=color.white, size=size.normal)
+if tepeSAT
+    label.new(bar_index, high, "TEPEDEN SAT\n" + str.tostring(close, format.mintick),
+         style=label.style_label_down, color=color.new(#f23645, 0), textcolor=color.white, size=size.normal)
+
+// ────────────── TABLO ───────────────
+var table diag = table.new(position.top_right, 2, 8, bgcolor=color.new(color.black, 25))
+
+if barstate.islast
+    table.cell(diag, 0, 0, "Tepe", text_color=color.white)
+    table.cell(diag, 1, 0, str.tostring(gridYuksek, format.mintick), text_color=#089981)
+    table.cell(diag, 0, 1, "Dip", text_color=color.white)
+    table.cell(diag, 1, 1, str.tostring(gridDusuk, format.mintick), text_color=#f23645)
+    table.cell(diag, 0, 2, "Aralık", text_color=color.white)
+    table.cell(diag, 1, 2, str.tostring(aralik, format.mintick), text_color=color.white)
+    table.cell(diag, 0, 3, "Dokunma", text_color=color.white)
+    table.cell(diag, 1, 3, dipTouch ? "DİP" : tepeTouch ? "TEPE" : "—", text_color=color.white)
+    table.cell(diag, 0, 4, "Trend", text_color=color.white)
+    table.cell(diag, 1, 4, trendYukari ? "YUKARI ↑" : trendAsagi ? "AŞAĞI ↓" : "YATAY", 
+         text_color=trendYukari ? #089981 : trendAsagi ? #f23645 : color.gray)
+    table.cell(diag, 0, 5, "Son AL", text_color=color.white)
+    table.cell(diag, 1, 5, str.tostring(bar_index - sonALBar, "#") + " bar önce", text_color=color.white)
+    table.cell(diag, 0, 6, "Son SAT", text_color=color.white)
+    table.cell(diag, 1, 6, str.tostring(bar_index - sonSATBar, "#") + " bar önce", text_color=color.white)
+    table.cell(diag, 0, 7, "SONUÇ", text_color=color.white, bgcolor=color.new(color.blue, 60))
+    table.cell(diag, 1, 7, dipAL ? "AL!" : tepeSAT ? "SAT!" : "BEKLE", 
+         text_color=dipAL ? #089981 : tepeSAT ? #f23645 : color.gray, bgcolor=color.new(color.blue, 60))
+
+alertcondition(dipAL, "DİPTEN AL", "DİPTEN AL — {{ticker}}")
+alertcondition(tepeSAT, "TEPEDEN SAT", "TEPEDEN SAT — {{ticker}}")
+// ==========================================
+// 1. GİRDİLER (INPUTS)
+// ==========================================
+grp_breakout = "🚀 Kırılım Ayarları"
+bo_len        = input.int(20, "Kırılım Referans Periyodu (En Yüksek/Düşük)", group=grp_breakout)
+bo_buffer_pct = input.float(0.5, "Kırılım Onay Tamponu (%) - Fake'i Önler", step=0.1, group=grp_breakout)
+vol_mult      = input.float(2.0, "Hacim Çarpanı (Ortalamanın Kaç Katı)", step=0.1, group=grp_breakout)
+min_bars_between = input.int(5, "Sinyaller Arası Minimum Mum Sayısı", group=grp_breakout)
+
+grp_mom = "📈 Momentum Filtreleri"
+rsi_len   = input.int(14, "RSI Periyodu", group=grp_mom)
+rsi_bull  = input.int(60, "AL için RSI Alt Sınırı", group=grp_mom)
+rsi_bear  = input.int(40, "SAT için RSI Üst Sınırı", group=grp_mom)
+
+// ==========================================
+// 2. HESAPLAMALAR
+// ==========================================
+// Temel Göstergeler
+rsi_val = ta.rsi(close, rsi_len)
+[macd_line, signal_line, hist] = ta.macd(close, 12, 26, 9)
+vol_sma = ta.sma(volume, 20)
+
+// Kırılım Seviyeleri (Repaint olmaması için [1] kullanılır)
+resistance_level = ta.highest(high, bo_len)[1]
+support_level = ta.lowest(low, bo_len)[1]
+
+// Hacim ve Momentum Onayları
+vol_bullish = volume > (vol_sma * vol_mult)
+vol_bearish = volume > (vol_sma * vol_mult)
+mom_bullish = rsi_val > rsi_bull and hist > 0 and macd_line > signal_line
+mom_bearish = rsi_val < rsi_bear and hist < 0 and macd_line < signal_line
+
+// ==========================================
+// 3. KIRILIM SİNYAL MANTIĞI
+// ==========================================
+breakout_up = close > (resistance_level * (1 + bo_buffer_pct / 100)) and close[1] <= resistance_level
+breakout_down = close < (support_level * (1 - bo_buffer_pct / 100)) and close[1] >= support_level
+
+raw_bo_buy = breakout_up and vol_bullish and mom_bullish
+raw_bo_sell = breakout_down and vol_bearish and mom_bearish
+
+// Sinyal Filtreleme (Spam Önleme)
+var int last_signal_bar = na
+bars_since_last = na(last_signal_bar) ? 999 : bar_index - last_signal_bar
+can_signal = bars_since_last >= min_bars_between
+
+signal_bo_buy = raw_bo_buy and can_signal
+signal_bo_sell = raw_bo_sell and can_signal
+
+if signal_bo_buy or signal_bo_sell
+    last_signal_bar := bar_index
+
+// ==========================================
+// 4. GÖRSELLEŞTİRME
+// ==========================================
+plotshape(signal_bo_buy, title="Kırılım AL", style=shape.triangleup, location=location.belowbar, color=color.green, size=size.small, text="KIRILIM\nAL", textcolor=color.white)
+plotshape(signal_bo_sell, title="Kırılım SAT", style=shape.triangledown, location=location.abovebar, color=color.red, size=size.small, text="KIRILIM\nSAT", textcolor=color.white)
+// ==========================================
+// 5. UYARILAR (ALERTS)
+// ==========================================
+alertcondition(signal_bo_buy, title="🚀 Kırılım AL Sinyali", message="KIRILIM AL! Fiyat: {{close}}")
+alertcondition(signal_bo_sell, title="🚀 Kırılım SAT Sinyali", message="KIRILIM SAT! Fiyat: {{close}}")
