@@ -1,0 +1,559 @@
+//@version=6
+indicator("AL ONAY SCALP V14 [SMART FIRE + UT BOT + TF HACİM]", overlay=true, max_labels_count=500, max_lines_count=50, max_boxes_count=100, max_bars_back=2000, dynamic_requests=true)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 01 • GÖRÜNÜM
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+gUI = "01 • GÖRÜNÜM"
+showPanel = input.bool(true, "Paneli Göster", group=gUI)
+showEMA = input.bool(true, "EMA Çizgileri", group=gUI)
+showPrep = input.bool(true, "Hazırlık Sembolleri", group=gUI)
+showChartTrend = input.bool(true, "Grafikte Trend Yönünü Göster", group=gUI)
+panelPos = input.string("SAĞ ÜST", "Panel Konumu", options=["SAĞ ÜST","SAĞ ALT","SOL ÜST","SOL ALT"], group=gUI)
+panelSize = input.string("KÜÇÜK", "Panel Boyutu", options=["ÇOK KÜÇÜK","KÜÇÜK","NORMAL"], group=gUI)
+
+gColor = "02 • RENKLER"
+bullColor = input.color(color.rgb(0,220,140), "AL", group=gColor)
+bearColor = input.color(color.rgb(255,65,85), "SAT", group=gColor)
+prepColor = input.color(color.rgb(255,190,55), "Varsayılan HAZIR", group=gColor)
+neutralColor = input.color(color.rgb(145,150,165), "NÖTR", group=gColor)
+panelBg = input.color(color.rgb(22,25,33), "Panel Arka Planı", group=gColor)
+frameColor = input.color(color.rgb(65,72,88), "Çerçeve", group=gColor)
+
+gMarker = "02B • HAZIRLIK SEMBOLLERİ"
+prepSizeOpt = input.string("BÜYÜK", "Sembol Boyutu", options=["KÜÇÜK","ORTA","BÜYÜK"], group=gMarker)
+prepShapeOpt = input.string("A / S HARFLİ ELMAS", "Sembol Şekli", options=["TİKLİ ELMAS","A / S HARFLİ ELMAS","ÜÇGEN","DAİRE"], group=gMarker)
+buyPrepColor = input.color(color.rgb(0,213,255), "AL Hazırlık Rengi", group=gMarker)
+sellPrepColor = input.color(color.rgb(255,53,211), "SAT Hazırlık Rengi", group=gMarker)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 03 • EMA 9 / 21 / 55
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+gEMA = "03 • EMA AYARLARI"
+len9 = input.int(9, "EMA 9", minval=2, group=gEMA)
+len21 = input.int(21, "EMA 21", minval=2, group=gEMA)
+len55 = input.int(55, "EMA 55", minval=3, group=gEMA)
+col9 = input.color(color.aqua, "EMA 9 Rengi", group=gEMA)
+col21 = input.color(color.blue, "EMA 21 Rengi", group=gEMA)
+col55 = input.color(color.fuchsia, "EMA 55 Rengi", group=gEMA)
+width9 = input.int(2, "EMA 9 Kalınlığı", minval=1, maxval=4, group=gEMA)
+width21 = input.int(2, "EMA 21 Kalınlığı", minval=1, maxval=4, group=gEMA)
+width55 = input.int(2, "EMA 55 Kalınlığı", minval=1, maxval=4, group=gEMA)
+
+ema9 = ta.ema(close, len9)
+ema21 = ta.ema(close, len21)
+ema55 = ta.ema(close, len55)
+
+plot(showEMA ? ema9 : na, "EMA 9", color=col9, linewidth=width9)
+plot(showEMA ? ema21 : na, "EMA 21", color=col21, linewidth=width21)
+plot(showEMA ? ema55 : na, "EMA 55", color=col55, linewidth=width55)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 04 • SİNYAL AYARLARI
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+gSig = "04 • SİNYAL MOTORU"
+mode = input.string("DENGELİ", "Sinyal Modu", options=["ERKEN","DENGELİ","SEÇİCİ"], group=gSig)
+tradeMode = input.string("İKİ YÖN", "İşlem Yönü", options=["İKİ YÖN","SADECE AL","SADECE SAT"], group=gSig)
+cooldown = input.int(4, "Sinyal Bekleme (bar)", minval=0, maxval=100, group=gSig)
+breakLen = input.int(10, "Kırılım Aralığı", minval=3, maxval=100, group=gSig)
+rsiLen = input.int(14, "RSI Periyodu", minval=2, group=gSig)
+volLen = input.int(20, "Hacim Ortalaması", minval=2, group=gSig)
+volMult = input.float(1.05, "Hacim Eşiği", minval=0.1, step=0.05, group=gSig)
+useVolume = input.bool(true, "Hacim Filtresi", group=gSig)
+useBreakout = input.bool(true, "Kırılım Filtresi", group=gSig)
+useTrendFilter = input.bool(false, "EMA 55 Yönünü Zorunlu Tut", group=gSig)
+use15mRiskFilter = input.bool(false, "15 DK Ters Yön Risk Uyarısını Sinyale Uygula", group=gSig)
+minScoreInput = input.int(55, "Smart Score Eşiği", minval=20, maxval=95, group=gSig)
+usePullbackEarly = input.bool(true, "Erken SAT: EMA Tepki Reddi", group=gSig)
+avoidCounterTrendBuy = input.bool(true, "Güçlü Düşüşte Ters AL Sinyalini Engelle", group=gSig)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 04B • UT BOT AYARLARI
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+gUT = "04B • UT BOT"
+useUTBot = input.bool(true, "UT Bot Tetiklerini Kullan", group=gUT)
+utKeyValue = input.float(2.0, "Key Value", minval=0.1, step=0.1, group=gUT)
+utAtrPeriod = input.int(10, "UT Bot ATR Periyodu", minval=1, group=gUT)
+utUseHA = input.bool(false, "Heikin Ashi Kaynağı", group=gUT)
+
+// OKX Demo / emir gönderme entegrasyonu kaldırıldı.
+// Bu sürüm yalnızca TradingView alarm koşulları üretir.
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 05 • HACİM VE VBSM MOMENTUM
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+gV = "05 • VBSM"
+vbsmLen = input.int(25, "VBSM Periyodu", minval=2, group=gV)
+vbsmSmooth = input.int(3, "VBSM Yumuşatma", minval=1, group=gV)
+vbsmSignalLen = input.int(5, "VBSM Sinyali", minval=1, group=gV)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 05B • TF HACİM BİRİKİMİ
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+gFlow = "05B • TF HACİM BİRİKİMİ"
+showTFVolume = input.bool(true, "TF Hacim Baskısını Göster", group=gFlow)
+flowLen = input.int(20, "Yönlü Hacim Periyodu", minval=2, maxval=100, group=gFlow)
+flowStrongRatio = input.float(1.25, "Güçlü Hacim Eşiği", minval=0.5, step=0.05, group=gFlow)
+
+rsi = ta.rsi(close, rsiLen)
+volAvg = ta.sma(volume, volLen)
+volumeOK = not useVolume or na(volume) or na(volAvg) or volume >= volAvg * volMult
+volRatio = not na(volAvg) and volAvg > 0 and not na(volume) ? volume / volAvg : 1.0
+
+vbsmRaw = ta.ema(ta.roc(close, vbsmLen) * volRatio, vbsmSmooth)
+vbsmSignal = ta.ema(vbsmRaw, vbsmSignalLen)
+vbBull = vbsmRaw > vbsmSignal and vbsmRaw > vbsmRaw[1]
+vbBear = vbsmRaw < vbsmSignal and vbsmRaw < vbsmRaw[1]
+vbCrossUp = ta.crossover(vbsmRaw, vbsmSignal)
+vbCrossDown = ta.crossunder(vbsmRaw, vbsmSignal)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 06 • ADX / DI
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+gADX = "06 • TREND GÜCÜ"
+adxLen = input.int(14, "DI Periyodu", minval=2, group=gADX)
+adxSmooth = input.int(14, "ADX Yumuşatma", minval=2, group=gADX)
+adxMin = input.float(18.0, "Trend Gücü Eşiği", minval=5, step=1, group=gADX)
+
+[diPlus, diMinus, adxValue] = ta.dmi(adxLen, adxSmooth)
+adxBull = adxValue >= adxMin and diPlus > diMinus
+adxBear = adxValue >= adxMin and diMinus > diPlus
+
+f_dirText(int v) =>
+    v == 1 ? "AL" : v == -1 ? "SAT" : "NÖTR"
+
+f_dirColor(int v) =>
+    v == 1 ? bullColor : v == -1 ? bearColor : neutralColor
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 07 • RİSK VE AŞIRI HAREKET
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+gRisk = "07 • RİSK"
+atrLen = input.int(14, "ATR Periyodu", minval=2, group=gRisk)
+maxBarATR = input.float(2.5, "Aşırı Mum Eşiği", minval=0.5, step=0.1, group=gRisk)
+maxDistance = input.float(1.2, "EMA 21 Maksimum Uzaklık (%)", minval=0.1, step=0.1, group=gRisk)
+maxEntryATR = input.float(1.5, "EMA 21 Maksimum ATR Uzaklığı", minval=0.5, maxval=5.0, step=0.1, group=gRisk)
+useExtreme = input.bool(true, "Aşırı Hareket Filtresi", group=gRisk)
+
+atr = ta.atr(atrLen)
+
+// UT Bot ATR trailing stop
+utSrc = utUseHA ? request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, close, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off) : close
+utAtr = ta.atr(utAtrPeriod)
+utLoss = utKeyValue * utAtr
+
+var float utStop = 0.0
+utPrevStop = nz(utStop[1], 0.0)
+
+utStop := utSrc > utPrevStop and utSrc[1] > utPrevStop ? math.max(utPrevStop, utSrc - utLoss) : utSrc < utPrevStop and utSrc[1] < utPrevStop ? math.min(utPrevStop, utSrc + utLoss) : utSrc > utPrevStop ? utSrc - utLoss : utSrc + utLoss
+
+utBuyRaw = utSrc > utStop and ta.crossover(utSrc, utStop)
+utSellRaw = utSrc < utStop and ta.crossover(utStop, utSrc)
+utBuy = barstate.isconfirmed and utBuyRaw
+utSell = barstate.isconfirmed and utSellRaw
+
+extremeBar = not na(atr) and high - low > atr * maxBarATR
+emaDistance = ema21 != 0 ? math.abs(close - ema21) / ema21 * 100 : 0.0
+emaDistanceATR = not na(atr) and atr > 0 ? math.abs(close - ema21) / atr : 0.0
+tooFar = emaDistance > maxDistance or emaDistanceATR > maxEntryATR
+riskOK = not useExtreme or (not extremeBar and not tooFar)
+
+trendUp = ema21 > ema55 and close > ema55
+trendDown = ema21 < ema55 and close < ema55
+momentumUp = ema9 > ema21 and rsi > 50
+momentumDown = ema9 < ema21 and rsi < 50
+strongDownTrend = ema9 < ema21 and ema21 < ema55 and close < ema55 and rsi < 45
+strongUpTrend = ema9 > ema21 and ema21 > ema55 and close > ema55 and rsi > 55
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// EK • GRAFİK TREND YÖNÜ
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+chartTrendDir = ema9 > ema21 and ema21 > ema55 and rsi >= 50 ? 1 : ema9 < ema21 and ema21 < ema55 and rsi < 50 ? -1 : 0
+chartTrendText = chartTrendDir == 1 ? "TREND ↑ YUKARI" : chartTrendDir == -1 ? "TREND ↓ AŞAĞI" : "TREND ↔ YATAY"
+chartTrendColor = chartTrendDir == 1 ? bullColor : chartTrendDir == -1 ? bearColor : neutralColor
+
+var label chartTrendLabel = na
+
+if barstate.islast
+    if not na(chartTrendLabel)
+        label.delete(chartTrendLabel)
+    if showChartTrend
+        chartTrendLabel := label.new(bar_index, high + nz(atr, 0) * 0.6, chartTrendText, xloc=xloc.bar_index, yloc=yloc.price, style=label.style_label_down, color=chartTrendColor, textcolor=color.white, size=size.normal)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// DEVAM • MEVCUT SİNYAL HESAPLAMALARI
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+barsUp = ta.barssince(ta.crossover(ema9, ema21))
+barsDown = ta.barssince(ta.crossunder(ema9, ema21))
+recentUp = not na(barsUp) and barsUp <= (mode == "ERKEN" ? 4 : mode == "DENGELİ" ? 2 : 0)
+recentDown = not na(barsDown) and barsDown <= (mode == "ERKEN" ? 4 : mode == "DENGELİ" ? 2 : 0)
+
+priorHigh = ta.highest(high, breakLen)[1]
+priorLow = ta.lowest(low, breakLen)[1]
+breakUp = not na(priorHigh) and close > priorHigh
+breakDown = not na(priorLow) and close < priorLow
+freshBreakUp = breakUp and close[1] <= priorHigh
+freshBreakDown = breakDown and close[1] >= priorLow
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 08 • DESTEK / DİRENÇ KUTULARI
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+gSR = "08 • DESTEK / DİRENÇ"
+showSR = input.bool(true, "Destek/Direnç Göster", group=gSR)
+pivotLen = input.int(5, "Tepe/Dip Hassasiyeti", minval=2, maxval=20, group=gSR)
+zoneATR = input.float(0.30, "Kutu Kalınlığı (ATR)", minval=0.05, maxval=2.0, step=0.05, group=gSR)
+zoneBars = input.int(40, "Kutu Uzunluğu (bar)", minval=5, maxval=200, group=gSR)
+maxZones = input.int(6, "Maksimum Kutu (her tür)", minval=1, maxval=20, group=gSR)
+supportFill = input.color(color.new(color.rgb(0,220,140), 85), "Destek Rengi", group=gSR)
+resistanceFill = input.color(color.new(color.rgb(255,65,85), 85), "Direnç Rengi", group=gSR)
+
+pivotLow = ta.pivotlow(low, pivotLen, pivotLen)
+pivotHigh = ta.pivothigh(high, pivotLen, pivotLen)
+
+var box[] supportBoxes = array.new_box()
+var box[] resistanceBoxes = array.new_box()
+
+if showSR and not na(pivotLow) and not na(atr[pivotLen])
+    supTop = pivotLow + atr[pivotLen] * zoneATR
+    supBottom = pivotLow - atr[pivotLen] * zoneATR
+    sup = box.new(left=bar_index-pivotLen, top=supTop, right=bar_index-pivotLen+zoneBars, bottom=supBottom, xloc=xloc.bar_index, bgcolor=supportFill, border_color=color.new(bullColor,25), text="DESTEK", text_color=bullColor, text_size=size.tiny)
+    array.push(supportBoxes, sup)
+    if array.size(supportBoxes) > maxZones
+        box.delete(array.shift(supportBoxes))
+
+if showSR and not na(pivotHigh) and not na(atr[pivotLen])
+    resTop = pivotHigh + atr[pivotLen] * zoneATR
+    resBottom = pivotHigh - atr[pivotLen] * zoneATR
+    res = box.new(left=bar_index-pivotLen, top=resTop, right=bar_index-pivotLen+zoneBars, bottom=resBottom, xloc=xloc.bar_index, bgcolor=resistanceFill, border_color=color.new(bearColor,25), text="DİRENÇ", text_color=bearColor, text_size=size.tiny)
+    array.push(resistanceBoxes, res)
+    if array.size(resistanceBoxes) > maxZones
+        box.delete(array.shift(resistanceBoxes))
+
+if not showSR
+    while array.size(supportBoxes) > 0
+        box.delete(array.pop(supportBoxes))
+    while array.size(resistanceBoxes) > 0
+        box.delete(array.pop(resistanceBoxes))
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 09 • MTF + YÖNLÜ HACİM
+// Önceki kapanmış zaman dilimi mumunu kullanır.
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_mtfPack() =>
+    e9x = ta.ema(close, len9)
+    e21x = ta.ema(close, len21)
+    e55x = ta.ema(close, len55)
+    rx = ta.rsi(close, rsiLen)
+
+    vx = ta.sma(volume, volLen)
+    vr = not na(vx) and vx > 0 and not na(volume) ? volume / vx : 1.0
+
+    vm = ta.ema(ta.roc(close, vbsmLen) * vr, vbsmSmooth)
+    vs = ta.ema(vm, vbsmSignalLen)
+
+    [dp, dm, ax] = ta.dmi(adxLen, adxSmooth)
+
+    direction = e9x > e21x and e21x > e55x and rx >= 50 ? 1 : e9x < e21x and e21x < e55x and rx < 50 ? -1 : 0
+    vdirection = vm > vs and vm > vm[1] ? 1 : vm < vs and vm < vm[1] ? -1 : 0
+    adirection = ax >= adxMin and dp > dm ? 1 : ax >= adxMin and dm > dp ? -1 : 0
+
+    buyBarVol = close > open ? volume : close < open ? 0.0 : volume * 0.5
+    sellBarVol = close < open ? volume : close > open ? 0.0 : volume * 0.5
+
+    buySum = ta.sma(buyBarVol, flowLen) * flowLen
+    sellSum = ta.sma(sellBarVol, flowLen) * flowLen
+    totalSum = ta.sma(volume, flowLen) * flowLen
+
+    buyPct = not na(totalSum) and totalSum > 0 ? 100.0 * buySum / totalSum : 50.0
+    sellPct = 100.0 - buyPct
+    volumeRatio = not na(vx) and vx > 0 and not na(volume) ? volume / vx : 1.0
+
+    [direction[1], vdirection[1], adirection[1], buyPct[1], sellPct[1], volumeRatio[1]]
+
+[t1,v1,a1,bp1,sp1,vr1] = request.security(syminfo.tickerid, "1", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t2,v2,a2,bp2,sp2,vr2] = request.security(syminfo.tickerid, "2", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t3,v3,a3,bp3,sp3,vr3] = request.security(syminfo.tickerid, "3", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t4,v4,a4,bp4,sp4,vr4] = request.security(syminfo.tickerid, "4", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t5,v5,a5,bp5,sp5,vr5] = request.security(syminfo.tickerid, "5", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t6,v6,a6,bp6,sp6,vr6] = request.security(syminfo.tickerid, "6", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t7,v7,a7,bp7,sp7,vr7] = request.security(syminfo.tickerid, "7", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t8,v8,a8,bp8,sp8,vr8] = request.security(syminfo.tickerid, "8", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t9,v9,a9,bp9,sp9,vr9] = request.security(syminfo.tickerid, "9", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t10,v10,a10,bp10,sp10,vr10] = request.security(syminfo.tickerid, "10", f_mtfPack(), lookahead=barmerge.lookahead_on)
+[t15,v15,a15,bp15,sp15,vr15] = request.security(syminfo.tickerid, "15", f_mtfPack(), lookahead=barmerge.lookahead_on)
+
+bullTF = (t1==1?1:0)+(t2==1?1:0)+(t3==1?1:0)+(t4==1?1:0)+(t5==1?1:0)+(t6==1?1:0)+(t7==1?1:0)+(t8==1?1:0)+(t9==1?1:0)+(t10==1?1:0)+(t15==1?1:0)
+bearTF = (t1==-1?1:0)+(t2==-1?1:0)+(t3==-1?1:0)+(t4==-1?1:0)+(t5==-1?1:0)+(t6==-1?1:0)+(t7==-1?1:0)+(t8==-1?1:0)+(t9==-1?1:0)+(t10==-1?1:0)+(t15==-1?1:0)
+neutralTF = 11 - bullTF - bearTF
+
+avgBuyPressure = (bp1+bp2+bp3+bp4+bp5+bp6+bp7+bp8+bp9+bp10+bp15) / 11.0
+avgSellPressure = 100.0 - avgBuyPressure
+
+strongVolumeTF = (vr1>=flowStrongRatio?1:0)+(vr2>=flowStrongRatio?1:0)+(vr3>=flowStrongRatio?1:0)+(vr4>=flowStrongRatio?1:0)+(vr5>=flowStrongRatio?1:0)+(vr6>=flowStrongRatio?1:0)+(vr7>=flowStrongRatio?1:0)+(vr8>=flowStrongRatio?1:0)+(vr9>=flowStrongRatio?1:0)+(vr10>=flowStrongRatio?1:0)+(vr15>=flowStrongRatio?1:0)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 10 • SMART SCORE + TETİKLER
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+volumeBullScore = not na(volume) and not na(volAvg) and volume >= volAvg * volMult and close > open
+volumeBearScore = not na(volume) and not na(volAvg) and volume >= volAvg * volMult and close < open
+
+longScore = (trendUp ? 20 : 0) + (momentumUp ? 20 : 0) + (rsi >= 55 ? 10 : 0) + int(math.round(20.0 * bullTF / 11.0)) + (adxBull ? 15 : 0) + (vbBull ? 10 : 0) + (volumeBullScore ? 5 : 0)
+shortScore = (trendDown ? 20 : 0) + (momentumDown ? 20 : 0) + (rsi <= 45 ? 10 : 0) + int(math.round(20.0 * bearTF / 11.0)) + (adxBear ? 15 : 0) + (vbBear ? 10 : 0) + (volumeBearScore ? 5 : 0)
+
+minScore = mode == "ERKEN" ? math.max(35, minScoreInput - 10) : mode == "DENGELİ" ? minScoreInput : math.min(95, minScoreInput + 10)
+
+emaCrossUp = ta.crossover(ema9, ema21)
+emaCrossDown = ta.crossunder(ema9, ema21)
+freshLongTrigger = freshBreakUp or vbCrossUp or emaCrossUp or (useUTBot and utBuy)
+freshShortTrigger = freshBreakDown or vbCrossDown or emaCrossDown or (useUTBot and utSell)
+
+supportLong3m = t3 == 1 or v3 == 1 or (rsi > 50 and vbBull)
+supportShort3m = t3 == -1 or v3 == -1 or (rsi < 50 and vbBear)
+
+strongBear5m = t5 == -1 and (v5 == -1 or a5 == -1)
+strongBull5m = t5 == 1 and (v5 == 1 or a5 == 1)
+
+riskAgainstLong = t15 == -1 and a15 == -1
+riskAgainstShort = t15 == 1 and a15 == 1
+riskLongOK = not use15mRiskFilter or not riskAgainstLong
+riskShortOK = not use15mRiskFilter or not riskAgainstShort
+
+longSetup = momentumUp and (recentUp or vbBull or (useBreakout and breakUp) or emaCrossUp or vbCrossUp) and volumeOK
+shortSetup = momentumDown and (recentDown or vbBear or (useBreakout and breakDown) or emaCrossDown or vbCrossDown) and volumeOK
+
+longTrendOK = not useTrendFilter or trendUp or supportLong3m
+shortTrendOK = not useTrendFilter or trendDown or supportShort3m
+
+// Erken AL: güçlü düşüş trendine karşı gelen zayıf tepki AL sinyallerini filtrele.
+longCounterTrendOK = not avoidCounterTrendBuy or not strongDownTrend
+
+// Erken SAT: normal tetiklere ek olarak düşüş trendinde EMA9/EMA21'e tepki verip
+// EMA9 altında kırmızı kapanan mumda, kapanış onayıyla erken uyarı üret.
+pullbackRejectShort = usePullbackEarly and strongDownTrend and high >= ema9 and close < ema9 and close < open and (vbBear or rsi < 48)
+
+earlyLongSetup = barstate.isconfirmed and longCounterTrendOK and freshLongTrigger and close >= open and (supportLong3m or t1 == 1 or vbBull) and longScore >= minScore - 20 and not tooFar
+earlyShortSetup = barstate.isconfirmed and (freshShortTrigger or pullbackRejectShort) and close <= open and (supportShort3m or t1 == -1 or vbBear or pullbackRejectShort) and shortScore >= minScore - 20 and not tooFar
+
+utLongSetup = useUTBot and utBuy and longScore >= minScore - 25 and not tooFar
+utShortSetup = useUTBot and utSell and shortScore >= minScore - 25 and not tooFar
+
+longCandidate = barstate.isconfirmed and longCounterTrendOK and ((longSetup and longTrendOK and riskOK and longScore >= minScore) or earlyLongSetup or (utLongSetup and riskOK)) and riskLongOK
+shortCandidate = barstate.isconfirmed and ((shortSetup and shortTrendOK and riskOK and shortScore >= minScore) or earlyShortSetup or (utShortSetup and riskOK)) and riskShortOK
+
+allowLong = tradeMode != "SADECE SAT"
+allowShort = tradeMode != "SADECE AL"
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 11 • SIGNAL LOCK + HAZIRLIK TEKRAR KONTROLÜ
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+var int signalState = 0
+var int lastSignalBar = na
+var int totalBuy = 0
+var int totalSell = 0
+var int totalPrepBuy = 0
+var int totalPrepSell = 0
+var bool prepLongLatched = false
+var bool prepShortLatched = false
+var int longSetupOffBars = 0
+var int shortSetupOffBars = 0
+
+cooldownOK = na(lastSignalBar) or bar_index - lastSignalBar > cooldown
+
+buySignal = allowLong and longCandidate and cooldownOK and (signalState != 1 or freshLongTrigger)
+sellSignal = allowShort and shortCandidate and cooldownOK and (signalState != -1 or freshShortTrigger)
+
+prepLong = showPrep and barstate.isconfirmed and allowLong and longCounterTrendOK and (longSetup or earlyLongSetup or utLongSetup) and (riskOK or earlyLongSetup or (utLongSetup and riskOK)) and longScore >= minScore - 15 and not prepLongLatched and not buySignal
+prepShort = showPrep and barstate.isconfirmed and allowShort and (shortSetup or earlyShortSetup or utShortSetup) and (riskOK or earlyShortSetup or (utShortSetup and riskOK)) and shortScore >= minScore - 15 and not prepShortLatched and not sellSignal
+
+longSetupOffBars := longSetup or earlyLongSetup or utLongSetup ? 0 : longSetupOffBars + 1
+shortSetupOffBars := shortSetup or earlyShortSetup or utShortSetup ? 0 : shortSetupOffBars + 1
+
+if longSetupOffBars >= 3 or not allowLong
+    prepLongLatched := false
+if shortSetupOffBars >= 3 or not allowShort
+    prepShortLatched := false
+
+if prepLong
+    prepLongLatched := true
+    totalPrepBuy += 1
+
+if prepShort
+    prepShortLatched := true
+    totalPrepSell += 1
+
+if buySignal
+    signalState := 1
+    lastSignalBar := bar_index
+    totalBuy += 1
+    prepLongLatched := true
+    prepShortLatched := false
+else if sellSignal
+    signalState := -1
+    lastSignalBar := bar_index
+    totalSell += 1
+    prepShortLatched := true
+    prepLongLatched := false
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 12 • GRAFİK SİNYALLERİ + HAZIRLIK SEMBOLLERİ
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+plotshape(buySignal, title="AL ONAY", text="AL", style=shape.labelup, location=location.belowbar, color=bullColor, textcolor=color.black, size=size.small)
+plotshape(sellSignal, title="SAT ONAY", text="SAT", style=shape.labeldown, location=location.abovebar, color=bearColor, textcolor=color.white, size=size.small)
+
+plotshape(prepLong and prepShapeOpt == "A / S HARFLİ ELMAS" and prepSizeOpt == "KÜÇÜK", title="AL HAZIR ELMAS KÜÇÜK", style=shape.diamond, location=location.belowbar, color=buyPrepColor, text="A", textcolor=color.black, size=size.tiny)
+plotshape(prepLong and prepShapeOpt == "A / S HARFLİ ELMAS" and prepSizeOpt == "ORTA", title="AL HAZIR ELMAS ORTA", style=shape.diamond, location=location.belowbar, color=buyPrepColor, text="A", textcolor=color.black, size=size.small)
+plotshape(prepLong and prepShapeOpt == "A / S HARFLİ ELMAS" and prepSizeOpt == "BÜYÜK", title="AL HAZIR ELMAS BÜYÜK", style=shape.diamond, location=location.belowbar, color=buyPrepColor, text="A", textcolor=color.black, size=size.normal)
+
+plotshape(prepShort and prepShapeOpt == "A / S HARFLİ ELMAS" and prepSizeOpt == "KÜÇÜK", title="SAT HAZIR ELMAS KÜÇÜK", style=shape.diamond, location=location.abovebar, color=sellPrepColor, text="S", textcolor=color.white, size=size.tiny)
+plotshape(prepShort and prepShapeOpt == "A / S HARFLİ ELMAS" and prepSizeOpt == "ORTA", title="SAT HAZIR ELMAS ORTA", style=shape.diamond, location=location.abovebar, color=sellPrepColor, text="S", textcolor=color.white, size=size.small)
+plotshape(prepShort and prepShapeOpt == "A / S HARFLİ ELMAS" and prepSizeOpt == "BÜYÜK", title="SAT HAZIR ELMAS BÜYÜK", style=shape.diamond, location=location.abovebar, color=sellPrepColor, text="S", textcolor=color.white, size=size.normal)
+
+plotshape(prepLong and prepShapeOpt == "TİKLİ ELMAS" and prepSizeOpt == "KÜÇÜK", title="AL HAZIR TİK KÜÇÜK", style=shape.diamond, location=location.belowbar, color=buyPrepColor, text="✓", textcolor=color.black, size=size.tiny)
+plotshape(prepLong and prepShapeOpt == "TİKLİ ELMAS" and prepSizeOpt == "ORTA", title="AL HAZIR TİK ORTA", style=shape.diamond, location=location.belowbar, color=buyPrepColor, text="✓", textcolor=color.black, size=size.small)
+plotshape(prepLong and prepShapeOpt == "TİKLİ ELMAS" and prepSizeOpt == "BÜYÜK", title="AL HAZIR TİK BÜYÜK", style=shape.diamond, location=location.belowbar, color=buyPrepColor, text="✓", textcolor=color.black, size=size.normal)
+
+plotshape(prepShort and prepShapeOpt == "TİKLİ ELMAS" and prepSizeOpt == "KÜÇÜK", title="SAT HAZIR TİK KÜÇÜK", style=shape.diamond, location=location.abovebar, color=sellPrepColor, text="✓", textcolor=color.white, size=size.tiny)
+plotshape(prepShort and prepShapeOpt == "TİKLİ ELMAS" and prepSizeOpt == "ORTA", title="SAT HAZIR TİK ORTA", style=shape.diamond, location=location.abovebar, color=sellPrepColor, text="✓", textcolor=color.white, size=size.small)
+plotshape(prepShort and prepShapeOpt == "TİKLİ ELMAS" and prepSizeOpt == "BÜYÜK", title="SAT HAZIR TİK BÜYÜK", style=shape.diamond, location=location.abovebar, color=sellPrepColor, text="✓", textcolor=color.white, size=size.normal)
+
+plotshape(prepLong and prepShapeOpt == "ÜÇGEN" and prepSizeOpt == "KÜÇÜK", title="AL HAZIR ÜÇGEN KÜÇÜK", style=shape.triangleup, location=location.belowbar, color=buyPrepColor, size=size.tiny)
+plotshape(prepLong and prepShapeOpt == "ÜÇGEN" and prepSizeOpt == "ORTA", title="AL HAZIR ÜÇGEN ORTA", style=shape.triangleup, location=location.belowbar, color=buyPrepColor, size=size.small)
+plotshape(prepLong and prepShapeOpt == "ÜÇGEN" and prepSizeOpt == "BÜYÜK", title="AL HAZIR ÜÇGEN BÜYÜK", style=shape.triangleup, location=location.belowbar, color=buyPrepColor, size=size.normal)
+
+plotshape(prepShort and prepShapeOpt == "ÜÇGEN" and prepSizeOpt == "KÜÇÜK", title="SAT HAZIR ÜÇGEN KÜÇÜK", style=shape.triangledown, location=location.abovebar, color=sellPrepColor, size=size.tiny)
+plotshape(prepShort and prepShapeOpt == "ÜÇGEN" and prepSizeOpt == "ORTA", title="SAT HAZIR ÜÇGEN ORTA", style=shape.triangledown, location=location.abovebar, color=sellPrepColor, size=size.small)
+plotshape(prepShort and prepShapeOpt == "ÜÇGEN" and prepSizeOpt == "BÜYÜK", title="SAT HAZIR ÜÇGEN BÜYÜK", style=shape.triangledown, location=location.abovebar, color=sellPrepColor, size=size.normal)
+
+plotshape(prepLong and prepShapeOpt == "DAİRE" and prepSizeOpt == "KÜÇÜK", title="AL HAZIR DAİRE KÜÇÜK", style=shape.circle, location=location.belowbar, color=buyPrepColor, size=size.tiny)
+plotshape(prepLong and prepShapeOpt == "DAİRE" and prepSizeOpt == "ORTA", title="AL HAZIR DAİRE ORTA", style=shape.circle, location=location.belowbar, color=buyPrepColor, size=size.small)
+plotshape(prepLong and prepShapeOpt == "DAİRE" and prepSizeOpt == "BÜYÜK", title="AL HAZIR DAİRE BÜYÜK", style=shape.circle, location=location.belowbar, color=buyPrepColor, size=size.normal)
+
+plotshape(prepShort and prepShapeOpt == "DAİRE" and prepSizeOpt == "KÜÇÜK", title="SAT HAZIR DAİRE KÜÇÜK", style=shape.circle, location=location.abovebar, color=sellPrepColor, size=size.tiny)
+plotshape(prepShort and prepShapeOpt == "DAİRE" and prepSizeOpt == "ORTA", title="SAT HAZIR DAİRE ORTA", style=shape.circle, location=location.abovebar, color=sellPrepColor, size=size.small)
+plotshape(prepShort and prepShapeOpt == "DAİRE" and prepSizeOpt == "BÜYÜK", title="SAT HAZIR DAİRE BÜYÜK", style=shape.circle, location=location.abovebar, color=sellPrepColor, size=size.normal)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 13 • KOMPAKT PANEL — 11 SÜTUN / 12 SATIR
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+f_pos() =>
+    panelPos == "SAĞ ALT" ? position.bottom_right : panelPos == "SOL ÜST" ? position.top_left : panelPos == "SOL ALT" ? position.bottom_left : position.top_right
+
+f_size() =>
+    panelSize == "ÇOK KÜÇÜK" ? size.tiny : panelSize == "NORMAL" ? size.normal : size.small
+
+f_strength(int score) =>
+    score >= 75 ? "GÜÇLÜ" : score >= 55 ? "ORTA" : score >= 35 ? "ZAYIF" : "ÇOK ZAYIF"
+
+f_bar(int score) =>
+    score >= 90 ? "■ ■ ■ ■ ■" : score >= 70 ? "■ ■ ■ ■ □" : score >= 50 ? "■ ■ ■ □ □" : score >= 30 ? "■ ■ □ □ □" : score >= 10 ? "■ □ □ □ □" : "□ □ □ □ □"
+
+f_mtfCell(table tb, int col, string tf, int dir) =>
+    table.cell(tb, col, 6, tf, bgcolor=panelBg, text_color=color.white, text_size=f_size())
+    table.cell(tb, col, 7, dir == 1 ? "▲" : dir == -1 ? "▼" : "—", bgcolor=dir == 1 ? color.new(bullColor, 15) : dir == -1 ? color.new(bearColor, 10) : color.new(neutralColor, 65), text_color=color.white, text_size=f_size())
+
+f_mtfTrendCell(table tb, int col, int dir) =>
+    trendText = dir == 1 ? "YUKARI" : dir == -1 ? "AŞAĞI" : "YATAY"
+    trendBg = dir == 1 ? color.new(bullColor, 15) : dir == -1 ? color.new(bearColor, 10) : color.new(neutralColor, 65)
+    table.cell(tb, col, 8, trendText, bgcolor=trendBg, text_color=color.white, text_size=f_size())
+
+f_mtfFlowCell(table tb, int col, float buyPct, float sellPct, float ratio) =>
+    dominantColor = buyPct >= 55 ? color.new(bullColor, 15) : sellPct >= 55 ? color.new(bearColor, 10) : color.new(neutralColor, 65)
+    flowText = showTFVolume ? "A" + str.tostring(math.round(buyPct)) + "/S" + str.tostring(math.round(sellPct)) : "KAPALI"
+    ratioText = showTFVolume ? str.tostring(ratio, "#.0") + "x" : "—"
+    table.cell(tb, col, 9, flowText, bgcolor=showTFVolume ? dominantColor : panelBg, text_color=color.white, text_size=size.tiny)
+    table.cell(tb, col, 10, ratioText, bgcolor=showTFVolume and ratio >= flowStrongRatio ? color.new(prepColor, 30) : panelBg, text_color=color.white, text_size=size.tiny)
+
+var table dash = table.new(f_pos(), 11, 12, bgcolor=panelBg, frame_color=frameColor, frame_width=1, border_color=color.new(frameColor, 40), border_width=1)
+
+if barstate.isfirst
+    table.merge_cells(dash, 0, 0, 10, 0)
+    table.merge_cells(dash, 0, 1, 10, 1)
+    table.merge_cells(dash, 0, 2, 2, 2)
+    table.merge_cells(dash, 3, 2, 7, 2)
+    table.merge_cells(dash, 8, 2, 10, 2)
+    table.merge_cells(dash, 0, 3, 4, 3)
+    table.merge_cells(dash, 6, 3, 10, 3)
+    table.merge_cells(dash, 0, 4, 3, 4)
+    table.merge_cells(dash, 4, 4, 6, 4)
+    table.merge_cells(dash, 7, 4, 10, 4)
+    table.merge_cells(dash, 0, 5, 10, 5)
+    table.merge_cells(dash, 0, 11, 3, 11)
+    table.merge_cells(dash, 4, 11, 6, 11)
+    table.merge_cells(dash, 7, 11, 10, 11)
+
+if barstate.islast
+    if showPanel
+        statusText = buySignal ? "🟢 AL ONAY" : sellSignal ? "🔴 SAT ONAY" : prepLong ? "🟡 AL HAZIR" : prepShort ? "🟡 SAT HAZIR" : signalState == 1 ? "🟢 AL DEVAM" : signalState == -1 ? "🔴 SAT DEVAM" : "⚪ BEKLE"
+        statusColor = buySignal ? bullColor : sellSignal ? bearColor : (prepLong or prepShort) ? prepColor : signalState == 1 ? bullColor : signalState == -1 ? bearColor : neutralColor
+
+        table.cell(dash, 0, 0, "AL ONAY SCALP V14 • " + syminfo.ticker, bgcolor=panelBg, text_color=color.white, text_size=f_size())
+        table.cell(dash, 0, 1, statusText, bgcolor=color.new(statusColor, 75), text_color=statusColor, text_size=size.large)
+
+        table.cell(dash, 0, 2, "AL " + str.tostring(totalBuy), bgcolor=panelBg, text_color=bullColor, text_size=f_size())
+        table.cell(dash, 3, 2, "SMART " + str.tostring(longScore) + "/100 AL | " + str.tostring(shortScore) + "/100 SAT", bgcolor=panelBg, text_color=prepColor, text_size=f_size())
+        table.cell(dash, 8, 2, "SAT " + str.tostring(totalSell), bgcolor=panelBg, text_color=bearColor, text_size=f_size())
+
+        table.cell(dash, 0, 3, "AL GÜCÜ " + f_strength(longScore) + " " + f_bar(longScore), bgcolor=panelBg, text_color=bullColor, text_size=f_size())
+        table.cell(dash, 5, 3, "VS", bgcolor=panelBg, text_color=neutralColor, text_size=f_size())
+        table.cell(dash, 6, 3, "SAT GÜCÜ " + f_strength(shortScore) + " " + f_bar(shortScore), bgcolor=panelBg, text_color=bearColor, text_size=f_size())
+
+        vbDir = vbBull ? 1 : vbBear ? -1 : 0
+        volumeText = volumeOK ? "GÜÇLÜ" : "ZAYIF"
+        riskText = not riskOK ? "DİKKAT" : tooFar ? "UZAK" : "NORMAL"
+        reverseText = strongBear5m ? "5DK TERS SAT" : strongBull5m ? "5DK TERS AL" : "5DK NÖTR"
+
+        table.cell(dash, 0, 4, "VBSM " + f_dirText(vbDir), bgcolor=panelBg, text_color=f_dirColor(vbDir), text_size=f_size())
+        table.cell(dash, 4, 4, "HACİM " + volumeText, bgcolor=panelBg, text_color=volumeOK ? bullColor : prepColor, text_size=f_size())
+        table.cell(dash, 7, 4, "RİSK " + riskText, bgcolor=panelBg, text_color=not riskOK ? bearColor : tooFar ? prepColor : bullColor, text_size=f_size())
+
+        table.cell(dash, 0, 5, "MTF UYUMU • 1–10 / 15 DAKİKA • " + reverseText + (riskAgainstLong ? " • 15DK AL RİSKİ" : riskAgainstShort ? " • 15DK SAT RİSKİ" : ""), bgcolor=panelBg, text_color=prepColor, text_size=f_size())
+
+        f_mtfCell(dash, 0, "1", t1)
+        f_mtfCell(dash, 1, "2", t2)
+        f_mtfCell(dash, 2, "3", t3)
+        f_mtfCell(dash, 3, "4", t4)
+        f_mtfCell(dash, 4, "5", t5)
+        f_mtfCell(dash, 5, "6", t6)
+        f_mtfCell(dash, 6, "7", t7)
+        f_mtfCell(dash, 7, "8", t8)
+        f_mtfCell(dash, 8, "9", t9)
+        f_mtfCell(dash, 9, "10", t10)
+        f_mtfCell(dash, 10, "15", t15)
+
+        f_mtfTrendCell(dash, 0, t1)
+        f_mtfTrendCell(dash, 1, t2)
+        f_mtfTrendCell(dash, 2, t3)
+        f_mtfTrendCell(dash, 3, t4)
+        f_mtfTrendCell(dash, 4, t5)
+        f_mtfTrendCell(dash, 5, t6)
+        f_mtfTrendCell(dash, 6, t7)
+        f_mtfTrendCell(dash, 7, t8)
+        f_mtfTrendCell(dash, 8, t9)
+        f_mtfTrendCell(dash, 9, t10)
+        f_mtfTrendCell(dash, 10, t15)
+
+        f_mtfFlowCell(dash, 0, bp1, sp1, vr1)
+        f_mtfFlowCell(dash, 1, bp2, sp2, vr2)
+        f_mtfFlowCell(dash, 2, bp3, sp3, vr3)
+        f_mtfFlowCell(dash, 3, bp4, sp4, vr4)
+        f_mtfFlowCell(dash, 4, bp5, sp5, vr5)
+        f_mtfFlowCell(dash, 5, bp6, sp6, vr6)
+        f_mtfFlowCell(dash, 6, bp7, sp7, vr7)
+        f_mtfFlowCell(dash, 7, bp8, sp8, vr8)
+        f_mtfFlowCell(dash, 8, bp9, sp9, vr9)
+        f_mtfFlowCell(dash, 9, bp10, sp10, vr10)
+        f_mtfFlowCell(dash, 10, bp15, sp15, vr15)
+
+        table.cell(dash, 0, 11, "AL HACMİ " + str.tostring(math.round(avgBuyPressure)) + "%", bgcolor=panelBg, text_color=bullColor, text_size=f_size())
+        table.cell(dash, 4, 11, "GÜÇLÜ HACİM TF " + str.tostring(strongVolumeTF) + "/11", bgcolor=panelBg, text_color=prepColor, text_size=f_size())
+        table.cell(dash, 7, 11, "SAT HACMİ " + str.tostring(math.round(avgSellPressure)) + "%", bgcolor=panelBg, text_color=bearColor, text_size=f_size())
+    else
+        table.clear(dash, 0, 0, 10, 11)
+
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// 14 • TRADINGVIEW ALARM KOŞULLARI (OKX ENTEGRASYONU YOK)
+//━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+alertcondition(buySignal, title="AL ONAY", message="AL ONAY SCALP V14: AL {{ticker}} / {{interval}} / {{close}}")
+alertcondition(sellSignal, title="SAT ONAY", message="AL ONAY SCALP V14: SAT {{ticker}} / {{interval}} / {{close}}")
+alertcondition(prepLong, title="AL HAZIR", message="AL ONAY SCALP V14: AL HAZIR {{ticker}} / {{interval}}")
+alertcondition(prepShort, title="SAT HAZIR", message="AL ONAY SCALP V14: SAT HAZIR {{ticker}} / {{interval}}")
