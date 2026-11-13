@@ -16,6 +16,7 @@
   }
   function remove(state){
     if(!state)return;
+    for(const unsubscribe of state.unsubscribers||[]){try{unsubscribe()}catch{}}
     for(const s of state.series||[]){try{s.chart.removeSeries(s.series)}catch{}}
     if(state.fillSvg)try{state.fillSvg.remove()}catch{}if(state.svg)try{state.svg.remove()}catch{}for(const m of state.markers||[])try{m.detach()}catch{}for(const el of state.tableEls||[])try{el.remove()}catch{}for(const p of state.panes||[]){try{p.chart.remove()}catch{}try{p.wrap.remove()}catch{}}
   }
@@ -23,7 +24,7 @@
   function mount(config){
     const {chart,addChartSeries,bars,output,host,drawingHost,priceSeries}=config;
     if(!chart||typeof addChartSeries!=="function"||!Array.isArray(bars)||!output)throw new TypeError("Pine chart adapter eksik yapılandırıldı.");
-    const state={series:[],panes:[],markers:[],tableEls:[],output};
+    const state={series:[],panes:[],markers:[],tableEls:[],unsubscribers:[],output};
     const overlay=output.metadata?.overlay!==false;
     let target=chart;
     if(!overlay&&host){
@@ -87,53 +88,69 @@
       Object.assign(svg.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none",overflow:"visible",zIndex:"6"});
       if(!drawHost.style.position)drawHost.style.position="relative";
       drawHost.append(svg);
-      const timeScale=drawChart.timeScale(),hostWidth=hostWidthSafe(drawHost);
-      const indexToX=index=>{
-        const n=Number(index);if(!Number.isFinite(n)||!bars.length)return null;
-        const i=Math.trunc(n),last=bars.length-1,t=i>=0&&i<=last?bars[i]?.time:null;
-        if(t!=null){const x=timeScale.timeToCoordinate(t);if(x!=null)return x;}
-        const x1=timeScale.timeToCoordinate(bars[last]?.time),x0=last>0?timeScale.timeToCoordinate(bars[last-1]?.time):null;
-        const step=x1!=null&&x0!=null?x1-x0:0;return x1==null||!step?null:x1+(i-last)*step;
+      const redraw=()=>{
+        if(typeof svg.replaceChildren==="function")svg.replaceChildren();
+        else if(Array.isArray(svg.children))svg.children.length=0;
+        else while(svg.firstChild)svg.removeChild(svg.firstChild);
+        const timeScale=drawChart.timeScale(),hostWidth=hostWidthSafe(drawHost);
+        const indexToX=index=>{
+          const n=Number(index);if(!Number.isFinite(n)||!bars.length)return null;
+          const i=Math.trunc(n),last=bars.length-1,t=i>=0&&i<=last?bars[i]?.time:null;
+          if(t!=null){const x=timeScale.timeToCoordinate(t);if(x!=null)return x;}
+          const x1=timeScale.timeToCoordinate(bars[last]?.time),x0=last>0?timeScale.timeToCoordinate(bars[last-1]?.time):null;
+          const step=x1!=null&&x0!=null?x1-x0:0;return x1==null||!step?null:x1+(i-last)*step;
+        };
+        const xy=(x,y,xloc)=>{
+          let px;
+          if(xloc==="bar_time"){
+            const time=Number(x);px=timeScale.timeToCoordinate(time);
+            if(px==null&&bars.length>1){const last=bars[bars.length-1],prev=bars[bars.length-2],x1=timeScale.timeToCoordinate(last.time),x0=timeScale.timeToCoordinate(prev.time),dt=last.time-prev.time;if(x1!=null&&x0!=null&&dt)px=x1+((time-last.time)/dt)*(x1-x0);}
+          }else px=indexToX(x);
+          const py=drawPriceSeries.priceToCoordinate(Number(y));
+          return px==null||py==null?null:{x:px,y:py};
+        };
+        const line=o=>{
+          const a=xy(o.x1,o.y1,o.xloc),b=xy(o.x2,o.y2,o.xloc);if(!a||!b)return;
+          let x1=a.x,x2=b.x,y1=a.y,y2=b.y;const dx=b.x-a.x,dy=b.y-a.y;
+          if(o.extend==="right"||o.extend==="both"){x2=hostWidth;y2=Math.abs(dx)>0.0001?a.y+(hostWidth-a.x)*(dy/dx):b.y;}
+          if(o.extend==="left"||o.extend==="both"){x1=0;y1=Math.abs(dx)>0.0001?a.y+(0-a.x)*(dy/dx):a.y;}
+          const el=document.createElementNS("http://www.w3.org/2000/svg","line");
+          for(const [k,v] of Object.entries({x1,y1,x2,y2,stroke:o.color||"#2962ff","stroke-width":o.width||2,"stroke-dasharray":o.style==="dashed"?"7 5":o.style==="dotted"?"2 4":""}))el.setAttribute(k,String(v));
+          svg.append(el);
+        };
+        for(const o of lines)if(!o.deleted)line(o);
+        for(const o of boxes)if(!o.deleted){
+          const a=xy(o.left,o.top,o.xloc),b=xy(o.right,o.bottom,o.xloc);if(!a||!b)continue;
+          const el=document.createElementNS("http://www.w3.org/2000/svg","rect");
+          for(const [k,v] of Object.entries({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:o.bgcolor||"none",stroke:o.border_color||"none","stroke-width":o.border_width||1}))el.setAttribute(k,String(v));
+          svg.append(el);
+        }
+        for(const o of labels)if(!o.deleted){
+          const p=xy(o.x,o.y,o.xloc);if(!p)continue;
+          const el=document.createElementNS("http://www.w3.org/2000/svg","text");
+          el.setAttribute("x",String(p.x));el.setAttribute("y",String(p.y));el.setAttribute("fill",o.textcolor||"#fff");el.setAttribute("font-size","12");el.textContent=o.text;svg.append(el);
+        }
+        const linesById=new Map([...lines,...(output.lines||[])].map(o=>[o.id,o]));
+        for(const f of linefills){
+          if(f.deleted)continue;
+          const a=linesById.get(f.line1?.id),b=linesById.get(f.line2?.id);if(!a||!b||a.deleted||b.deleted)continue;
+          const p1=xy(a.x1,a.y1,a.xloc),p2=xy(a.x2,a.y2,a.xloc),p3=xy(b.x2,b.y2,b.xloc),p4=xy(b.x1,b.y1,b.xloc);
+          if(!p1||!p2||!p3||!p4)continue;
+          const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
+          poly.setAttribute("points",[p1,p2,p3,p4].map(p=>p.x+","+p.y).join(" "));poly.setAttribute("fill",f.color||"rgba(41,98,255,0.18)");poly.setAttribute("stroke","none");svg.insertBefore(poly,svg.firstChild);
+        }
       };
-      const xy=(x,y,xloc)=>{
-        let px;
-        if(xloc==="bar_time"){
-          const time=Number(x);px=timeScale.timeToCoordinate(time);
-          if(px==null&&bars.length>1){const last=bars[bars.length-1],prev=bars[bars.length-2],x1=timeScale.timeToCoordinate(last.time),x0=timeScale.timeToCoordinate(prev.time),dt=last.time-prev.time;if(x1!=null&&x0!=null&&dt)px=x1+((time-last.time)/dt)*(x1-x0);}
-        }else px=indexToX(x);
-        const py=drawPriceSeries.priceToCoordinate(Number(y));
-        return px==null||py==null?null:{x:px,y:py};
+      redraw();
+      const subscribe=(target,method,unsubscribe)=>{
+        if(typeof target?.[method]!=="function")return;
+        target[method](redraw);
+        state.unsubscribers.push(()=>{try{target[unsubscribe]?.(redraw)}catch{}});
       };
-      const line=o=>{
-        const a=xy(o.x1,o.y1,o.xloc),b=xy(o.x2,o.y2,o.xloc);if(!a||!b)return;
-        let x1=a.x,x2=b.x,y1=a.y,y2=b.y;const dx=b.x-a.x,dy=b.y-a.y;
-        if(o.extend==="right"||o.extend==="both"){x2=hostWidth;y2=Math.abs(dx)>0.0001?a.y+(hostWidth-a.x)*(dy/dx):b.y;}
-        if(o.extend==="left"||o.extend==="both"){x1=0;y1=Math.abs(dx)>0.0001?a.y+(0-a.x)*(dy/dx):a.y;}
-        const el=document.createElementNS("http://www.w3.org/2000/svg","line");
-        for(const [k,v] of Object.entries({x1,y1,x2,y2,stroke:o.color||"#2962ff","stroke-width":o.width||2,"stroke-dasharray":o.style==="dashed"?"7 5":o.style==="dotted"?"2 4":""}))el.setAttribute(k,String(v));
-        svg.append(el);
-      };
-      for(const o of lines)if(!o.deleted)line(o);
-      for(const o of boxes)if(!o.deleted){
-        const a=xy(o.left,o.top,o.xloc),b=xy(o.right,o.bottom,o.xloc);if(!a||!b)continue;
-        const el=document.createElementNS("http://www.w3.org/2000/svg","rect");
-        for(const [k,v] of Object.entries({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:o.bgcolor||"none",stroke:o.border_color||"none","stroke-width":o.border_width||1}))el.setAttribute(k,String(v));
-        svg.append(el);
-      }
-      for(const o of labels)if(!o.deleted){
-        const p=xy(o.x,o.y,o.xloc);if(!p)continue;
-        const el=document.createElementNS("http://www.w3.org/2000/svg","text");
-        el.setAttribute("x",String(p.x));el.setAttribute("y",String(p.y));el.setAttribute("fill",o.textcolor||"#fff");el.setAttribute("font-size","12");el.textContent=o.text;svg.append(el);
-      }
-      const linesById=new Map([...lines,...(output.lines||[])].map(o=>[o.id,o]));
-      for(const f of linefills){
-        if(f.deleted)continue;
-        const a=linesById.get(f.line1?.id),b=linesById.get(f.line2?.id);if(!a||!b||a.deleted||b.deleted)continue;
-        const p1=xy(a.x1,a.y1,a.xloc),p2=xy(a.x2,a.y2,a.xloc),p3=xy(b.x2,b.y2,b.xloc),p4=xy(b.x1,b.y1,b.xloc);
-        if(!p1||!p2||!p3||!p4)continue;
-        const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
-        poly.setAttribute("points",[p1,p2,p3,p4].map(p=>p.x+","+p.y).join(" "));poly.setAttribute("fill",f.color||"rgba(41,98,255,0.18)");poly.setAttribute("stroke","none");svg.insertBefore(poly,svg.firstChild);
-      }
+      const timeScale=drawChart.timeScale();
+      subscribe(timeScale,"subscribeVisibleLogicalRangeChange","unsubscribeVisibleLogicalRangeChange");
+      const priceScale=drawChart.priceScale?.("right");
+      subscribe(priceScale,"subscribeVisiblePriceRangeChange","unsubscribeVisiblePriceRangeChange");
+      subscribe(drawChart,"subscribeSizeChange","unsubscribeSizeChange");
       return svg;
     };
     const routeToPrice=o=>overlay||o.force_overlay===true;
