@@ -35,7 +35,7 @@ if (lexical.diagnostics.length) {
         const base = 100 + i * 0.012 + wave;
         const close = base + Math.sin(i / 3) * 0.45;
         return {
-          time: 1_790_000_000 + i * 300,
+          time: 1_790_000_000 + i * 60,
           open: close - Math.sin(i) * 0.18,
           high: Math.max(base + 0.8, close) + 0.12,
           low: Math.min(base - 0.8, close) - 0.12,
@@ -44,7 +44,7 @@ if (lexical.diagnostics.length) {
         };
       });
       try {
-        const output = interpreter.runPine(ast, bars, { symbol: "BTCUSDT", timeframe: "5" });
+        const output = interpreter.runPine(ast, bars, { symbol: "BTCUSDT", timeframe: "1" });
         report.runtime = "PASS";
         report.output = {
           bars: output.barCount,
