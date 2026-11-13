@@ -8,8 +8,11 @@ indicator("Function local history", overlay=false)
 f_history(mult) =>
     localValue = close * mult
     localValue[1]
+f_sourceHistory(src) =>
+    src[1]
 plot(f_history(2), title="Call site A")
 plot(f_history(3), title="Call site B")
+plot(f_sourceHistory(close), title="Source history")
 `;
 const lexed = frontend.lexPine(source);
 assert.equal(lexed.diagnostics.length, 0, "fixture must lex cleanly");
@@ -23,4 +26,5 @@ const bars = [
 const output = interpreter.runPine(ast, bars, { symbol: "BTCUSDT", timeframe: "5" });
 assert.deepEqual(output.plots[0].values, [null, 20, 22]);
 assert.deepEqual(output.plots[1].values, [null, 30, 33]);
+assert.deepEqual(output.plots[2].values, [null, 10, 11]);
 console.log("Pine function local history tests: OK");
