@@ -315,16 +315,24 @@
     const inputValues=Object.assign(Object.create(null),opts.inputs||{});
     const global=new Scope();
     const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null),seriesVarNames=new Set();
-    let activeBarScope=null;
+    const functionSeriesHistory=new Map();
+    let activeBarScope=null,activeFunctionCallSite=null;
     const builtins=createBuiltins({bars:cleanBars,get index(){return currentIndex;}},outputs,inputValues,opts);
     let currentIndex=-1,steps=0;
     const ctxBars=cleanBars;
     const securityCache=new Map();
     const crossHistory=new WeakMap();
-    const plotCallIds=new WeakMap(),callSiteIds=new WeakMap();let nextPlotCallId=0,nextCallSiteId=0;
+    const plotCallIds=new WeakMap(),callSiteIds=new WeakMap(),functionCallSiteIds=new WeakMap();let nextPlotCallId=0,nextCallSiteId=0,nextFunctionCallSiteId=0;
     const maxSteps=opts.maxSteps||100000;
     function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı.",node,"PINE_EXECUTION_LIMIT");}
     function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name],()=>currentIndex);}
+    function getFunctionSeriesKey(scope){
+      for(let current=scope;current;current=current.parent){
+        if(Object.prototype.hasOwnProperty.call(current,"__pineFunctionKey"))return current.__pineFunctionKey;
+      }
+      return null;
+    }
+
     function envGet(scope,name){
       if(scope.has(name))return scope.get(name);
       if(["open","high","low","close","volume","time"].includes(name))return series(name);
@@ -445,14 +453,30 @@
           const isFillCall=n.callee&&n.callee.type==="Identifier"&&n.callee.name==="fill";
           if(isPlotCall){if(!plotCallIds.has(n))plotCallIds.set(n,nextPlotCallId++);outputs._activePlotId=plotCallIds.get(n);}
           if(isFillCall){if(!callSiteIds.has(n))callSiteIds.set(n,nextCallSiteId++);outputs._activeCallId=callSiteIds.get(n);}
-          try{return fn(...args);}finally{if(isPlotCall)delete outputs._activePlotId;if(isFillCall)delete outputs._activeCallId;}
+          const previousFunctionCallSite=activeFunctionCallSite;
+          if(fn&&fn.__pineUserFunction){
+            if(!functionCallSiteIds.has(n))functionCallSiteIds.set(n,nextFunctionCallSiteId++);
+            activeFunctionCallSite=functionCallSiteIds.get(n);
+          }
+          try{return fn(...args);}finally{
+            activeFunctionCallSite=previousFunctionCallSite;
+            if(isPlotCall)delete outputs._activePlotId;
+            if(isFillCall)delete outputs._activeCallId;
+          }
         }
         case "ArrowFunctionExpression":return {params:n.params.map(p=>p.name),body:n.body,scope};
       }
       throw new PineExecutionError("Desteklenmeyen ifade düğümü: "+n.type,n,"PINE_UNSUPPORTED_AST");
     }
     function assignTarget(target,v,scope,node){
-      if(target.type==="Identifier"){if(seriesVarNames.has(target.name)){const current=scope.get(target.name);if(current instanceof SeriesRef&&current.values.length){current.values[current.values.length-1]=value(v);return;}}scope.set(target.name,v);return;}
+      if(target.type==="Identifier"){
+        const current=scope.get(target.name);
+        if(current instanceof SeriesRef){
+          const index=current.index;
+          if(index>=0&&index<current.values.length){current.values[index]=value(v);return;}
+        }
+        scope.set(target.name,v);return;
+      }
       if(target.type==="MemberExpression"){const obj=evalExpr(target.object,scope);if(!obj||typeof obj!=="object")throw new PineExecutionError("UDT/nesne alanına atama yapılamıyor.",node);const key=target.computed?value(evalExpr(target.property,scope)):target.property.name;obj[key]=v;return;}
       if(target.type==="TupleExpression"||target.type==="ArrayExpression"){
         if(!Array.isArray(v))throw new PineExecutionError("Tuple atamasında dizi bekleniyor.",node);
@@ -483,6 +507,19 @@
             const a=vars[n.name]||(vars[n.name]=[]);while(a.length<currentIndex)a.push(NA);if(a.length===currentIndex)a.push(value(initial));else a[currentIndex]=value(initial);
             seriesVarNames.add(n.name);const ref=new SeriesRef(a,()=>currentIndex);scope.define(n.name,ref);return ref;
           }
+          // Local variables declared inside a user function are series too:
+          // Pine's x[1] refers to the prior invocation of this call site.
+          const functionKey=getFunctionSeriesKey(scope);
+          if(functionKey!==null&&(initial===null||typeof initial!=="object")){
+            let byName=functionSeriesHistory.get(functionKey);
+            if(!byName){byName=new Map();functionSeriesHistory.set(functionKey,byName);}
+            let history=byName.get(n.name);
+            if(!history){history=[];byName.set(n.name,history);}
+            while(history.length<currentIndex)history.push(NA);
+            if(history.length===currentIndex)history.push(value(initial));else history[currentIndex]=value(initial);
+            seriesVarNames.add(n.name);
+            const ref=new SeriesRef(history,()=>currentIndex);scope.define(n.name,ref);return ref;
+          }
           scope.define(n.name,initial);return initial;
         }
         case "AssignmentStatement":{
@@ -504,7 +541,14 @@
         }
         case "DestructuringAssignment":{const v=evalExpr(n.value,scope);assignTarget(n.target,v,scope,n);return;}
         case "FunctionDeclaration":{
-          functions[n.name]=( ...args )=>{const local=new Scope(scope);n.params.forEach((p,i)=>local.define(p.name,value(args[i])));return n.bodyStatements&&n.bodyStatements.length?execBlockValue(n.bodyStatements,local):evalExpr(n.body,local);};return;
+          const callable=(...args)=>{
+            const local=new Scope(scope);
+            local.__pineFunctionKey=n.name+"#"+(activeFunctionCallSite===null?"direct":activeFunctionCallSite);
+            n.params.forEach((p,i)=>local.define(p.name,value(args[i])));
+            return n.bodyStatements&&n.bodyStatements.length?execBlockValue(n.bodyStatements,local):evalExpr(n.body,local);
+          };
+          callable.__pineUserFunction=true;
+          functions[n.name]=callable;return;
         }
         case "IfStatement":return truth(value(evalExpr(n.test,scope)))?execBlockValue(n.body,new Scope(scope)):execBlockValue(n.alternate||[],new Scope(scope));
         case "SwitchStatement":{const d=n.discriminant?value(evalExpr(n.discriminant,scope)):undefined;let chosen=null;for(const c of n.cases||[]){if(c.test===null){if(!chosen)chosen=c;continue;}const t=value(evalExpr(c.test,scope));if(n.discriminant?d===t:truth(t)){chosen=c;break;}}if(chosen)return execBlockValue(chosen.body,new Scope(scope));return NA;}
