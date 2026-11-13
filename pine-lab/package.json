@@ -1,0 +1,11 @@
+{
+  "name": "by-lotuseric-pine-engine-lab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "smoke": "node smoke-test.mjs"
+  },
+  "dependencies": {
+    "@heyphat/piner": "0.13.0"
+  }
+}
