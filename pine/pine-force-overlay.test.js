@@ -21,7 +21,7 @@ const bars = [
 ];
 const output = interpreter.runPine(ast, bars, { symbol: "BTCUSDT", timeframe: "5" });
 assert.equal(output.metadata.overlay, false);
-assert.equal(output.shapes.length, 3);
-assert.equal(output.shapes.filter(x => x.force_overlay === true).length, 2);
-assert.equal(output.shapes.filter(x => x.force_overlay === false).length, 1);
+assert.equal(output.shapes.length, bars.length * 3);
+assert.equal(output.shapes.filter(x => x.force_overlay === true).length, bars.length * 2);
+assert.equal(output.shapes.filter(x => x.force_overlay === false).length, bars.length);
 console.log(JSON.stringify({ status: "PASS", test: "force_overlay marker metadata", shapes: output.shapes.map(x => ({ bar: x.bar, force_overlay: x.force_overlay })) }, null, 2));
