@@ -214,7 +214,47 @@
     };
     ta.cci=(src,len)=>{const m=sma(src,len);return rolling(src,len,w=>{const mean=w.reduce((z,x)=>z+num(x),0)/w.length,dev=w.reduce((z,x)=>z+Math.abs(num(x)-mean),0)/w.length;return dev===0?NA:(num(value(src))-mean)/(0.015*dev);});};
     ta.dev=(src,len)=>rolling(src,len,w=>{const mean=w.reduce((z,x)=>z+num(x),0)/w.length;return w.reduce((z,x)=>z+Math.abs(num(x)-mean),0)/w.length;});
-    ta.dmi=(diLen,adxSmooth)=>{const b=ctx.bars.slice(0,ctx.index+1),plus=[],minus=[],trs=[];for(let i=0;i<b.length;i++){if(i===0){plus.push(0);minus.push(0);trs.push(b[i].high-b[i].low);continue;}const up=b[i].high-b[i-1].high,down=b[i-1].low-b[i].low;plus.push(up>down&&up>0?up:0);minus.push(down>up&&down>0?down:0);trs.push(Math.max(b[i].high-b[i].low,Math.abs(b[i].high-b[i-1].close),Math.abs(b[i].low-b[i-1].close)));}const tr=rma(new SeriesRef(trs),diLen),p=rma(new SeriesRef(plus),diLen),m=rma(new SeriesRef(minus),diLen);if(isNA(tr)||tr===0)return [NA,NA,NA];const pdi=100*p/tr,mdi=100*m/tr,dx=pdi+mdi===0?NA:100*Math.abs(pdi-mdi)/(pdi+mdi);const dxs=[];for(let i=0;i<b.length;i++){const sub={bars:b,index:i};const trv=rma(new SeriesRef(trs.slice(0,i+1)),diLen),pv=rma(new SeriesRef(plus.slice(0,i+1)),diLen),mv=rma(new SeriesRef(minus.slice(0,i+1)),diLen);dxs.push(!trv||isNA(trv)||isNA(pv)||isNA(mv)||pv+mv===0?NA:100*Math.abs(pv-mv)/(pv+mv));}return [pdi,mdi,rma(new SeriesRef(dxs),adxSmooth)];};
+    ta.dmi=(diLen,adxSmooth)=>{
+      const b=ctx.bars.slice(0,ctx.index+1),n=Math.trunc(num(value(diLen))),smooth=Math.trunc(num(value(adxSmooth)));
+      if(!Number.isFinite(n)||n<1||!Number.isFinite(smooth)||smooth<1)throw new RangeError("DMI periyotları pozitif tam sayı olmalı.");
+      const plus=[],minus=[],trs=[];
+      for(let i=0;i<b.length;i++){
+        if(i===0){plus.push(0);minus.push(0);trs.push(b[i].high-b[i].low);continue;}
+        const up=b[i].high-b[i-1].high,down=b[i-1].low-b[i].low;
+        plus.push(up>down&&up>0?up:0);minus.push(down>up&&down>0?down:0);
+        trs.push(Math.max(b[i].high-b[i].low,Math.abs(b[i].high-b[i-1].close),Math.abs(b[i].low-b[i-1].close)));
+      }
+      // Build the three Wilder-smoothed streams in one pass. The previous
+      // implementation recalculated every prefix inside this loop, making DMI
+      // cubic over a chart history and stalling multi-timeframe scripts.
+      const smoothRma=(values,length)=>{
+        const out=[];let previous=NA;
+        for(let i=0;i<values.length;i++){
+          const current=values[i];
+          if(isNA(current)){out.push(previous);continue;}
+          if(isNA(previous)){
+            if(i+1>=length){
+              let sum=0,valid=true;
+              for(let j=i+1-length;j<=i;j++){if(isNA(values[j])){valid=false;break;}sum+=num(values[j]);}
+              if(valid)previous=sum/length;
+            }
+          }else previous=(previous*(length-1)+num(current))/length;
+          out.push(previous);
+        }
+        return out;
+      };
+      const trRma=smoothRma(trs,n),plusRma=smoothRma(plus,n),minusRma=smoothRma(minus,n),dxs=[];
+      for(let i=0;i<b.length;i++){
+        const trv=trRma[i],pv=plusRma[i],mv=minusRma[i];
+        if(isNA(trv)||trv===0||isNA(pv)||isNA(mv)||pv+mv===0){dxs.push(NA);continue;}
+        const pdi=100*pv/trv,mdi=100*mv/trv;
+        dxs.push(100*Math.abs(pdi-mdi)/(pdi+mdi));
+      }
+      const last= b.length-1,tr=trRma[last],p=plusRma[last],m=minusRma[last];
+      if(isNA(tr)||tr===0||isNA(p)||isNA(m))return [NA,NA,NA];
+      const pdi=100*p/tr,mdi=100*m/tr;
+      return [pdi,mdi,rma(new SeriesRef(dxs),smooth)];
+    };
     ta.percentile_nearest_rank=(src,len,percent)=>rolling(src,len,w=>{const sorted=w.map(num).sort((a,b)=>a-b),p=clamp(num(value(percent))/100,0,1);return sorted[Math.max(0,Math.ceil(p*sorted.length)-1)];});
     ta.percentile_linear_interpolation=(src,len,percent)=>rolling(src,len,w=>{const sorted=w.map(num).sort((a,b)=>a-b),pos=clamp(num(value(percent))/100,0,1)*(sorted.length-1),lo=Math.floor(pos),hi=Math.ceil(pos);return sorted[lo]+(sorted[hi]-sorted[lo])*(pos-lo);});
     ta.correlation=(a,b,len)=>{const x=seriesValues(a),y=seriesValues(b),n=Math.trunc(num(value(len)));if(x.length<n||y.length<n)return NA;const xx=x.slice(-n).map(num),yy=y.slice(-n).map(num);if(xx.some(v=>!Number.isFinite(v))||yy.some(v=>!Number.isFinite(v)))return NA;const mx=xx.reduce((z,v)=>z+v,0)/n,my=yy.reduce((z,v)=>z+v,0)/n;let cov=0,vx=0,vy=0;for(let i=0;i<n;i++){cov+=(xx[i]-mx)*(yy[i]-my);vx+=(xx[i]-mx)**2;vy+=(yy[i]-my)**2;}return vx===0||vy===0?NA:cov/Math.sqrt(vx*vy);};
