@@ -80,19 +80,75 @@
       series.setData(bars.map(b=>({time:b.time,value:h.value})));
       state.series.push({chart:target,series});
     }
-    if(drawingHost&&priceSeries&&(output.lines?.length||output.labels?.length||output.boxes?.length)){
+    const renderDrawingLayer=(drawChart,drawHost,drawPriceSeries,lines,labels,boxes,linefills,layerName)=>{
+      if(!drawChart||!drawHost||!drawPriceSeries||!(lines.length||labels.length||boxes.length||linefills.length))return null;
       const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
-      svg.setAttribute("class","pineDrawingOverlay");
+      svg.setAttribute("class","pineDrawingOverlay pineDrawingOverlay-"+layerName);
       Object.assign(svg.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none",overflow:"visible",zIndex:"6"});
-      drawingHost.append(svg);state.svg=svg;
-      const timeScale=chart.timeScale(),hostWidth=hostWidthSafe(drawingHost);
-      const indexToX=index=>{const n=Number(index);if(!Number.isFinite(n)||!bars.length)return null;const i=Math.trunc(n),last=bars.length-1;const t=i>=0&&i<=last?bars[i]?.time:null;if(t!=null){const x=timeScale.timeToCoordinate(t);if(x!=null)return x;}const x1=timeScale.timeToCoordinate(bars[last]?.time),x0=last>0?timeScale.timeToCoordinate(bars[last-1]?.time):null;const step=x1!=null&&x0!=null?x1-x0:0;if(x1==null||!step)return null;return x1+(i-last)*step;};
-      const xy=(x,y,xloc)=>{let px;if(xloc==="bar_time"){const time=Number(x);px=timeScale.timeToCoordinate(time);if(px==null&&bars.length>1){const last=bars[bars.length-1],prev=bars[bars.length-2],x1=timeScale.timeToCoordinate(last.time),x0=timeScale.timeToCoordinate(prev.time),dt=last.time-prev.time;if(x1!=null&&x0!=null&&dt)px=x1+((time-last.time)/dt)*(x1-x0);}}else px=indexToX(x);const py=priceSeries.priceToCoordinate(Number(y));return px==null||py==null?null:{x:px,y:py};};
-      const line=o=>{const a=xy(o.x1,o.y1,o.xloc),b=xy(o.x2,o.y2,o.xloc);if(!a||!b)return;let x1=a.x,x2=b.x,y1=a.y,y2=b.y;const dx=b.x-a.x,dy=b.y-a.y;if(o.extend==="right"||o.extend==="both"){x2=hostWidth;y2=Math.abs(dx)>0.0001?a.y+(hostWidth-a.x)*(dy/dx):b.y;}if(o.extend==="left"||o.extend==="both"){x1=0;y1=Math.abs(dx)>0.0001?a.y+(0-a.x)*(dy/dx):a.y;}const el=document.createElementNS("http://www.w3.org/2000/svg","line");for(const [k,v] of Object.entries({x1,y1,x2,y2,stroke:o.color||"#2962ff","stroke-width":o.width||2,"stroke-dasharray":o.style==="dashed"?"7 5":o.style==="dotted"?"2 4":""}))el.setAttribute(k,String(v));svg.append(el);};
-      for(const o of output.lines||[])if(!o.deleted)line(o);
-      for(const o of output.boxes||[])if(!o.deleted){const a=xy(o.left,o.top,o.xloc),b=xy(o.right,o.bottom,o.xloc);if(!a||!b)continue;const el=document.createElementNS("http://www.w3.org/2000/svg","rect");for(const [k,v] of Object.entries({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:o.bgcolor||"none",stroke:o.border_color||"none","stroke-width":o.border_width||1}))el.setAttribute(k,String(v));svg.append(el);}
-      for(const o of output.labels||[])if(!o.deleted){const p=xy(o.x,o.y,o.xloc);if(!p)continue;const el=document.createElementNS("http://www.w3.org/2000/svg","text");el.setAttribute("x",String(p.x));el.setAttribute("y",String(p.y));el.setAttribute("fill",o.textcolor||"#fff");el.setAttribute("font-size","12");el.textContent=o.text;svg.append(el);}
-      const linesById=new Map((output.lines||[]).map(o=>[o.id,o]));for(const f of output.linefills||[]){if(f.deleted)continue;const a=linesById.get(f.line1?.id),b=linesById.get(f.line2?.id);if(!a||!b||a.deleted||b.deleted)continue;const p1=xy(a.x1,a.y1,a.xloc),p2=xy(a.x2,a.y2,a.xloc),p3=xy(b.x2,b.y2,b.xloc),p4=xy(b.x1,b.y1,b.xloc);if(!p1||!p2||!p3||!p4)continue;const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");poly.setAttribute("points",[p1,p2,p3,p4].map(p=>p.x+","+p.y).join(" "));poly.setAttribute("fill",f.color||"rgba(41,98,255,0.18)");poly.setAttribute("stroke","none");svg.insertBefore(poly,svg.firstChild);}
+      if(!drawHost.style.position)drawHost.style.position="relative";
+      drawHost.append(svg);
+      const timeScale=drawChart.timeScale(),hostWidth=hostWidthSafe(drawHost);
+      const indexToX=index=>{
+        const n=Number(index);if(!Number.isFinite(n)||!bars.length)return null;
+        const i=Math.trunc(n),last=bars.length-1,t=i>=0&&i<=last?bars[i]?.time:null;
+        if(t!=null){const x=timeScale.timeToCoordinate(t);if(x!=null)return x;}
+        const x1=timeScale.timeToCoordinate(bars[last]?.time),x0=last>0?timeScale.timeToCoordinate(bars[last-1]?.time):null;
+        const step=x1!=null&&x0!=null?x1-x0:0;return x1==null||!step?null:x1+(i-last)*step;
+      };
+      const xy=(x,y,xloc)=>{
+        let px;
+        if(xloc==="bar_time"){
+          const time=Number(x);px=timeScale.timeToCoordinate(time);
+          if(px==null&&bars.length>1){const last=bars[bars.length-1],prev=bars[bars.length-2],x1=timeScale.timeToCoordinate(last.time),x0=timeScale.timeToCoordinate(prev.time),dt=last.time-prev.time;if(x1!=null&&x0!=null&&dt)px=x1+((time-last.time)/dt)*(x1-x0);}
+        }else px=indexToX(x);
+        const py=drawPriceSeries.priceToCoordinate(Number(y));
+        return px==null||py==null?null:{x:px,y:py};
+      };
+      const line=o=>{
+        const a=xy(o.x1,o.y1,o.xloc),b=xy(o.x2,o.y2,o.xloc);if(!a||!b)return;
+        let x1=a.x,x2=b.x,y1=a.y,y2=b.y;const dx=b.x-a.x,dy=b.y-a.y;
+        if(o.extend==="right"||o.extend==="both"){x2=hostWidth;y2=Math.abs(dx)>0.0001?a.y+(hostWidth-a.x)*(dy/dx):b.y;}
+        if(o.extend==="left"||o.extend==="both"){x1=0;y1=Math.abs(dx)>0.0001?a.y+(0-a.x)*(dy/dx):a.y;}
+        const el=document.createElementNS("http://www.w3.org/2000/svg","line");
+        for(const [k,v] of Object.entries({x1,y1,x2,y2,stroke:o.color||"#2962ff","stroke-width":o.width||2,"stroke-dasharray":o.style==="dashed"?"7 5":o.style==="dotted"?"2 4":""}))el.setAttribute(k,String(v));
+        svg.append(el);
+      };
+      for(const o of lines)if(!o.deleted)line(o);
+      for(const o of boxes)if(!o.deleted){
+        const a=xy(o.left,o.top,o.xloc),b=xy(o.right,o.bottom,o.xloc);if(!a||!b)continue;
+        const el=document.createElementNS("http://www.w3.org/2000/svg","rect");
+        for(const [k,v] of Object.entries({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:o.bgcolor||"none",stroke:o.border_color||"none","stroke-width":o.border_width||1}))el.setAttribute(k,String(v));
+        svg.append(el);
+      }
+      for(const o of labels)if(!o.deleted){
+        const p=xy(o.x,o.y,o.xloc);if(!p)continue;
+        const el=document.createElementNS("http://www.w3.org/2000/svg","text");
+        el.setAttribute("x",String(p.x));el.setAttribute("y",String(p.y));el.setAttribute("fill",o.textcolor||"#fff");el.setAttribute("font-size","12");el.textContent=o.text;svg.append(el);
+      }
+      const linesById=new Map([...lines,...(output.lines||[])].map(o=>[o.id,o]));
+      for(const f of linefills){
+        if(f.deleted)continue;
+        const a=linesById.get(f.line1?.id),b=linesById.get(f.line2?.id);if(!a||!b||a.deleted||b.deleted)continue;
+        const p1=xy(a.x1,a.y1,a.xloc),p2=xy(a.x2,a.y2,a.xloc),p3=xy(b.x2,b.y2,b.xloc),p4=xy(b.x1,b.y1,b.xloc);
+        if(!p1||!p2||!p3||!p4)continue;
+        const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
+        poly.setAttribute("points",[p1,p2,p3,p4].map(p=>p.x+","+p.y).join(" "));poly.setAttribute("fill",f.color||"rgba(41,98,255,0.18)");poly.setAttribute("stroke","none");svg.insertBefore(poly,svg.firstChild);
+      }
+      return svg;
+    };
+    const routeToPrice=o=>overlay||o.force_overlay===true;
+    const priceLines=(output.lines||[]).filter(routeToPrice),paneLines=(output.lines||[]).filter(o=>!routeToPrice(o));
+    const priceLabels=(output.labels||[]).filter(routeToPrice),paneLabels=(output.labels||[]).filter(o=>!routeToPrice(o));
+    const priceBoxes=(output.boxes||[]).filter(routeToPrice),paneBoxes=(output.boxes||[]).filter(o=>!routeToPrice(o));
+    const lineById=new Map((output.lines||[]).map(o=>[o.id,o]));
+    const priceLinefills=(output.linefills||[]).filter(f=>routeToPrice(lineById.get(f.line1?.id)||{}));
+    const paneLinefills=(output.linefills||[]).filter(f=>!routeToPrice(lineById.get(f.line1?.id)||{}));
+    const drawingHasPrice=priceLines.length||priceLabels.length||priceBoxes.length||priceLinefills.length;
+    const drawingHasPane=paneLines.length||paneLabels.length||paneBoxes.length||paneLinefills.length;
+    if(drawingHasPrice)state.svg=renderDrawingLayer(chart,drawingHost,priceSeries,priceLines,priceLabels,priceBoxes,priceLinefills,"price");
+    if(drawingHasPane&&!overlay&&state.panes[0]){
+      const paneSeries=state.series.find(s=>s.chart===target)?.series;
+      state.paneSvg=renderDrawingLayer(target,state.panes[0].plot,paneSeries,paneLines,paneLabels,paneBoxes,paneLinefills,"pane");
     }
     if(output.tables?.length&&drawingHost){
       for(const t of output.tables){if(t.deleted)continue;const el=document.createElement("div");el.className="pineTableOverlay";Object.assign(el.style,{position:"absolute",right:"8px",top:"8px",zIndex:"8",background:t.bgcolor||"#142033",color:"#fff",border:"1px solid "+(t.frame_color||"#64748b"),padding:"4px",fontSize:"11px",pointerEvents:"none"});const table=document.createElement("table");for(let r=0;r<t.rows;r++){const tr=document.createElement("tr");for(let c=0;c<t.columns;c++){const td=document.createElement("td"),cell=t.cells[c+":"+r];td.textContent=cell?.text||"";td.style.padding="3px 5px";td.style.color=cell?.text_color||"#fff";if(cell?.bgcolor)td.style.background=cell.bgcolor;tr.append(td);}table.append(tr);}el.append(table);drawingHost.append(el);state.tableEls.push(el);}
