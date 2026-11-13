@@ -58,20 +58,35 @@
         host.append(svg);state.fillSvg=svg;
         const groups=new Map();
         for(const f of output.fills){if(!groups.has(f.id))groups.set(f.id,[]);groups.get(f.id)[f.bar]=f;}
-        for(const records of groups.values()){
-          const first=records.find(Boolean);if(!first)continue;
-          const a=plotById.get(first.plot1),b=plotById.get(first.plot2);if(!a||!b)continue;
-          for(let i=0;i<bars.length-1;i++){
-            const f=records[i]||records[i+1],a1=a.values[i],a2=a.values[i+1],b1=b.values[i],b2=b.values[i+1];
-            if(!f||!f.color||![a1,a2,b1,b2].every(v=>typeof v==="number"&&Number.isFinite(v)))continue;
-            const x1=target.timeScale().timeToCoordinate(bars[i].time),x2=target.timeScale().timeToCoordinate(bars[i+1].time);
-            const y11=priceScale.priceToCoordinate(a1),y12=priceScale.priceToCoordinate(a2),y21=priceScale.priceToCoordinate(b1),y22=priceScale.priceToCoordinate(b2);
-            if([x1,x2,y11,y12,y21,y22].some(v=>v==null))continue;
-            const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
-            poly.setAttribute("points",[[x1,y11],[x2,y12],[x2,y22],[x1,y21]].map(p=>p.join(",")).join(" "));
-            poly.setAttribute("fill",f.color);poly.setAttribute("stroke","none");svg.append(poly);
+        const redrawFills=()=>{
+          if(typeof svg.replaceChildren==="function")svg.replaceChildren();
+          else if(Array.isArray(svg.children))svg.children.length=0;
+          else while(svg.firstChild)svg.removeChild(svg.firstChild);
+          for(const records of groups.values()){
+            const first=records.find(Boolean);if(!first)continue;
+            const a=plotById.get(first.plot1),b=plotById.get(first.plot2);if(!a||!b)continue;
+            for(let i=0;i<bars.length-1;i++){
+              const f=records[i]||records[i+1],a1=a.values[i],a2=a.values[i+1],b1=b.values[i],b2=b.values[i+1];
+              if(!f||!f.color||![a1,a2,b1,b2].every(v=>typeof v==="number"&&Number.isFinite(v)))continue;
+              const x1=target.timeScale().timeToCoordinate(bars[i].time),x2=target.timeScale().timeToCoordinate(bars[i+1].time);
+              const y11=priceScale.priceToCoordinate(a1),y12=priceScale.priceToCoordinate(a2),y21=priceScale.priceToCoordinate(b1),y22=priceScale.priceToCoordinate(b2);
+              if([x1,x2,y11,y12,y21,y22].some(v=>v==null))continue;
+              const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
+              poly.setAttribute("points",[[x1,y11],[x2,y12],[x2,y22],[x1,y21]].map(p=>p.join(",")).join(" "));
+              poly.setAttribute("fill",f.color);poly.setAttribute("stroke","none");svg.append(poly);
+            }
           }
-        }
+        };
+        redrawFills();
+        const subscribe=(target,method,unsubscribe)=>{
+          if(typeof target?.[method]!=="function")return;
+          target[method](redrawFills);
+          state.unsubscribers.push(()=>{try{target[unsubscribe]?.(redrawFills)}catch{}});
+        };
+        const timeScale=target.timeScale();
+        subscribe(timeScale,"subscribeVisibleLogicalRangeChange","unsubscribeVisibleLogicalRangeChange");
+        subscribe(priceScale,"subscribeVisiblePriceRangeChange","unsubscribeVisiblePriceRangeChange");
+        subscribe(target,"subscribeSizeChange","unsubscribeSizeChange");
       }
     }
     for(const h of output.hlines||[]){
