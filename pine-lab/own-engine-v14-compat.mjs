@@ -42,7 +42,7 @@ if (lexical.diagnostics.length) {
           close,
           volume: 1000 + (i % 17) * 37 + Math.abs(Math.sin(i / 5)) * 300
         };
-      };
+      });
       try {
         const output = interpreter.runPine(ast, bars, { symbol: "BTCUSDT", timeframe: "5" });
         report.runtime = "PASS";
