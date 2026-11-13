@@ -776,6 +776,7 @@ async function startApp(){
  const sep=()=>{const d=document.createElement('span');d.className='tvDivider';top.appendChild(d)};
  sep();move(tf);sep();move(document.getElementById('manageIndicators'));move(document.getElementById('search'));move(document.getElementById('refresh'));header.appendChild(top);
  const layout=document.getElementById('layoutControls');if(layout)primary.insertBefore(layout,card);
+ const chartTypeMenu=document.getElementById('chartTypeMenu');if(chartTypeMenu)document.body.appendChild(chartTypeMenu);
  const rail=document.createElement('div');rail.className='tvRightRail';rail.id='tvRightRail';
  const add=(label,glyph,fn)=>{const b=document.createElement('button');b.type='button';b.title=label;b.setAttribute('aria-label',label);b.textContent=glyph;b.addEventListener('click',fn);rail.appendChild(b)};
  add('İzleme listesi','☷',()=>document.getElementById('openMarketPanel')?.click());
@@ -789,8 +790,10 @@ async function startApp(){
  const layoutBtn=document.createElement('button');layoutBtn.textContent='▦ Düzen';layoutBtn.addEventListener('click',()=>layout?.classList.toggle('mobile-open'));bottom.appendChild(layoutBtn);
  card.insertAdjacentElement('afterend',bottom);
  const quick=document.querySelector('.quick');if(quick)bottom.insertAdjacentElement('afterend',quick);
+ // Keep popup menus alive when moving the chart controls out of their original details wrapper.
  details?.remove();
- document.getElementById('drawDock')?.classList.add('open');
+ const drawingDock=document.getElementById('drawDock');if(drawingDock){drawingDock.classList.add('open');drawingDock.style.left='8px';drawingDock.style.top='54px';drawingDock.style.right='auto';drawingDock.style.flexDirection='row';}
+
  document.getElementById('drawingPanel')?.classList.remove('open');
  document.getElementById('analysisPanelBackdrop')?.addEventListener('click',()=>document.body.classList.remove('analysis-open'));
  document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('analysis-open')});
