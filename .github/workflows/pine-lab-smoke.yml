@@ -31,3 +31,5 @@ jobs:
       - run: npm run test:v14
       - name: Test BY LOTUSERIC own Pine runtime
         run: node own-engine-regression.mjs
+      - name: Attempt full V14 on BY LOTUSERIC own runtime
+        run: npm run test:own-v14
