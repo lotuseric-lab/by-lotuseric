@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#080e19">
+<title>LOTUSERIC · Pine Engine Lab</title>
+<style>
+:root{color-scheme:dark;--bg:#080e19;--panel:#101a2a;--panel2:#142238;--line:#263b55;--text:#e8f0fb;--muted:#91a5bd;--green:#22c58b;--red:#ff647c;--blue:#76b5ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,-apple-system,sans-serif}
+header{padding:15px 18px;border-bottom:1px solid var(--line);background:#0b1422;position:sticky;top:0;z-index:2}
+header b{font-size:18px;letter-spacing:.4px}header small{display:block;color:var(--muted);margin-top:3px}
+main{max-width:1100px;margin:auto;padding:16px;display:grid;gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:13px;min-width:0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+h2{font-size:14px;margin:0 0 10px}.muted{color:var(--muted);font-size:11px}
+textarea{width:100%;min-height:245px;resize:vertical;background:#080f1b;color:#dceaff;border:1px solid var(--line);border-radius:10px;padding:12px;font:12px/1.55 ui-monospace,SFMono-Regular,monospace;tab-size:2}
+button{border:1px solid #397b69;background:#12372d;color:#9af0cc;border-radius:10px;padding:10px 15px;font-weight:700}
+button:disabled{opacity:.55}
+#status{padding:9px 11px;border-radius:9px;background:var(--panel2);color:var(--muted);font-size:12px;overflow-wrap:anywhere}
+#status.ok{color:#8de8bf;border:1px solid #246d5a}#status.err{color:#ff9baa;border:1px solid #753144}
+#chart{height:280px;width:100%;display:block;background:#0a1320;border-radius:10px}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.metric{background:var(--panel2);border-radius:9px;padding:10px;min-width:0}.metric span{display:block;color:var(--muted);font-size:10px}.metric b{display:block;margin-top:5px;font-size:15px;overflow-wrap:anywhere}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto;background:#080f1b;border:1px solid var(--line);padding:10px;border-radius:9px;color:#b9cce2;font-size:11px}
+@media(min-width:800px){main{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.wide{grid-column:1/-1}#chart{height:350px}}
+</style>
+</head>
+<body>
+<header><b>BY LOTUSERIC · PINE ENGINE LAB</b><small>Bağımsız deneme alanı · Ana canlı panelden ayrı</small></header>
+<main>
+<section class="panel">
+ <div class="row"><h2>Pine Script v6 kodu</h2><span class="muted">Düzenleyip çalıştırabilirsin</span></div>
+ <textarea id="source" spellcheck="false">//@version=6
+indicator("LOTUSERIC EMA Test", overlay=true)
+fast = ta.ema(close, 9)
+slow = ta.ema(close, 21)
+plot(fast, title="EMA 9", color=color.aqua)
+plot(slow, title="EMA 21", color=color.orange)
+bull = ta.crossover(fast, slow)
+bear = ta.crossunder(fast, slow)
+plotshape(bull, title="LONG", style=shape.triangleup, location=location.belowbar, color=color.lime)
+plotshape(bear, title="SHORT", style=shape.triangledown, location=location.abovebar, color=color.red)</textarea>
+ <div class="row" style="margin-top:10px"><span class="muted">Sentetik 5 dakikalık OHLCV verisi · 240 mum</span><button id="run">Pine kodunu çalıştır</button></div>
+</section>
+<section class="panel">
+ <h2>Çalıştırma durumu</h2><div id="status">Motor yüklenmeye hazır. Çalıştır düğmesine bas.</div>
+ <div class="metrics" style="margin-top:10px">
+  <div class="metric"><span>Bar sayısı</span><b id="bars">—</b></div>
+  <div class="metric"><span>Plot serisi</span><b id="plots">—</b></div>
+  <div class="metric"><span>İşaret / sinyal</span><b id="signals">—</b></div>
+ </div>
+</section>
+<section class="panel wide">
+ <div class="row"><h2>Motor çıktısı · EMA serileri</h2><span class="muted">Ölçeklenmiş test grafiği</span></div>
+ <canvas id="chart"></canvas>
+ <div class="muted" style="margin-top:7px">Grafik, Pine motorundan dönen plot verilerini gösterir. TradingView ile eşleşme ayrıca doğrulanmalıdır.</div>
+</section>
+<section class="panel wide">
+ <h2>Teknik çıktı</h2><pre id="output">Henüz çalıştırılmadı.</pre>
+</section>
+<section class="panel wide">
+ <div class="muted">Lisans notu: Bu deneme Piner 0.13.0 paketini kullanır. Piner AGPL-3.0-only lisanslıdır. Bu nedenle bu test ana uygulamaya entegre edilmez ve ticari/kapalı kaynak dağıtıma alınmaz; lisans koşulları ayrıca çözülmelidir.</div>
+</section>
+</main>
+<script type="module">
+const $=id=>document.getElementById(id);
+const status=(message,kind="")=>{$("status").textContent=message;$("status").className=kind};
+function makeBars(){return Array.from({length:240},(_,i)=>{const base=100+i*.08+Math.sin(i/7)*2.5+Math.sin(i/19)*1.2;return{time:1790000000+i*300,open:base-.25,high:base+.8,low:base-.8,close:base+Math.sin(i/3)*.45,volume:1000+(i%17)*37}})}
+function draw(series,bars){const c=$("chart"),dpr=window.devicePixelRatio||1,w=c.clientWidth||600,h=c.clientHeight||280;c.width=w*dpr;c.height=h*dpr;const ctx=c.getContext("2d");ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);ctx.fillStyle="#0a1320";ctx.fillRect(0,0,w,h);const values=series.flatMap(s=>s.data||[]).filter(Number.isFinite);if(!values.length){ctx.fillStyle="#91a5bd";ctx.fillText("Sayısal plot verisi bulunamadı",16,25);return}const min=Math.min(...values),max=Math.max(...values),pad=(max-min)*.12||1,lo=min-pad,hi=max+pad;for(let i=0;i<4;i++){const y=12+(h-24)*i/3;ctx.strokeStyle="#203149";ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}const colors=["#76b5ff","#f4b95f","#22c58b","#ff647c","#bd9cff"];series.forEach((s,j)=>{const a=s.data||[];ctx.strokeStyle=colors[j%colors.length];ctx.lineWidth=2;ctx.beginPath();let started=false;a.forEach((v,i)=>{if(!Number.isFinite(v)){started=false;return}const x=8+(w-16)*i/Math.max(1,bars.length-1),y=h-12-(h-24)*(v-lo)/(hi-lo);if(!started){ctx.moveTo(x,y);started=true}else ctx.lineTo(x,y)});ctx.stroke()});ctx.fillStyle="#91a5bd";ctx.font="10px system-ui";ctx.fillText(hi.toFixed(3),8,12);ctx.fillText(lo.toFixed(3),8,h-4)}
+$("run").addEventListener("click",async()=>{const btn=$("run");btn.disabled=true;status("Piner modülü yükleniyor…");$("output").textContent="";try{const mod=await import("https://esm.sh/@heyphat/piner@0.13.0?bundle");const {compile,Engine,ArrayFeed}=mod;const bars=makeBars();const compiled=compile($("source").value);const engine=new Engine(compiled,new ArrayFeed(bars),{backend:"interp"});await engine.run({symbol:"BTCUSDT",timeframe:"5"});const raw=engine.outputs?.plots;const series=raw instanceof Map?[...raw.values()]:Array.isArray(raw)?raw:[];const shapes=engine.outputs?.shapes;const signalCount=Array.isArray(shapes)?shapes.length:0;if(!series.length)throw new Error("Motor çalıştı ancak plot serisi dönmedi. Çıktı yapısını kontrol et.");$("bars").textContent=String(bars.length);$("plots").textContent=String(series.length);$("signals").textContent=String(signalCount);draw(series,bars);$("output").textContent=JSON.stringify({plotTitles:series.map(s=>s.title||s.name||s.id),lastValues:series.map(s=>(s.data||[]).filter(Number.isFinite).slice(-1)[0]??null),shapeCount:signalCount,outputKeys:Object.keys(engine.outputs||{})},null,2);status("Pine kodu başarıyla çalıştı. Çıktı serileri alındı.","ok")}catch(e){status((e?.name?e.name+": ":"")+(e?.message||String(e)),"err");$("output").textContent=e?.stack||String(e)}finally{btn.disabled=false}});
+window.addEventListener("resize",()=>{});
+</script>
+</body>
+</html>
