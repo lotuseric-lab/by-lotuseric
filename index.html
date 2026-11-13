@@ -319,6 +319,8 @@ body.analysis-open .analysisPanelBackdrop{display:block}
 }
 @media(min-width:1200px){#mainChartCard #chart{height:calc(100dvh - 220px);min-height:500px}}
 
+/* Analysis drawer: explicit close controls */
+.secondary{position:fixed!important;z-index:61!important;top:0!important;right:0!important;bottom:0!important;width:min(410px,92vw)!important;height:100dvh!important;max-height:100dvh!important;overflow-y:auto!important;background:#101827!important;border-left:1px solid #35445a!important;padding:58px 12px 24px!important;box-shadow:-18px 0 48px #0009!important;transform:translateX(110%)!important;visibility:hidden;transition:transform .22s ease,visibility .22s ease!important}body.analysis-open .secondary{transform:translateX(0)!important;visibility:visible}.analysisPanelBackdrop{position:fixed!important;inset:0!important;z-index:60!important;background:#0009!important;display:none}body.analysis-open .analysisPanelBackdrop{display:block!important}.analysisDrawerClose{position:fixed;z-index:63;top:10px;right:12px;width:40px;height:38px;border:1px solid #39465a;border-radius:9px;background:#182337;color:#f4f7fb;font-size:22px}@media(max-width:759px){.secondary{width:min(410px,94vw)!important}}
 </style>
 </head>
 <body>
@@ -762,9 +764,7 @@ async function ensureChartLibrary(){
  const note=controls.querySelector('#exchangeNote');if(note)note.classList.add('hidden');
  const searchToolbar=controls.querySelector('.toolbar');if(searchToolbar)searchToolbar.classList.add('hidden');
  const dock=document.getElementById('drawDock');if(dock){dock.classList.add('open');dock.style.left='6px';dock.style.top='54px';}
- const backdrop=document.getElementById('analysisPanelBackdrop');
- backdrop?.addEventListener('click',()=>document.body.classList.remove('analysis-open'));
- document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('analysis-open')});
+ const backdrop=document.getElementById('analysisPanelBackdrop');const aside=document.querySelector('.workspace>.secondary');const close=document.createElement('button');close.type='button';close.className='analysisDrawerClose';close.textContent='×';close.setAttribute('aria-label','Analiz panelini kapat');close.addEventListener('click',()=>document.body.classList.remove('analysis-open'));if(aside)aside.prepend(close);const analysisButton=rail.querySelector('button[aria-label="Analiz paneli"]');if(analysisButton)analysisButton.addEventListener('click',()=>document.body.classList.toggle('analysis-open'));backdrop?.addEventListener('click',()=>document.body.classList.remove('analysis-open'));document.addEventListener('keydown',e=>{if(e.key==='Escape')document.body.classList.remove('analysis-open')});document.body.classList.remove('analysis-open');
 })();
 
 async function startApp(){
