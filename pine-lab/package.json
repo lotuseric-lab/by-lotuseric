@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "smoke": "node smoke-test.mjs"
+    "smoke": "node smoke-test.mjs",
+    "test:v14": "node v14-compat-test.mjs"
   },
   "dependencies": {
     "@heyphat/piner": "0.13.0"
