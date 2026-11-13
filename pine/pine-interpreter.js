@@ -528,8 +528,10 @@
               securityCache.set("lower|"+cacheKey,mapped);
             }
             const tupleSample=mapped.flat().find(Array.isArray);
-            if(tupleSample){
-              return tupleSample.map((_,tupleIndex)=>mapped[currentIndex].map(entry=>Array.isArray(entry)?entry[tupleIndex]:NA));
+            let tupleNode=exprNode;while(tupleNode&&tupleNode.type==="GroupExpression")tupleNode=tupleNode.expression;
+            const tupleLength=tupleSample?tupleSample.length:tupleNode?.type==="TupleExpression"?tupleNode.elements.length:0;
+            if(tupleLength){
+              return Array.from({length:tupleLength},(_,tupleIndex)=>mapped[currentIndex].map(entry=>Array.isArray(entry)?entry[tupleIndex]:NA));
             }
             return mapped[currentIndex].slice();
           }
