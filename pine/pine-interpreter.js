@@ -255,6 +255,22 @@
       const pdi=100*p/tr,mdi=100*m/tr;
       return [pdi,mdi,rma(new SeriesRef(dxs),smooth)];
     };
+    ta.highestbars=(src,len)=>{
+      const a=seriesValues(src),n=Math.trunc(num(value(len)));
+      if(!Number.isFinite(n)||n<1)throw new RangeError("highestbars periyodu pozitif tam sayı olmalı.");
+      if(a.length<n)return NA;
+      const w=a.slice(-n);if(w.some(isNA))return NA;
+      let best=0;for(let i=1;i<w.length;i++)if(num(w[i])>num(w[best]))best=i;
+      return best-(n-1);
+    };
+    ta.lowestbars=(src,len)=>{
+      const a=seriesValues(src),n=Math.trunc(num(value(len)));
+      if(!Number.isFinite(n)||n<1)throw new RangeError("lowestbars periyodu pozitif tam sayı olmalı.");
+      if(a.length<n)return NA;
+      const w=a.slice(-n);if(w.some(isNA))return NA;
+      let best=0;for(let i=1;i<w.length;i++)if(num(w[i])<num(w[best]))best=i;
+      return best-(n-1);
+    };
     ta.percentile_nearest_rank=(src,len,percent)=>rolling(src,len,w=>{const sorted=w.map(num).sort((a,b)=>a-b),p=clamp(num(value(percent))/100,0,1);return sorted[Math.max(0,Math.ceil(p*sorted.length)-1)];});
     ta.percentile_linear_interpolation=(src,len,percent)=>rolling(src,len,w=>{const sorted=w.map(num).sort((a,b)=>a-b),pos=clamp(num(value(percent))/100,0,1)*(sorted.length-1),lo=Math.floor(pos),hi=Math.ceil(pos);return sorted[lo]+(sorted[hi]-sorted[lo])*(pos-lo);});
     ta.correlation=(a,b,len)=>{const x=seriesValues(a),y=seriesValues(b),n=Math.trunc(num(value(len)));if(x.length<n||y.length<n)return NA;const xx=x.slice(-n).map(num),yy=y.slice(-n).map(num);if(xx.some(v=>!Number.isFinite(v))||yy.some(v=>!Number.isFinite(v)))return NA;const mx=xx.reduce((z,v)=>z+v,0)/n,my=yy.reduce((z,v)=>z+v,0)/n;let cov=0,vx=0,vy=0;for(let i=0;i<n;i++){cov+=(xx[i]-mx)*(yy[i]-my);vx+=(xx[i]-mx)**2;vy+=(yy[i]-my)**2;}return vx===0||vy===0?NA:cov/Math.sqrt(vx*vy);};
@@ -386,7 +402,7 @@
     let currentIndex=-1,steps=0;
     const ctxBars=cleanBars;
     const securityCache=new Map();
-    const crossHistory=new WeakMap();
+    const crossHistory=new WeakMap(),taCallHistory=new WeakMap();
     const plotCallIds=new WeakMap(),callSiteIds=new WeakMap(),functionCallSiteIds=new WeakMap();let nextPlotCallId=0,nextCallSiteId=0,nextFunctionCallSiteId=0;
     // Bound execution proportionally to the history window: realistic Pine
     // indicators evaluate hundreds of AST operations per bar, especially with MTF.
@@ -565,6 +581,24 @@
           }
           const fn=n.callee&&n.callee.type==="Identifier"&&n.callee.name==="na"?builtins.na:evalExpr(n.callee,scope);if(typeof fn!=="function")throw new PineExecutionError("Çağrılan ifade fonksiyon değil.",n);
           const args=n.arguments.map(a=>a.type==="NamedArgument"?namedArg(a.name,evalExpr(a.value,scope)):evalExpr(a,scope));
+          const isTaHistory=n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="ta"&&["barssince","valuewhen"].includes(n.callee.property.name);
+          if(isTaHistory){
+            if(!taCallHistory.has(n))taCallHistory.set(n,new Map());
+            const bySite=taCallHistory.get(n),site=activeFunctionCallSite===null?"direct":activeFunctionCallSite;
+            if(!bySite.has(site))bySite.set(site,[]);
+            const history=bySite.get(site),condition=truth(value(args[0]));
+            if(n.callee.property.name==="barssince"){
+              history.push({condition});
+              for(let i=history.length-1;i>=0;i--)if(history[i].condition)return history.length-1-i;
+              return NA;
+            }
+            history.push({condition,source:value(args[1])});
+            const occurrence=args[2]===undefined?0:Math.trunc(num(value(args[2])));
+            if(!Number.isInteger(occurrence)||occurrence<0)throw new RangeError("valuewhen occurrence negatif olmayan tam sayı olmalı.");
+            let seen=0;
+            for(let i=history.length-1;i>=0;i--)if(history[i].condition){if(seen++===occurrence)return history[i].source;}
+            return NA;
+          }
           const isTaCross=n.callee&&n.callee.type==="MemberExpression"&&n.callee.object.type==="Identifier"&&n.callee.object.name==="ta"&&["cross","crossover","crossunder"].includes(n.callee.property.name);
           if(isTaCross&&args.length>=2&&args.slice(0,2).every(x=>!(x instanceof SeriesRef))){
             const current=args.slice(0,2).map(value),previous=crossHistory.get(n);
