@@ -18,14 +18,26 @@ global.document = {
   createElement: element,
   createElementNS(_ns, tag) { return element(tag); },
 };
-let paneChart;
+let paneChart, xDivisor=10, logicalRangeListener=null, priceRangeListener=null, sizeListener=null, unsubscribeCount=0;
+const timeScale={
+  timeToCoordinate(time){return Number(time)/xDivisor;},
+  subscribeVisibleLogicalRangeChange(fn){logicalRangeListener=fn;},
+  unsubscribeVisibleLogicalRangeChange(fn){if(logicalRangeListener===fn){logicalRangeListener=null;unsubscribeCount++;}},
+};
+const priceScale={
+  priceToCoordinate(price){return 100-Number(price);},
+  subscribeVisiblePriceRangeChange(fn){priceRangeListener=fn;},
+  unsubscribeVisiblePriceRangeChange(fn){if(priceRangeListener===fn){priceRangeListener=null;unsubscribeCount++;}},
+};
 global.LightweightCharts = {
   createChart() {
     paneChart = {
       remove() {},
       removeSeries() {},
-      timeScale() { return { timeToCoordinate(time) { return Number(time) / 10; } }; },
-      priceScale() { return { priceToCoordinate(price) { return 100 - Number(price); } }; },
+      timeScale() { return timeScale; },
+      priceScale() { return priceScale; },
+      subscribeSizeChange(fn){sizeListener=fn;},
+      unsubscribeSizeChange(fn){if(sizeListener===fn){sizeListener=null;unsubscribeCount++;}},
     };
     return paneChart;
   },
@@ -59,7 +71,15 @@ const anchor = added.find(s => s.target === paneChart);
 assert.ok(anchor, "an invisible pane scale anchor should be created");
 assert.deepEqual(anchor.data, [{ time: 10, value: -10 }, { time: 30, value: 20 }]);
 assert.equal(state.paneSvg.children.length, 3, "line, label and box should render in the pane");
+assert.equal(state.paneSvg.children[0].attrs.x1, "1", "initial line x-coordinate should match the chart scale");
+xDivisor=5;
+logicalRangeListener();
+assert.equal(state.paneSvg.children.length, 3, "redraw should replace rather than duplicate SVG drawings");
+assert.equal(state.paneSvg.children[0].attrs.x1, "2", "drawing coordinates should update after chart zoom/scroll");
+priceRangeListener();
+sizeListener();
 state.clear();
+assert.equal(unsubscribeCount, 3, "chart listeners should be detached when the indicator is removed");
 if (previousDocument === undefined) delete global.document; else global.document = previousDocument;
 if (previousLwc === undefined) delete global.LightweightCharts; else global.LightweightCharts = previousLwc;
 console.log("Pine pane drawing tests: OK");
