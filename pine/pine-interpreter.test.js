@@ -510,6 +510,8 @@ plot(px_isNewBuy?1:0,"DEBUG new buy")
 plot(show_projex_al?1:0,"DEBUG show toggle")
 `);
 const projexSignalResult=runPine(projexDebugAst,projexSignalBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
+const pxBuyNode=projexDebugAst.body.find(n=>n.type==="IfStatement"&&n.test?.name==="px_isNewBuy");
+console.log("PROJE-X buy AST:",JSON.stringify(pxBuyNode&&{test:pxBuyNode.test,body:pxBuyNode.body?.map(n=>({type:n.type,name:n.name,callee:n.expression?.callee?.name,indent:n.indent})),alternate:pxBuyNode.alternate?.length}));
 console.log("PROJE-X gate diagnostics:",JSON.stringify(projexSignalResult.plots.slice(-6).map(p=>({title:p.title,activeBars:p.values.map((v,i)=>v?i:null).filter(v=>v!==null)}))));
 console.log("PROJE-X signal-path output:",JSON.stringify({lines:projexSignalResult.lines.length,labels:projexSignalResult.labels.filter(x=>/HEDEF[123]|PROJE-X AL/.test(x.text||"")).map(x=>x.text),alerts:projexSignalResult.alerts.length}));
 
