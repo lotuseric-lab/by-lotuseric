@@ -510,8 +510,9 @@ plot(px_isNewBuy?1:0,"DEBUG new buy")
 plot(show_projex_al?1:0,"DEBUG show toggle")
 `);
 const projexSignalResult=runPine(projexDebugAst,projexSignalBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
-const pxBuyNode=projexDebugAst.body.find(n=>n.type==="IfStatement"&&n.test?.name==="px_isNewBuy");
-console.log("PROJE-X buy AST:",JSON.stringify(pxBuyNode&&{test:pxBuyNode.test,body:pxBuyNode.body?.map(n=>({type:n.type,name:n.name,callee:n.expression?.callee?.name,indent:n.indent})),alternate:pxBuyNode.alternate?.length}));
+const pxMatches=[];
+(function walk(n){if(!n||typeof n!=="object")return;if(n.name==="px_isNewBuy"||n.identifier==="px_isNewBuy")pxMatches.push(n);for(const v of Object.values(n))if(v&&typeof v==="object")Array.isArray(v)?v.forEach(walk):walk(v);})(projexDebugAst);
+console.log("PROJE-X AST matches:",JSON.stringify(pxMatches.slice(0,6)));
 console.log("PROJE-X gate diagnostics:",JSON.stringify(projexSignalResult.plots.slice(-6).map(p=>({title:p.title,activeBars:p.values.map((v,i)=>v?i:null).filter(v=>v!==null)}))));
 console.log("PROJE-X signal-path output:",JSON.stringify({lines:projexSignalResult.lines.length,labels:projexSignalResult.labels.filter(x=>/HEDEF[123]|PROJE-X AL/.test(x.text||"")).map(x=>x.text),alerts:projexSignalResult.alerts.length}));
 
