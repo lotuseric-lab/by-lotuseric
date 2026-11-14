@@ -369,7 +369,24 @@
       cell_set_text:(t,column,row,txt)=>{t=value(t);const k=String(value(column))+":"+String(value(row));if(t?.cells[k])t.cells[k].text=String(value(txt)||"");},
       cell_set_text_color:(t,column,row,c)=>{t=value(t);const k=String(value(column))+":"+String(value(row));if(t?.cells[k])t.cells[k].text_color=value(c);},
       cell_set_bgcolor:(t,column,row,c)=>{t=value(t);const k=String(value(column))+":"+String(value(row));if(t?.cells[k])t.cells[k].bgcolor=value(c);},
-      clear:(t)=>{t=value(t);if(t)t.cells={};},delete:t=>{t=value(t);if(t)t.deleted=true;}
+      set_position:(t,p)=>{t=value(t);if(t)t.position=value(p);},
+      set_bgcolor:(t,c)=>{t=value(t);if(t)t.bgcolor=value(c);},
+      set_frame_color:(t,c)=>{t=value(t);if(t)t.frame_color=value(c);},
+      set_frame_width:(t,w)=>{t=value(t);if(t)t.frame_width=Math.max(0,Math.trunc(num(value(w))));},
+      set_border_color:(t,c)=>{t=value(t);if(t)t.border_color=value(c);},
+      set_border_width:(t,w)=>{t=value(t);if(t)t.border_width=Math.max(0,Math.trunc(num(value(w))));},
+      cell_set_text_size:(t,column,row,size)=>{t=value(t);const cell=t?.cells[String(value(column))+":"+String(value(row))];if(cell)cell.text_size=value(size);},
+      cell_set_text_halign:(t,column,row,align)=>{t=value(t);const cell=t?.cells[String(value(column))+":"+String(value(row))];if(cell)cell.text_halign=value(align);},
+      cell_set_text_valign:(t,column,row,align)=>{t=value(t);const cell=t?.cells[String(value(column))+":"+String(value(row))];if(cell)cell.text_valign=value(align);},
+      clear:(t,startColumn,startRow,endColumn,endRow)=>{
+        t=value(t);if(!t)return;
+        if(startColumn===undefined&&startRow===undefined&&endColumn===undefined&&endRow===undefined){t.cells={};return;}
+        const c1=Math.trunc(num(value(startColumn??0))),r1=Math.trunc(num(value(startRow??0))),
+          c2=Math.trunc(num(value(endColumn??(t.columns-1)))),r2=Math.trunc(num(value(endRow??(t.rows-1))));
+        if(![c1,r1,c2,r2].every(Number.isInteger)||c1<0||r1<0||c2<c1||r2<r1||c2>=t.columns||r2>=t.rows)
+          throw new RangeError("table.clear aralığı tablo sınırlarının dışında.");
+        for(let row=r1;row<=r2;row++)for(let column=c1;column<=c2;column++)delete t.cells[column+":"+row];
+      },delete:t=>{t=value(t);if(t)t.deleted=true;}
     };
     Object.assign(builtins.plot,{style_line:"line",style_stepline:"stepline",style_histogram:"histogram",style_columns:"columns",style_area:"area",style_circles:"circles",style_cross:"cross",style_linebr:"linebr"});
     builtins.shape={circle:"shape.circle",square:"shape.square",diamond:"shape.diamond",triangleup:"shape.triangleup",triangledown:"shape.triangledown",cross:"shape.cross",xcross:"shape.xcross",flag:"shape.flag",arrowup:"shape.arrowup",arrowdown:"shape.arrowdown",labelup:"shape.labelup",labeldown:"shape.labeldown",none:"shape.none"};
