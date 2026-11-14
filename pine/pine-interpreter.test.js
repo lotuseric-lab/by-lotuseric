@@ -644,3 +644,16 @@ assert.equal(fiboIndicatorResult.metadata.title, "MONEY TRADER - FIBO TRADE");
 assert.ok(fiboIndicatorResult.inputDefs.length >= 5, "Fibonacci indicator inputs should be exposed");
 assert.ok(fiboIndicatorResult.lines.length > 0, "Fibonacci indicator should create level lines");
 assert.ok(fiboIndicatorResult.labels.length > 0, "Fibonacci indicator should create level labels");
+
+
+// Indicator compatibility pass 3: Golden Rose pivot-confirmed breakout signals.
+const goldenRoseSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_GOLDEN_ROSE.pine"), "utf8");
+const goldenRoseAst = compile(goldenRoseSource);
+const goldenRoseResult = runPine(goldenRoseAst, supportBars, {
+  timeframe: "5m", symbol: "TEST-USDT", mintick: 0.01, maxSteps: 5000000
+});
+assert.equal(goldenRoseResult.metadata.title, "MONEY TRADER PURPLE ROSE [CANLI TRADE - NO REPAINT]");
+assert.ok(goldenRoseResult.inputDefs.length >= 10, "Golden Rose inputs should be exposed");
+assert.ok(goldenRoseResult.lines.length > 0, "Golden Rose should draw confirmed support/resistance lines");
+assert.ok(goldenRoseResult.plots.length > 0 || goldenRoseResult.shapes.length > 0,
+  "Golden Rose should emit chart data or signal markers");
