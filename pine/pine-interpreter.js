@@ -284,7 +284,51 @@
     ta.cum=src=>seriesValues(src).reduce((z,x)=>z+(isNA(x)?0:num(x)),0);
     ta.linreg=(src,len,offset)=>{const a=seriesValues(src),n=Math.trunc(num(value(len))),off=offset===undefined?0:Math.trunc(num(value(offset)));if(a.length<n||n<2)return NA;const w=a.slice(-n);if(w.some(isNA))return NA;const xm=(n-1)/2,ym=w.reduce((z,x)=>z+num(x),0)/n;let cov=0,vx=0;w.forEach((x,i)=>{cov+=(i-xm)*(num(x)-ym);vx+=(i-xm)**2;});const slope=cov/vx;return ym+slope*((n-1)-off-xm);};
     ta.mfi=(src,len)=>{const p=seriesValues(src),v=ctx.bars.slice(0,ctx.index+1).map(b=>b.volume),n=Math.trunc(num(value(len)));if(p.length<=n)return NA;let pos=0,neg=0;for(let i=p.length-n;i<p.length;i++){const flow=num(p[i])*v[i];if(num(p[i])>num(p[i-1]))pos+=flow;else if(num(p[i])<num(p[i-1]))neg+=flow;}return neg===0?100:100-100/(1+pos/neg);};
-    ta.vwap=(src)=>{const p=src?seriesValues(src):ctx.bars.slice(0,ctx.index+1).map(b=>(b.high+b.low+b.close)/3);let pv=0,vol=0;ctx.bars.slice(0,ctx.index+1).forEach((b,i)=>{pv+=num(p[i])*b.volume;vol+=b.volume;});return vol?pv/vol:NA;};
+    ta.vwap=(src,anchor,stdevMult)=>{
+      const bars=ctx.bars.slice(0,ctx.index+1),prices=src?seriesValues(src):bars.map(b=>(b.high+b.low+b.close)/3);
+      if(!bars.length)return NA;
+      let start=0;
+      if(anchor instanceof SeriesRef){
+        const flags=seriesValues(anchor);for(let i=flags.length-1;i>=0;i--){if(truth(flags[i])){start=i;break;}}
+      }else{
+        const stamp=Number(bars[bars.length-1].time),seconds=stamp>1e12?stamp/1000:stamp;
+        const day=Math.floor(seconds/86400);
+        start=bars.length-1;
+        while(start>0){const t=Number(bars[start-1].time),prevDay=Math.floor((t>1e12?t/1000:t)/86400);if(prevDay!==day)break;start--;}
+      }
+      let pv=0,vol=0,varianceNumerator=0;
+      for(let i=start;i<bars.length;i++){const v=Math.max(0,num(bars[i].volume)||0),price=num(prices[i]);if(!Number.isFinite(price)||!Number.isFinite(v))continue;pv+=price*v;vol+=v;}
+      if(!vol)return NA;
+      const vwap=pv/vol;
+      if(stdevMult===undefined)return vwap;
+      for(let i=start;i<bars.length;i++){const v=Math.max(0,num(bars[i].volume)||0),price=num(prices[i]);if(Number.isFinite(price)&&Number.isFinite(v))varianceNumerator+=v*(price-vwap)*(price-vwap);}
+      const band=Math.sqrt(varianceNumerator/vol)*num(value(stdevMult));
+      return [vwap,vwap+band,vwap-band];
+    };
+    ta.supertrend=(factor,atrPeriod)=>{
+      const bars=ctx.bars.slice(0,ctx.index+1),n=Math.trunc(num(value(atrPeriod))),mult=num(value(factor));
+      if(!Number.isFinite(n)||n<1)throw new RangeError("Supertrend ATR periyodu pozitif tam sayı olmalı.");
+      if(!Number.isFinite(mult))throw new RangeError("Supertrend faktörü sayısal olmalı.");
+      if(bars.length<n)return [NA,NA];
+      const trs=bars.map((b,i)=>i===0?b.high-b.low:Math.max(b.high-b.low,Math.abs(b.high-bars[i-1].close),Math.abs(b.low-bars[i-1].close)));
+      const atrs=Array(bars.length).fill(NA);let rmaValue=NA;
+      for(let i=0;i<trs.length;i++){
+        if(isNA(rmaValue)){if(i+1>=n){const seed=trs.slice(i+1-n,i+1);rmaValue=seed.reduce((a,b)=>a+b,0)/n;atrs[i]=rmaValue;}}
+        else{rmaValue=(rmaValue*(n-1)+trs[i])/n;atrs[i]=rmaValue;}
+      }
+      let finalUpper=NA,finalLower=NA,direction=1,trend=NA;
+      for(let i=0;i<bars.length;i++){
+        if(isNA(atrs[i]))continue;
+        const mid=(bars[i].high+bars[i].low)/2,upper=mid+mult*atrs[i],lower=mid-mult*atrs[i],prevClose=i>0?bars[i-1].close:NA;
+        const nextUpper=isNA(finalUpper)||upper<finalUpper||(!isNA(prevClose)&&prevClose>finalUpper)?upper:finalUpper;
+        const nextLower=isNA(finalLower)||lower>finalLower||(!isNA(prevClose)&&prevClose<finalLower)?lower:finalLower;
+        if(isNA(trend)){direction=1;trend=nextUpper;}
+        else if(direction===1){direction=bars[i].close>nextUpper?-1:1;trend=direction===-1?nextLower:nextUpper;}
+        else{direction=bars[i].close<nextLower?1:-1;trend=direction===-1?nextLower:nextUpper;}
+        finalUpper=nextUpper;finalLower=nextLower;
+      }
+      return [trend,direction];
+    };
 
     const strategyState={initialCapital:100000,commissionPercent:0,slippageTicks:0,pyramiding:1,defaultQtyType:"fixed",defaultQtyValue:1,commissionType:"percent",positionSize:0,positionAvgPrice:0,realized:0,grossProfit:0,grossLoss:0,winTrades:0,lossTrades:0,pending:[],exitOrders:[],openTrades:[],closedTrades:[],fills:[],peakEquity:100000,maxDrawdown:0};
     const strategyEquity=()=>strategyState.initialCapital+strategyState.realized+(strategyState.positionSize===0||!ctx.bars[ctx.index]?0:strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice));
