@@ -146,7 +146,7 @@
   }
   function createBuiltins(ctx, outputs, inputs, options) {
     const math = {
-      abs:x=>Math.abs(num(value(x))), acos:x=>Math.acos(num(value(x))), asin:x=>Math.asin(num(value(x))),
+      abs:x=>Math.abs(num(value(x))), avg:(...a)=>a.length?a.reduce((s,x)=>s+num(value(x)),0)/a.length:NA, acos:x=>Math.acos(num(value(x))), asin:x=>Math.asin(num(value(x))),
       atan:x=>Math.atan(num(value(x))), ceil:x=>Math.ceil(num(value(x))), cos:x=>Math.cos(num(value(x))),
       exp:x=>Math.exp(num(value(x))), floor:x=>Math.floor(num(value(x))), log:x=>Math.log(num(value(x))),
       log10:x=>Math.log10(num(value(x))), max:(...a)=>Math.max(...a.map(x=>num(value(x)))),
