@@ -251,6 +251,15 @@
       const data=output.candles.filter(x=>bars[x.bar]).map(x=>({time:bars[x.bar].time,open:x.open,high:x.high,low:x.low,close:x.close,color:x.color,wickColor:x.wickcolor,borderColor:x.bordercolor}));
       series.setData(data);state.series.push({chart:target,series});
     }
+    if(output.strategy?.fills?.length&&priceSeries&&typeof LightweightCharts!=="undefined"&&typeof LightweightCharts.createSeriesMarkers==="function"){
+      const tradeMarkers=output.strategy.fills.filter(f=>bars[f.bar]).map(f=>{
+        const isBuy=f.side==="buy",entry=f.kind==="entry";
+        const text=entry?(isBuy?"LONG":"SHORT"):(isBuy?"COVER":"EXIT");
+        const pnl=Number.isFinite(f.profit)?(" "+(f.profit>=0?"+":"")+f.profit.toFixed(2)):"";
+        return {time:bars[f.bar].time,position:isBuy?"belowBar":"aboveBar",color:isBuy?"#22c58b":"#ff647c",shape:isBuy?"arrowUp":"arrowDown",text:text+(entry?"":pnl),size:2};
+      });
+      if(tradeMarkers.length)state.markers.push(LightweightCharts.createSeriesMarkers(priceSeries,tradeMarkers));
+    }
     if(output.shapes?.length){
       const visible=output.shapes.filter(x=>x.value&&bars[x.bar]);
       const priceVisible=visible.filter(x=>overlay||x.force_overlay===true);
