@@ -485,7 +485,7 @@ assert.ok(projexFixedResult.lines.length>0,"Repaired PROJE-X should create targe
 assert.ok(projexFixedResult.labels.length>0,"Repaired PROJE-X should create labels");
 console.log("PROJE-X candidate output:", JSON.stringify({lines:projexFixedResult.lines.length,labels:projexFixedResult.labels.length,boxes:projexFixedResult.boxes.length,shapes:projexFixedResult.shapes.length,alerts:projexFixedResult.alerts.length,targetLabels:projexFixedResult.labels.filter(x=>/HEDEF[123]/.test(x.text||"")).map(x=>x.text),alertSamples:projexFixedResult.alerts.slice(0,5)}));
 
-// Inspect the Proje-X gate series on a deliberate selloff-to-rebound sequence.
+// A deliberate selloff-to-rebound sequence triggers the confirmed Proje-X buy path.
 const projexSignalBars=Array.from({length:240},(_,i)=>{
   let close;
   if(i<150) close=100;
@@ -498,29 +498,11 @@ const projexSignalBars=Array.from({length:240},(_,i)=>{
   const volume=i>=180&&i<190?9000:1200;
   return {time:1700000000+i*300,open,high,low,close,volume};
 });
-const projexDebugAst=compile(projexFixedSource+`
-plot(px_rsiCrossUp?1:0,"DEBUG RSI cross")
-plot(px_rawRsiBuy?1:0,"DEBUG raw buy")
-plot(px_isHighVol?1:0,"DEBUG volume")
-plot(px_momentum>0?1:0,"DEBUG momentum")
-plot(px_tmoBullish?1:0,"DEBUG TMO")
-plot(px_projexComboBuy?1:0,"DEBUG combo")
-plot(px_inCooldown?1:0,"DEBUG cooldown")
-plot(px_isNewBuy?1:0,"DEBUG new buy")
-plot(show_projex_al?1:0,"DEBUG show toggle")
-`);
-const projexSignalResult=runPine(projexDebugAst,projexSignalBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
-const pxMatches=[];
-(function walk(n){if(!n||typeof n!=="object")return;if(n.name==="px_isNewBuy"||n.identifier==="px_isNewBuy")pxMatches.push(n);for(const v of Object.values(n))if(v&&typeof v==="object")Array.isArray(v)?v.forEach(walk):walk(v);})(projexDebugAst);
-console.log("PROJE-X AST matches:",JSON.stringify(pxMatches.slice(0,6)));
-console.log("PROJE-X top-level AST near block:",JSON.stringify(projexDebugAst.body.filter(n=>n.loc&&n.loc.line>=380&&n.loc.line<=430).map(n=>({type:n.type,loc:n.loc,test:n.test,body:n.body?.map(x=>({type:x.type,loc:x.loc,name:x.name,expr:x.expression?.type}))})).slice(0,20)));
-console.log("PROJE-X gate diagnostics:",JSON.stringify(projexSignalResult.plots.slice(-6).map(p=>({title:p.title,activeBars:p.values.map((v,i)=>v?i:null).filter(v=>v!==null)}))));
-console.log("PROJE-X signal-path output:",JSON.stringify({lines:projexSignalResult.lines.length,labels:projexSignalResult.labels.filter(x=>/HEDEF[123]|PROJE-X AL/.test(x.text||"")).map(x=>x.text),alerts:projexSignalResult.alerts.length}));
+const projexSignalResult=runPine(projexFixedAst,projexSignalBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
 const projexTargetTexts=projexSignalResult.labels.map(x=>x.text||"");
-assert.ok(projexTargetTexts.some(x=>x.startsWith("HEDEF1:")),"PROJE-X target 1 label text must be passed by name");
-assert.ok(projexTargetTexts.some(x=>x.startsWith("HEDEF2:")),"PROJE-X target 2 label text must be passed by name");
-assert.ok(projexTargetTexts.some(x=>x.startsWith("HEDEF3:")),"PROJE-X target 3 label text must be passed by name");
-assert.ok(projexTargetTexts.some(x=>x.includes("PROJE-X AL")),"PROJE-X entry label must be passed by name");
-console.log("PROJE-X recent drawing objects:",JSON.stringify({labels:projexSignalResult.labels.slice(-12),lines:projexSignalResult.lines.slice(-8)}));
-
+assert.ok(projexTargetTexts.some(x=>/^HEDEF1: (?!NaN$)\\d/.test(x)),"Proje-X target 1 must render a numeric price");
+assert.ok(projexTargetTexts.some(x=>/^HEDEF2: (?!NaN$)\\d/.test(x)),"Proje-X target 2 must render a numeric price");
+assert.ok(projexTargetTexts.some(x=>/^HEDEF3: (?!NaN$)\\d/.test(x)),"Proje-X target 3 must render a numeric price");
+assert.ok(projexTargetTexts.some(x=>x.includes("PROJE-X AL")),"Proje-X entry label must render");
+assert.ok(projexSignalResult.lines.some(x=>!x.deleted),"Proje-X target lines must remain active on the signal bar");
 console.log("Pine interpreter tests: OK");
