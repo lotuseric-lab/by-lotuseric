@@ -433,7 +433,7 @@
       _snapshot:()=>{
         const totalTrades=strategyState.closedTrades.length,avgTrade=totalTrades?strategyState.realized/totalTrades:0;
         const profitFactor=strategyState.grossLoss>0?strategyState.grossProfit/strategyState.grossLoss:strategyState.grossProfit>0?Infinity:NA;
-        const equity=strategyEquity(),openProfit=strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice);
+        const equity=strategyEquity(),openProfit=strategyState.positionSize&&ctx.bars[ctx.index]?strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice):0;
         return {fills:strategyState.fills.slice(),closedTrades:strategyState.closedTrades.slice(),openTrades:strategyState.openTrades.slice(),exitOrders:strategyState.exitOrders.slice(),
           initialCapital:strategyState.initialCapital,netprofit:strategyState.realized,netprofitPercent:strategyState.initialCapital?strategyState.realized/strategyState.initialCapital*100:NA,
           grossprofit:strategyState.grossProfit,grossloss:strategyState.grossLoss,profitFactor,winTrades:strategyState.winTrades,lossTrades:strategyState.lossTrades,
