@@ -485,4 +485,26 @@ assert.ok(projexFixedResult.lines.length>0,"Repaired PROJE-X should create targe
 assert.ok(projexFixedResult.labels.length>0,"Repaired PROJE-X should create labels");
 console.log("PROJE-X candidate output:", JSON.stringify({lines:projexFixedResult.lines.length,labels:projexFixedResult.labels.length,boxes:projexFixedResult.boxes.length,shapes:projexFixedResult.shapes.length,alerts:projexFixedResult.alerts.length,targetLabels:projexFixedResult.labels.filter(x=>/HEDEF[123]/.test(x.text||"")).map(x=>x.text),alertSamples:projexFixedResult.alerts.slice(0,5)}));
 
+// A deliberate selloff-to-rebound sequence exercises the Proje-X buy path.
+const projexSignalBars=Array.from({length:240},(_,i)=>{
+  let close;
+  if(i<150) close=100;
+  else if(i<180) close=100-(i-150)*0.5;
+  else if(i<195) close=85+(i-180)*1.1;
+  else close=101.5+Math.sin(i*0.4)*0.25;
+  const open=i>=180?close-0.8:close-0.05;
+  const high=Math.max(open,close)+0.45;
+  const low=Math.min(open,close)-0.45;
+  const volume=i>=180&&i<190?9000:1200;
+  return {time:1700000000+i*300,open,high,low,close,volume};
+});
+const projexSignalResult=runPine(projexFixedAst,projexSignalBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
+const projexSignalLabels=projexSignalResult.labels.map(x=>x.text||"");
+assert.ok(projexSignalLabels.some(x=>x.includes("HEDEF1:")),"A confirmed Proje-X buy must create its first target label");
+assert.ok(projexSignalLabels.some(x=>x.includes("HEDEF2:")),"A confirmed Proje-X buy must create its second target label");
+assert.ok(projexSignalLabels.some(x=>x.includes("HEDEF3:")),"A confirmed Proje-X buy must create its third target label");
+assert.ok(projexSignalLabels.some(x=>x.includes("PROJE-X AL")),"A confirmed Proje-X buy must create its signal label");
+assert.ok(projexSignalResult.lines.length>0,"A confirmed Proje-X buy must create target lines");
+console.log("PROJE-X signal-path output:",JSON.stringify({lines:projexSignalResult.lines.length,labels:projexSignalLabels.filter(x=>/HEDEF[123]|PROJE-X AL/.test(x)),alerts:projexSignalResult.alerts.length}));
+
 console.log("Pine interpreter tests: OK");
