@@ -43,5 +43,32 @@ for (const item of cases) {
       lines: output.lines?.length || 0, labels: output.labels?.length || 0,
       boxes: output.boxes?.length || 0, tables: output.tables?.length || 0,
       alerts: output.alerts?.length || 0 }));
+
+  if (item.name === 'MTF Checklist Dashboard') {
+    const chartBars = [];
+    for (let i = 0; i < bars.length; i += 5) {
+      const chunk = bars.slice(i, i + 5);
+      if (chunk.length !== 5) continue;
+      chartBars.push({
+        time: chunk[0].time,
+        open: chunk[0].open,
+        high: Math.max(...chunk.map(b => b.high)),
+        low: Math.min(...chunk.map(b => b.low)),
+        close: chunk[chunk.length - 1].close,
+        volume: chunk.reduce((sum, b) => sum + b.volume, 0)
+      });
+    }
+    const fiveMinuteOutput = runPine(parsed, chartBars, {
+      symbol: 'BTCUSDT',
+      timeframe: '5',
+      lowerTimeframeData: { '1': bars }
+    });
+    assert.ok(fiveMinuteOutput.tables?.length > 0,
+      'MTF dashboard must render on a 5m chart using supplied 1m intrabars');
+    console.log('Unmodified community Pine v6 passed: MTF Dashboard on 5m chart',
+      JSON.stringify({ chartBars: chartBars.length, lowerBars: bars.length,
+        tables: fiveMinuteOutput.tables?.length || 0,
+        alerts: fiveMinuteOutput.alerts?.length || 0 }));
+  }
 }
 console.log('Additional community Pine tests: ' + cases.length + ' indicators passed.');
