@@ -650,12 +650,25 @@
     const securityCache=new Map();
     const crossHistory=new WeakMap(),taCallHistory=new WeakMap();
     const plotCallIds=new WeakMap(),callSiteIds=new WeakMap(),functionCallSiteIds=new WeakMap();let nextPlotCallId=0,nextCallSiteId=0,nextFunctionCallSiteId=0;
-    // Bound execution proportionally to the history window: realistic Pine
-    // indicators evaluate hundreds of AST operations per bar, especially with MTF.
-    // Callers can still provide a stricter explicit maxSteps budget.
-    const estimatedStepsPerBar=Math.max(1000,(ast.body?.length||1)*20);
-    const maxSteps=opts.maxSteps||Math.max(100000,cleanBars.length*estimatedStepsPerBar);
-    function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı.",node,"PINE_EXECUTION_LIMIT");}
+    // Budget from the complete AST size, not only top-level statements.
+    // Large indicators commonly contain nested blocks and helper functions;
+    // each of those nodes is revisited for every historical bar.
+    function countAstNodes(node){
+      if(!node||typeof node!=="object")return 0;
+      if(Array.isArray(node))return node.reduce((sum,item)=>sum+countAstNodes(item),0);
+      let total=1;
+      for(const [key,child] of Object.entries(node)){
+        if(key==="loc"||key==="indent")continue;
+        if(child&&typeof child==="object")total+=countAstNodes(child);
+      }
+      return total;
+    }
+    const astNodeCount=Math.max(1,countAstNodes(ast));
+    const estimatedStepsPerBar=Math.max(2000,astNodeCount*12);
+    // Keep a hard ceiling so pathological scripts cannot monopolize the UI.
+    // Explicit maxSteps remains available to tests and trusted internal callers.
+    const maxSteps=opts.maxSteps||Math.min(30000000,Math.max(1000000,cleanBars.length*estimatedStepsPerBar));
+    function tick(node){if(++steps>maxSteps)throw new PineExecutionError("Çalıştırma adım sınırı aşıldı ("+maxSteps.toLocaleString("en-US")+" adım). Döngü veya geçmiş hesaplaması çok ağır olabilir.",node,"PINE_EXECUTION_LIMIT");}
     function series(name){if(!vars[name])vars[name]=[];return new SeriesRef(vars[name],()=>currentIndex);}
     function getFunctionSeriesKey(scope){
       for(let current=scope;current;current=current.parent){
