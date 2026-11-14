@@ -693,6 +693,7 @@
     const global=new Scope();
     const vars=Object.create(null),persistent=Object.create(null),functions=Object.create(null),seriesVarNames=new Set();
     const functionSeriesHistory=new Map();
+    const functionPersistent=new Map();
     let activeBarScope=null,activeFunctionCallSite=null;
     const builtins=createBuiltins({bars:cleanBars,get index(){return currentIndex;}},outputs,inputValues,opts);
     let currentIndex=-1,steps=0;
@@ -965,6 +966,23 @@
         case "TypedDeclarationStatement":case "DeclarationStatement":{
           const q=n.qualifier||"";
           if(q==="var"||q==="varip"){
+            const functionKey=getFunctionSeriesKey(scope);
+            if(functionKey!==null){
+              const persistentKey=functionKey+"::"+n.name;
+              if(!functionPersistent.has(persistentKey))functionPersistent.set(persistentKey,value(evalExpr(n.value,scope)));
+              const stored=functionPersistent.get(persistentKey);
+              if(stored===null||typeof stored!=="object"){
+                let byName=functionSeriesHistory.get(functionKey);
+                if(!byName){byName=new Map();functionSeriesHistory.set(functionKey,byName);}
+                let history=byName.get(n.name);
+                if(!history){history=[];byName.set(n.name,history);}
+                while(history.length<currentIndex)history.push(NA);
+                if(history.length===currentIndex)history.push(stored);else history[currentIndex]=stored;
+                seriesVarNames.add(n.name);
+                const ref=new SeriesRef(history,()=>currentIndex);scope.define(n.name,ref);return ref;
+              }
+              scope.define(n.name,stored);return stored;
+            }
             if(!Object.prototype.hasOwnProperty.call(persistent,n.name))persistent[n.name]=value(evalExpr(n.value,scope));
             const stored=persistent[n.name];
             if(scope===activeBarScope&&!(stored&&typeof stored==="object")){
@@ -1016,7 +1034,11 @@
             const ref=new SeriesRef(history,()=>currentIndex);scope.define(n.target.name,ref);
             return ref;
           }
-          assignTarget(n.target,v,scope,n);if(n.target.type==="Identifier"&&Object.prototype.hasOwnProperty.call(persistent,n.target.name))persistent[n.target.name]=value(v);return v;
+          assignTarget(n.target,v,scope,n);
+          if(n.target.type==="Identifier"&&Object.prototype.hasOwnProperty.call(persistent,n.target.name))persistent[n.target.name]=value(v);
+          const functionKey=n.target.type==="Identifier"?getFunctionSeriesKey(scope):null;
+          if(functionKey!==null){const persistentKey=functionKey+"::"+n.target.name;if(functionPersistent.has(persistentKey))functionPersistent.set(persistentKey,value(v));}
+          return v;
         }
         case "TypeDeclaration":{
           const ctor={new:(...args)=>{const object={__pineType:n.name};n.fields.forEach((field,i)=>{object[field.name]=args[i]===undefined?(field.defaultValue?value(evalExpr(field.defaultValue,scope)):NA):value(args[i]);});return object;}};
