@@ -417,4 +417,14 @@ plot(descendingFirst, "Descending first")
 assert.equal(result.plots[0].values.at(-1), 1);
 assert.equal(result.plots[1].values.at(-1), 3);
 
+result = runPine(compile(`//@version=5
+indicator("last_bar_index built-in")
+plot(last_bar_index, "Last bar index")
+plot(bar_index, "Bar index")
+`), bars);
+assert.equal(result.plots[0].values.length, bars.length);
+assert.equal(result.plots[0].values.at(0), bars.length - 1);
+assert.equal(result.plots[0].values.at(-1), bars.length - 1);
+assert.equal(result.plots[1].values.at(-1), bars.length - 1);
+
 console.log("Pine interpreter tests: OK");
