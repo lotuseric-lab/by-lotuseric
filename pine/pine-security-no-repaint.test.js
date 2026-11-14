@@ -57,7 +57,7 @@ assert.throws(
 indicator("Reject lower TF request.security")
 value = request.security(syminfo.tickerid, "30S", close)
 plot(value)`),
-  error => error.code === "PINE_MTF_LOWER_TF" || String(error.message).includes("düşük zaman dilimi")
+  error => error.code === "PINE_MTF_DATA_REQUIRED"
 );
 
 assert.throws(
@@ -69,4 +69,4 @@ plot(value)`, "5"),
 );
 
 console.log("MTF confirmed close: 30/30; default lookahead: 30/30; gaps_on: 30/30.");
-console.log("lookahead_on, lower-TF request.security and non-aligned timeframe are safely rejected.");
+console.log("lookahead_on is rejected; lower-TF request.security requires intrabar data; non-aligned timeframe is rejected.");
