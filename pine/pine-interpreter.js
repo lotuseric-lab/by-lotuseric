@@ -152,7 +152,8 @@
       log10:x=>Math.log10(num(value(x))), max:(...a)=>Math.max(...a.map(x=>num(value(x)))),
       min:(...a)=>Math.min(...a.map(x=>num(value(x)))), pow:(a,b)=>Math.pow(num(value(a)),num(value(b))),
       round:(x,p)=>{const k=Math.pow(10,p===undefined?0:num(value(p)));return Math.round(num(value(x))*k)/k;},
-      sign:x=>Math.sign(num(value(x))), sin:x=>Math.sin(num(value(x))), sqrt:x=>Math.sqrt(num(value(x))),\n      sum:(source,length)=>rolling(source,length,w=>w.reduce((total,item)=>total+num(item),0)),
+      sign:x=>Math.sign(num(value(x))), sin:x=>Math.sin(num(value(x))), sqrt:x=>Math.sqrt(num(value(x))),
+      sum:(source,length)=>rolling(source,length,w=>w.reduce((total,item)=>total+num(item),0)),
       tan:x=>Math.tan(num(value(x))), toDegrees:x=>num(value(x))*180/Math.PI,
       toRadians:x=>num(value(x))*Math.PI/180, PI:Math.PI, E:Math.E, PHI:(1+Math.sqrt(5))/2
     };
