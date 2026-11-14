@@ -124,7 +124,9 @@
             const token=ts[j];
             if(j===close||(token.value===","&&depthParams===0)){
               const segment=ts.slice(segmentStart,j);
-              const candidate=[...segment].reverse().find(t=>t.type==="IDENTIFIER");
+              const defaultIndex=segment.findIndex(t=>t.value==="=");
+              const declaration=defaultIndex>=0?segment.slice(0,defaultIndex):segment;
+              const candidate=[...declaration].reverse().find(t=>t.type==="IDENTIFIER");
               if(candidate)params.push({type:"Identifier",name:candidate.value,loc:loc(candidate)});
               segmentStart=j+1;
             }else if(["<","(","["].includes(token.value))depthParams++;
