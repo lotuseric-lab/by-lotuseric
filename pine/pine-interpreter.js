@@ -187,7 +187,7 @@
       new_color:(size,initial)=>makeArray(size,initial,NA),new_line:(size,initial)=>makeArray(size,initial,NA),new_label:(size,initial)=>makeArray(size,initial,NA),new_box:(size,initial)=>makeArray(size,initial,NA),
       from:(...items)=>items.map(value),size:a=>a.length,push:(a,v)=>a.push(value(v)),pop:a=>a.pop(),shift:a=>a.shift(),unshift:(a,v)=>a.unshift(value(v)),remove:(a,i)=>a.splice(Math.trunc(num(value(i))),1)[0],
       get:(a,i)=>a[arrayIndex(a,i)],set:(a,i,v)=>{a[arrayIndex(a,i)]=value(v);return a;},remove:(a,i)=>a.splice(arrayIndex(a,i),1)[0],
-      clear:a=>{a.length=0;},copy:a=>a.slice(),reverse:a=>a.reverse(),sort:(a)=>a.sort((x,y)=>num(x)-num(y)),
+      clear:a=>{a.length=0;},copy:a=>a.slice(),reverse:a=>a.reverse(),sort:(a,order)=>a.sort((x,y)=>(String(value(order)||"ascending")==="descending"?-1:1)*(num(x)-num(y))),
       sum:a=>a.reduce((z,x)=>z+num(x),0),avg:a=>a.length?a.reduce((z,x)=>z+num(x),0)/a.length:NA,
       min:a=>a.length?Math.min(...a.map(num)):NA,max:a=>a.length?Math.max(...a.map(num)):NA,
       indexof:(a,v)=>a.indexOf(value(v)),includes:(a,v)=>a.includes(value(v)),slice:(a,l,r)=>a.slice(Math.trunc(num(value(l))),r===undefined?undefined:Math.trunc(num(value(r))))
@@ -523,7 +523,7 @@
     const builtins = {
       na:x=>isNA(value(x)), nafn:x=>isNA(value(x)), nz:(x,repl)=>isNA(value(x))?(repl===undefined?0:value(repl)):value(x), float:x=>isNA(value(x))?NA:num(value(x)), int:x=>isNA(value(x))?NA:Math.trunc(num(value(x))), bool:x=>truth(value(x)), string:x=>isNA(value(x))?"NaN":String(value(x)),
       math, ta, input, color, array, map:mapNS, matrix:matrixNS, str, barstate, chart:{bg_color:String(options.chartBgColor||"#131722")}, timeframe:{period:String(options.timeframe||""),isweekly:/^(1W|1w|W|w)$/.test(String(options.timeframe||"")),isdaily:/^(1D|1d|D|d)$/.test(String(options.timeframe||"")),isintraday:/^([1-9]\d*|[1-9]\d*[m])$/.test(String(options.timeframe||"")),ismonthly:/^(1M|M)$/.test(String(options.timeframe||""))}, syminfo:{ticker:String(options.symbol||""),tickerid:String(options.symbol||""),mintick:Number(options.mintick||0.00000001),basecurrency:"",currency:""},
-      format:{mintick:"mintick",price:"price",volume:"volume",percent:"percent",inherit:"inherit"},
+      format:{mintick:"mintick",price:"price",volume:"volume",percent:"percent",inherit:"inherit"}, order:{ascending:"ascending",descending:"descending"},
       indicator:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Indicator";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;}, study:(title,...args)=>{outputs.metadata.title=value(title)||"Pine Study";for(const a of args)if(a&&a.__named)outputs.metadata[a.name]=value(a.value);return null;},
       strategy:strategyNS,
       plot:(v,...args)=>{const cfg=args.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(typeof x==="string"&&!o.title)o.title=x;else if(x&&typeof x==="object")Object.assign(o,x);return o;},{});const k=outputs._activePlotId;if(k===undefined)throw new PineExecutionError("plot çağrı noktası belirlenemedi.",null,"PINE_PLOT_CALLSITE");let p=outputs.plots.find(x=>x._id===k);if(!p){p={_id:k,id:k,title:cfg.title||"Plot "+(outputs.plots.length+1),color:cfg.color||"#2962ff",style:cfg.style||"line",linewidth:cfg.linewidth||1,values:Array(ctx.index).fill(NA)};outputs.plots.push(p);}outputs._plotValuesThisBar.set(k,value(v));return {__pinePlotRef:true,id:k};},
