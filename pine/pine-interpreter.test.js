@@ -399,4 +399,22 @@ assert.ok(result.linefills.length>0,"Support/resistance channel should create li
 assert.ok(result.labels.length>0,"Support/resistance levels should create price labels");
 assert.ok(result.shapes.length>0,"Support/resistance signals should be represented as shapes");
 
+
+result = runPine(compile(`//@version=5
+indicator("Array sort order compatibility")
+var float[] values = array.new_float()
+if barstate.isfirst
+    array.push(values, 3.0)
+    array.push(values, 1.0)
+    array.push(values, 2.0)
+array.sort(values, order.ascending)
+ascendingFirst = array.get(values, 0)
+array.sort(values, order.descending)
+descendingFirst = array.get(values, 0)
+plot(ascendingFirst, "Ascending first")
+plot(descendingFirst, "Descending first")
+`), bars);
+assert.equal(result.plots[0].values.at(-1), 1);
+assert.equal(result.plots[1].values.at(-1), 3);
+
 console.log("Pine interpreter tests: OK");
