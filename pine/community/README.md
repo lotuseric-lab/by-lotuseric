@@ -15,11 +15,15 @@ This directory contains unmodified, publicly published Pine sources used as comp
 - Documentation lists 447 self-contained Pine v6 scripts: https://github.com/mihakralj/QuanTAlib/blob/main/docs/pinescript.md
 - License: Apache-2.0; see `QUANTALIB-APACHE-2.0.txt`
 - Copyright headers retained in each unmodified script.
-- Included coverage samples: Hull Moving Average (HMA), Ehlers Fisher Transform, and QQE.
+- Included coverage samples: Hull Moving Average (HMA), Ehlers Fisher Transform, QQE, OBV, VWAP, Bollinger Bands, and KAMA.
 - Upstream source paths:
   - `lib/trends_FIR/hma/hma.pine`
   - `lib/oscillators/fisher/fisher.pine`
   - `lib/oscillators/qqe/qqe.pine`
+  - `lib/volume/obv/obv.pine`
+  - `lib/volume/vwap/vwap.pine`
+  - `lib/volatility/bollinger-bands/bollinger-bands.pine`
+  - `lib/trends_IIR/kama/kama.pine`
 
 ## Additional MPL-2.0 Pine v6 compatibility fixtures
 - Volume Profile (Regard Hodler): `volume-profile-regard-hodler-v6.pine`
