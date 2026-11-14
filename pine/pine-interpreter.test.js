@@ -505,4 +505,19 @@ assert.ok(projexTargetTexts.some(x=>/^HEDEF2: (?!NaN$)\d/.test(x)),"Proje-X targ
 assert.ok(projexTargetTexts.some(x=>/^HEDEF3: (?!NaN$)\d/.test(x)),"Proje-X target 3 must render a numeric price");
 assert.ok(projexTargetTexts.some(x=>x.includes("PROJE-X AL")),"Proje-X entry label must render");
 assert.ok(projexSignalResult.lines.some(x=>!x.deleted),"Proje-X target lines must remain active on the signal bar");
+
+// Force a post-H3 collapse to verify the STOP/SAT path emits one close-confirmed alert.
+const projexStopBars=projexSignalBars.map((bar,i)=>{
+  if(i===200)return {...bar,open:110,high:112,low:109,close:111,volume:1200};
+  if(i===201)return {...bar,open:80,high:81,low:78,close:79,volume:1200};
+  return bar;
+});
+const projexStopResult=runPine(projexFixedAst,projexStopBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
+const stopAlerts=projexStopResult.alerts.filter(x=>/Proje-X STOP \/ SAT Sinyali/.test(x.message||""));
+assert.equal(stopAlerts.length,1,"A post-H3 stop must emit exactly one STOP/SAT alert");
+assert.equal(stopAlerts[0].frequency,"once_per_bar_close","STOP/SAT alert must be close-confirmed");
+assert.equal(stopAlerts[0].bar,201,"STOP/SAT alert must be emitted on the stop bar");
+assert.equal(projexStopResult.labels.filter(x=>/PROJE-X SAT \(STOP\)/.test(x.text||"")).length,1,
+  "STOP/SAT label must not repeat after the active cycle is closed");
+
 console.log("Pine interpreter tests: OK");
