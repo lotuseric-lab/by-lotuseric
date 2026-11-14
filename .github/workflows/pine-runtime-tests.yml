@@ -35,6 +35,7 @@ jobs:
       - run: node pine/pine-security-tuple-history.test.js
       - run: node pine/pine-security-no-repaint.test.js
       - run: node pine/pine-security-lower-tf.test.js
+      - run: node pine/pine-security-indicator-pack.test.js
       - run: node pine/pine-ta-history-functions.test.js
       - run: node pine/pine-dmi-performance.test.js
       - run: node pine/pine-vwap-supertrend.test.js
