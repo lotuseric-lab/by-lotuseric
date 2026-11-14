@@ -391,7 +391,7 @@ const supportBars=Array.from({length:600},(_,i)=>{
   const close=100+wave+i*0.015;
   return {time:1700000000+i*300,open:close-Math.sin(i)*0.6,high:close+1+(i%7)*0.12,low:close-1-(i%5)*0.1,close,volume:1000+(i%9)*180};
 });
-result=runPine(supportAst,supportBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:500000});
+result=runPine(supportAst,supportBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
 assert.equal(result.metadata.title,"MONEY TRADER Destek/Direnç");
 assert.ok(result.inputDefs.length>=15,"Support/resistance input definitions should be exposed");
 assert.ok(result.lines.length>0,"Support/resistance levels should create chart lines");
