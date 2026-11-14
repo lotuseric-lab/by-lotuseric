@@ -381,6 +381,8 @@
         strategyState.openTrades.push({id:order.id,direction:side,entry_bar:barIndex,entry_price:fillPrice,qty,maxRunupPerUnit:0,maxDrawdownPerUnit:0});
         strategyState.fills.push({bar:barIndex,side:side>0?"buy":"sell",price:fillPrice,qty,kind:"entry",id:order.id});
       }
+      // Include the entry bar range for positions opened at this bar's open.
+      updateTradeExcursions(barIndex);
     };
     const strategyNS=function(title,...args){
       outputs.metadata.title=value(title)||"Pine Strategy";outputs.metadata.scriptType="strategy";
