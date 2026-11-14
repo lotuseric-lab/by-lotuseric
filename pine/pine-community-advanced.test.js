@@ -16,7 +16,7 @@ const bars = Array.from({ length: 900 }, (_, i) => {
 
 const cases = [
   { file: 'volume-profile-regard-hodler-v6.pine', name: 'Volume Profile', marker: 'mozilla.org/MPL/2.0' },
-  { file: 'mtf-checklist-eliasvictor-v6.pine', name: 'MTF Checklist Dashboard', marker: 'MPL 2.0' }
+  { file: 'mtf-checklist-eliasvictor-v6.pine', name: 'MTF Checklist Dashboard', marker: 'mozilla.org/MPL/2.0' }
 ];
 
 for (const item of cases) {
