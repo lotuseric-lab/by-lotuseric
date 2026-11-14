@@ -151,7 +151,7 @@ const neverReset = execute(
 for (let i = 0; i < bars.length; i++) {
   const hlc3 = (bars[i].high + bars[i].low + bars[i].close) / 3;
   assert.ok(Math.abs(alwaysReset[i] - hlc3) < 1e-10, "constant true anchor at " + i);
-  assert.ok(Math.abs(neverReset[i] - refVwap(bars, i, 0)) < 1e-10, "constant false anchor at " + i);
+  assert.ok(Math.abs(neverReset[i] - referenceDailyVwap(bars, i, 0)) < 1e-10, "constant false anchor at " + i);
 }
 
 console.log("VWAP daily + anchored: " + bars.length + " bars matched; Supertrend 3x10: " + valid + " bars matched.");
