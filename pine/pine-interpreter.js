@@ -290,6 +290,8 @@
       let start=0;
       if(anchor instanceof SeriesRef){
         const flags=seriesValues(anchor);for(let i=flags.length-1;i>=0;i--){if(truth(flags[i])){start=i;break;}}
+      }else if(anchor!==undefined){
+        start=truth(value(anchor))?bars.length-1:0;
       }else{
         const stamp=Number(bars[bars.length-1].time),seconds=stamp>1e12?stamp/1000:stamp;
         const day=Math.floor(seconds/86400);
