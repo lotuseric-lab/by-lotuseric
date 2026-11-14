@@ -64,7 +64,7 @@ assert.throws(
   () => execute(`//@version=6
 indicator("Reject non aligned TF")
 value = request.security(syminfo.tickerid, "7", close)
-plot(value)`),
+plot(value)`, "5"),
   error => error.code === "PINE_MTF_ALIGNMENT" || String(error.message).includes("tam katı")
 );
 
