@@ -51,3 +51,4 @@ jobs:
       - run: node pine/check-inline-scripts.js
 # Strategy exit regression coverage refreshed
 # Strategy performance summary coverage refreshed
+# Empty-history strategy safety regression refreshed
