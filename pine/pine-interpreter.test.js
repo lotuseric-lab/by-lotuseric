@@ -632,3 +632,15 @@ assert.equal(adxIndicatorResult.metadata.title, "MONEY TRADER - ADX DI Kesişim 
 assert.ok(adxIndicatorResult.inputDefs.length >= 15, "ADX indicator inputs should be exposed");
 assert.ok(adxIndicatorResult.plots.length >= 3, "ADX indicator should emit DI/ADX plots");
 assert.ok(adxIndicatorResult.tables.length > 0, "ADX indicator dashboard table should render");
+
+
+// Indicator compatibility pass 2: Fibonacci trade levels and chart annotations.
+const fiboIndicatorSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_FIBO_TRADE_ARCHIVE.pine"), "utf8");
+const fiboIndicatorAst = compile(fiboIndicatorSource);
+const fiboIndicatorResult = runPine(fiboIndicatorAst, supportBars, {
+  timeframe: "5m", symbol: "TEST-USDT", mintick: 0.01, maxSteps: 5000000
+});
+assert.equal(fiboIndicatorResult.metadata.title, "MONEY TRADER - FIBO TRADE");
+assert.ok(fiboIndicatorResult.inputDefs.length >= 5, "Fibonacci indicator inputs should be exposed");
+assert.ok(fiboIndicatorResult.lines.length > 0, "Fibonacci indicator should create level lines");
+assert.ok(fiboIndicatorResult.labels.length > 0, "Fibonacci indicator should create level labels");
