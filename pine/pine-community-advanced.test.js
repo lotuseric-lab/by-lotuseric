@@ -10,7 +10,7 @@ const bars = Array.from({ length: 900 }, (_, i) => {
   const wave = Math.sin(i / 9) * 3.2 + Math.sin(i / 31) * 1.4;
   const close = trend + wave;
   const open = trend + Math.sin((i - 1) / 9) * 3.2 + Math.sin((i - 1) / 31) * 1.4;
-  return { time: 1700000100 + i * 300, open, high: Math.max(open, close) + 0.9,
+  return { time: 1700000100 + i * 60, open, high: Math.max(open, close) + 0.9,
     low: Math.min(open, close) - 0.9, close, volume: 1200 + (i % 23) * 93 };
 });
 
@@ -28,7 +28,7 @@ for (const item of cases) {
   assert.deepEqual(parsed.diagnostics, [], item.name + ' parser diagnostics');
   let output;
   try {
-    output = runPine(parsed, bars, { symbol: 'BTCUSDT', timeframe: '5' });
+    output = runPine(parsed, bars, { symbol: 'BTCUSDT', timeframe: item.name === 'MTF Checklist Dashboard' ? '1' : '5' });
   } catch (error) {
     console.error('UNMODIFIED COMMUNITY INDICATOR FAILED:', item.name);
     console.error({ name: error.name, code: error.code, message: error.message, line: error.line, column: error.column });
