@@ -169,12 +169,18 @@
       return svg;
     };
     const routeToPrice=o=>overlay||o.force_overlay===true;
-    const priceLines=(output.lines||[]).filter(routeToPrice),paneLines=(output.lines||[]).filter(o=>!routeToPrice(o));
-    const priceLabels=(output.labels||[]).filter(routeToPrice),paneLabels=(output.labels||[]).filter(o=>!routeToPrice(o));
-    const priceBoxes=(output.boxes||[]).filter(routeToPrice),paneBoxes=(output.boxes||[]).filter(o=>!routeToPrice(o));
-    const lineById=new Map((output.lines||[]).map(o=>[o.id,o]));
-    const priceLinefills=(output.linefills||[]).filter(f=>routeToPrice(lineById.get(f.line1?.id)||{}));
-    const paneLinefills=(output.linefills||[]).filter(f=>!routeToPrice(lineById.get(f.line1?.id)||{}));
+    // Tombstoned objects remain in interpreter output for stable handles/history,
+    // but must not participate in chart routing, pane autoscaling or SVG rendering.
+    const activeLines=(output.lines||[]).filter(o=>!o.deleted);
+    const activeLabels=(output.labels||[]).filter(o=>!o.deleted);
+    const activeBoxes=(output.boxes||[]).filter(o=>!o.deleted);
+    const activeLinefills=(output.linefills||[]).filter(o=>!o.deleted);
+    const priceLines=activeLines.filter(routeToPrice),paneLines=activeLines.filter(o=>!routeToPrice(o));
+    const priceLabels=activeLabels.filter(routeToPrice),paneLabels=activeLabels.filter(o=>!routeToPrice(o));
+    const priceBoxes=activeBoxes.filter(routeToPrice),paneBoxes=activeBoxes.filter(o=>!routeToPrice(o));
+    const lineById=new Map(activeLines.map(o=>[o.id,o]));
+    const priceLinefills=activeLinefills.filter(f=>routeToPrice(lineById.get(f.line1?.id)||{}));
+    const paneLinefills=activeLinefills.filter(f=>!routeToPrice(lineById.get(f.line1?.id)||{}));
     const drawingHasPrice=priceLines.length||priceLabels.length||priceBoxes.length||priceLinefills.length;
     const drawingHasPane=paneLines.length||paneLabels.length||paneBoxes.length||paneLinefills.length;
     if(drawingHasPrice)state.svg=renderDrawingLayer(chart,drawingHost,priceSeries,priceLines,priceLabels,priceBoxes,priceLinefills,"price");
