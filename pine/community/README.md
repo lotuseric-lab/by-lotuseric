@@ -9,3 +9,14 @@ This directory contains unmodified, publicly published Pine sources used as comp
 - License: MIT; see `QUANTUM-ALGO-LICENSE.txt`
 - Copyright: Quantum Algo (2026)
 - Features exercised: swing/internal pivots, BOS/CHoCH, order blocks, FVG/inversions, liquidity levels/sweeps, arrays of drawings, drawing mutation/deletion, table dashboard, inputs and alerts.
+
+## QuanTAlib Pine v6 compatibility samples
+- Upstream: https://github.com/mihakralj/QuanTAlib
+- Documentation lists 447 self-contained Pine v6 scripts: https://github.com/mihakralj/QuanTAlib/blob/main/docs/pinescript.md
+- License: Apache-2.0; see `QUANTALIB-APACHE-2.0.txt`
+- Copyright headers retained in each unmodified script.
+- Included coverage samples: Hull Moving Average (HMA), Ehlers Fisher Transform, and QQE.
+- Upstream source paths:
+  - `lib/trends_FIR/hma/hma.pine`
+  - `lib/oscillators/fisher/fisher.pine`
+  - `lib/oscillators/qqe/qqe.pine`
