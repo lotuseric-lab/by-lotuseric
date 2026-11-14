@@ -439,4 +439,22 @@ assert.equal(result.plots[0].values.at(0), bars.length - 1);
 assert.equal(result.plots[0].values.at(-1), bars.length - 1);
 assert.equal(result.plots[1].values.at(-1), bars.length - 1);
 
+
+const srFibDiSource = fs.readFileSync(path.join(__dirname, "fixtures", "sr-fib-di-integration.pine"), "utf8");
+const srFibDiAst = compile(srFibDiSource);
+const srFibDiBars = Array.from({length:320}, (_,i) => {
+  const wave = Math.sin(i * 0.19) * 3 + Math.sin(i * 0.047) * 1.5;
+  const close = 100 + wave + Math.sin(i * 0.012) * 8 + i * 0.018;
+  return {time:1700000000+i*300,open:close-Math.sin(i*0.7)*0.7,high:close+0.8+(i%5)*0.1,low:close-0.9-(i%4)*0.1,close,volume:1200+(i%11)*125};
+});
+result = runPine(srFibDiAst, srFibDiBars, {timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:1000000});
+assert.equal(result.metadata.title, "BY LOTUSERIC — S/R + Fibonacci + DI integration");
+assert.ok(result.inputDefs.length === 0);
+assert.ok(result.plots.length >= 3, "DI and ADX series should be emitted");
+assert.ok(result.shapes.length > 0, "Signal shapes should be emitted");
+assert.ok(result.lines.length >= 3, "Fibonacci guide lines should be emitted");
+assert.ok(result.tables.length === 1, "Diagnostics table should be emitted");
+assert.equal(result.tables[0].cells["0:0"].text, "BY LOTUSERIC");
+assert.ok(result.tables[0].cells["1:1"].text.length > 0);
+
 console.log("Pine interpreter tests: OK");
