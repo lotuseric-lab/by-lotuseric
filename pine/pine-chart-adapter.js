@@ -237,7 +237,7 @@
             td.style.border=(t.border_width??1)+"px solid "+(t.border_color||"#64748b");
             if(cell?.bgcolor)td.style.background=cell.bgcolor;
             if(cell?.text_halign)td.style.textAlign=cell.text_halign;
-            if(cell?.text_valign)td.style.verticalAlign=cell.text_valign;
+            if(cell?.text_valign)td.style.verticalAlign=cell.text_valign;const textSizes={tiny:"9px",small:"11px",normal:"13px",large:"16px",huge:"20px"};if(cell?.text_size)td.style.fontSize=textSizes[cell.text_size]||cell.text_size;
             tr.append(td);
           }
           table.append(tr);
