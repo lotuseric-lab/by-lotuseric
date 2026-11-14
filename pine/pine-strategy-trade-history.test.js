@@ -16,6 +16,9 @@ plot(strategy.closedtrades.profit(0), title="Closed profit")
 plot(strategy.closedtrades.entry_bar_index(0), title="Entry bar")
 plot(strategy.closedtrades.exit_bar_index(0), title="Exit bar")
 plot(strategy.closedtrades.exit_id(0) == "Long-A" ? 1 : 0, title="Exit id")
+plot(strategy.closedtrades.max_runup(0), title="Closed MFE")
+plot(strategy.closedtrades.max_drawdown(0), title="Closed MAE")
+plot(strategy.closedtrades.max_runup_percent(0), title="Closed MFE percent")
 `;
 const front=lexPine(source);assert.deepEqual(front.diagnostics,[]);
 const ast=parsePine(front.tokens);assert.deepEqual(ast.diagnostics,[]);
@@ -34,6 +37,9 @@ assert.deepEqual(out.plots[4].values,[null,null,null,4]);
 assert.deepEqual(out.plots[5].values,[null,null,null,1]);
 assert.deepEqual(out.plots[6].values,[null,null,null,3]);
 assert.deepEqual(out.plots[7].values,[0,0,0,1]);
+assert.deepEqual(out.plots[8].values,[null,null,null,3]);
+assert.deepEqual(out.plots[9].values,[null,null,null,0]);
+assert.ok(Math.abs(out.plots[10].values[3]-(1.5/11*100))<1e-9);
 assert.equal(out.strategy.closedTrades[0].id,"Long-A");
 assert.equal(out.strategy.closedTrades[0].commission,0);
-console.log("Pine strategy open/closed trade history accessors: OK");
+console.log("Pine strategy trade history and MFE/MAE accessors: OK");
