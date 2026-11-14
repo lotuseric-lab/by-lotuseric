@@ -212,6 +212,23 @@ assert.equal(result.hlines[0].value, 50);
 assert.equal(result.hlines[0].color, "#f23645");
 assert.equal(result.hlines[0].linestyle, "dashed");
 
+result = runPine(compile(`//@version=6
+indicator("Alert frequency constants")
+alert("default")
+alert("bar", alert.freq_once_per_bar)
+alert("close", alert.freq_once_per_bar_close)
+alert("all", alert.freq_all)
+alertcondition(bar_index == 2, "Condition", "Triggered")
+`), bars);
+assert.deepEqual(result.alerts.map(x=>x.frequency||"once_per_bar"),[
+  "once_per_bar","once_per_bar","once_per_bar_close","all","once_per_bar"
+]);
+assert.equal(result.alerts[2].message,"close");
+assert.equal(result.alerts[3].message,"all");
+assert.equal(result.alerts.filter(x=>x.title==="Condition").length,1);
+assert.equal(result.alerts.find(x=>x.title==="Condition").bar,2);
+
+
 const crossCloses=[10,9,8,7,8,9,10,11,12,13,14,15,14,13,12,11,10,9,8];
 const crossBars=crossCloses.map((close,i)=>({time:1700000000+i*300,open:close,high:close+1,low:close-1,close,volume:1000}));
 result=runPine(compile(`//@version=6
