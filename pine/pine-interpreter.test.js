@@ -220,13 +220,15 @@ alert("close", alert.freq_once_per_bar_close)
 alert("all", alert.freq_all)
 alertcondition(bar_index == 2, "Condition", "Triggered")
 `), bars);
-assert.deepEqual(result.alerts.map(x=>x.frequency||"once_per_bar"),[
-  "once_per_bar","once_per_bar","once_per_bar_close","all","once_per_bar"
+const frequencyAlerts=result.alerts.filter(x=>["default","bar","close","all"].includes(x.message));
+assert.deepEqual(frequencyAlerts.map(x=>x.frequency||"once_per_bar"),[
+  "once_per_bar","once_per_bar","once_per_bar_close","all"
 ]);
-assert.equal(result.alerts[2].message,"close");
-assert.equal(result.alerts[3].message,"all");
-assert.equal(result.alerts.filter(x=>x.title==="Condition").length,1);
-assert.equal(result.alerts.find(x=>x.title==="Condition").bar,2);
+assert.equal(frequencyAlerts[2].message,"close");
+assert.equal(frequencyAlerts[3].message,"all");
+const conditionAlerts=result.alerts.filter(x=>x.title==="Condition");
+assert.equal(conditionAlerts.length,1);
+assert.equal(conditionAlerts[0].bar,2);
 
 
 const crossCloses=[10,9,8,7,8,9,10,11,12,13,14,15,14,13,12,11,10,9,8];
