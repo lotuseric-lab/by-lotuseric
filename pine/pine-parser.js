@@ -73,7 +73,9 @@
         const prev=current[current.length-1];
         const next=tokens[index+1];
         const continuationOps=[",","+","-","*","/","%","=" ,":=","?","and","or",">=","<=",">","<","==","!="];
-        if(depth>0||(prev&&prev.type==="OPERATOR"&&continuationOps.includes(prev.value))||
+        const nextIndent=next&&next.type!=="EOF"?next.column:0;
+        const wrappedIndent=nextIndent>1&&nextIndent%4!==0;
+        if(depth>0||wrappedIndent||(prev&&prev.type==="OPERATOR"&&continuationOps.includes(prev.value))||
           (next&&next.type==="OPERATOR"&&continuationOps.includes(next.value)))continue;
         flush();physicalIndent=1;continue;
       }
