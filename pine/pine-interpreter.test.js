@@ -607,10 +607,10 @@ assert.equal(drawingMutationResult.boxes[0].left, drawingLifecycleBars[3].time -
 assert.equal(drawingMutationResult.boxes[0].right, drawingLifecycleBars[3].time);
 assert.equal(drawingMutationResult.boxes[0].top, drawingLifecycleBars[3].high + 3);
 assert.equal(drawingMutationResult.boxes[0].bottom, drawingLifecycleBars[3].low - 3);
-assert.equal(drawingMutationResult.boxes[0].bgcolor, "rgba(34,197,94,0.15)");
+assert.equal(drawingMutationResult.boxes[0].bgcolor, "#08998126");
 assert.equal(drawingMutationResult.linefills.length, 1, "one persistent linefill handle must be retained");
 assert.equal(drawingMutationResult.linefills[0].deleted, true, "linefill.delete must tombstone the retained fill");
-assert.equal(drawingMutationResult.linefills[0].color, "rgba(249,115,22,0.3)", "linefill.set_color must update the fill");
+assert.equal(drawingMutationResult.linefills[0].color, "#ff98004d", "linefill.set_color must update the fill");
 assert.equal(drawingMutationResult.lines[0].xloc, "bar_time");
 assert.equal(drawingMutationResult.lines[0].x1, drawingLifecycleBars[3].time - 300);
 assert.equal(drawingMutationResult.lines[0].x2, drawingLifecycleBars[3].time);
