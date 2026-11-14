@@ -434,155 +434,90 @@ if px_isNewBuy and show_projex_al
 
 // HEDEF3 -> HEDEF1 Geri Çekilme, Stop (SAT) ve İzleme Takibi
 if px_active and show_projex_al and barstate.isconfirmed
-   // 1. Aşama: Fiyat HEDEF3'e ulaştı mı?
-   if not px_reached_h3 and high >= px_h3
-      px_reached_h3 := true
+    // 1. Aşama: Fiyat HEDEF3'e ulaştı mı?
+    if not px_reached_h3 and high >= px_h3
+        px_reached_h3 := true
 
+    // 2. Aşama: HEDEF3 sonrası geri çekilme ve stop kontrolü
+    if px_reached_h3
+        float stop_level = px_h1 * 0.99
+        // Hedef 1'in %1 altına kapanış: SAT ve döngüyü kapat
+        if close <= stop_level
+            label.new(bar_index, high, text=" 🔴   PROJE-X SAT (STOP)\nFIYAT: " + str.tostring(close, format.mintick), style=label.style_label_down, color=color.red, textcolor=color.white, size=size.normal)
+            alert("Proje-X STOP / SAT Sinyali! Fiyat Hedef1'in %1 altına indi: " + str.tostring(close, format.mintick), alert.freq_once_per_bar_close)
+            line.delete(px_targetLine1)
+            line.delete(px_targetLine2)
+            line.delete(px_targetLine3)
+            label.delete(px_targetLabel1)
+            label.delete(px_targetLabel2)
+            label.delete(px_targetLabel3)
+            label.delete(px_signalLabel)
+            px_active := false
+            px_signalBarIndex := na
+        // Fiyat HEDEF1 bölgesine temas etti: izleme bildirimi ve yeni hedef döngüsü
+        else if low <= px_h1
+            float critical_h2 = px_h2
+            bool price_above_h2 = close > critical_h2
+            color watch_color = price_above_h2 ? color.green : color.orange
+            color watch_text_color = price_above_h2 ? color.white : color.black
+            string watch_text = price_above_h2 ?
+                 "🟢  YÜKSELİŞ DEVAM\n" +
+                 "✅  HEDEF-2 ARTIK DESTEK\n" +
+                 "DESTEK: " + str.tostring(critical_h2, format.mintick) +
+                 "\nFİYAT: " + str.tostring(close, format.mintick) :
+                 "⚠️ İZLEMEYE AL DİKKAT!\n" +
+                 "🔍  HEDEF-2 KIRILMASI İZLENMELİ!\n" +
+                 "DİRENÇ: " + str.tostring(critical_h2, format.mintick) +
+                 "\nFİYAT: " + str.tostring(close, format.mintick)
 
+            label.new(x=bar_index, y=low, text=watch_text, yloc=yloc.belowbar,
+                 style=label.style_label_up, color=watch_color,
+                 textcolor=watch_text_color, size=size.normal)
 
+            if price_above_h2
+                alert("🟢     YÜKSELİŞ DEVAM! Fiyat HEDEF-2 üzerinde kapandı. " +
+                     "HEDEF-2 artık DESTEK: " + str.tostring(critical_h2, format.mintick) +
+                     " | Fiyat: " + str.tostring(close, format.mintick),
+                     alert.freq_once_per_bar_close)
+            else
+                alert("⚠️     İZLEMEYE AL! HEDEF-2 direncinin kırılması bekleniyor. " +
+                     "HEDEF-2: " + str.tostring(critical_h2, format.mintick) +
+                     " | Fiyat: " + str.tostring(close, format.mintick),
+                     alert.freq_once_per_bar_close)
 
-  // 2. Aşama: Hedef 3'e ulaşıldıktan sonra fiyat Hedef 1'e doğru çekildiğinde kontrol et
-  if px_reached_h3
-     float stop_level = px_h1 * 0.99 // Hedef 1'in %1 altı (Stop Seviyesi)
+            // Temas mumunun kapanışından sonraki hedefleri yeniden hesapla
+            float new_baseMove = px_atr * 1.5
+            px_h1 := close + new_baseMove
+            px_h2 := px_h1 + (new_baseMove * px_decayFactor)
+            px_h3 := px_h2 + (new_baseMove * math.pow(px_decayFactor, 2))
 
+            line.delete(px_targetLine1)
+            line.delete(px_targetLine2)
+            line.delete(px_targetLine3)
+            label.delete(px_targetLabel1)
+            label.delete(px_targetLabel2)
+            label.delete(px_targetLabel3)
 
+            color px_color = color.lime
+            px_targetLine1 := line.new(bar_index, px_h1, bar_index + 10, px_h1,
+                 color=color.new(px_color, 30), style=line.style_solid, width=2, extend=extend.right)
+            px_targetLine2 := line.new(bar_index, px_h2, bar_index + 10, px_h2,
+                 color=color.new(px_color, 50), style=line.style_solid, width=2, extend=extend.right)
+            px_targetLine3 := line.new(bar_index, px_h3, bar_index + 10, px_h3,
+                 color=color.new(px_color, 70), style=line.style_solid, width=2, extend=extend.right)
 
+            px_targetLabel1 := label.new(bar_index + 12, px_h1,
+                 text="HEDEF1: " + str.tostring(px_h1, format.mintick),
+                 style=label.style_label_left, color=color.new(px_color, 100),
+                 textcolor=px_color, size=size.normal)
+            px_targetLabel2 := label.new(bar_index + 12, px_h2,
+                 text="HEDEF2: " + str.tostring(px_h2, format.mintick),
+                 style=label.style_label_left, color=color.new(px_color, 100),
+                 textcolor=px_color, size=size.normal)
+            px_targetLabel3 := label.new(bar_index + 12, px_h3,
+                 text="HEDEF3: " + str.tostring(px_h3, format.mintick),
+                 style=label.style_label_left, color=color.new(px_color, 100),
+                 textcolor=px_color, size=size.normal)
 
-    // Eğer fiyat Hedef 1'in %1 altına inerse -> SAT Sinyali & Stop Ol
-    if close <= stop_level
-       label.new(bar_index, high, text=" 🔴   PROJE-X SAT (STOP)\nFIYAT: " + str.tostring(close,
-format.mintick), style=label.style_label_down, color=color.red, textcolor=color.white,
-size=size.normal)
-       alert("Proje-X STOP / SAT Sinyali! Fiyat Hedef1'in %1 altına indi: " + str.tostring(close,
-format.mintick))
-
-
-
-
-       // Çizgi ve etiketleri temizle, döngüyü kapat
-       line.delete(px_targetLine1), line.delete(px_targetLine2), line.delete(px_targetLine3)
-       label.delete(px_targetLabel1), label.delete(px_targetLabel2),
-label.delete(px_targetLabel3)
-       label.delete(px_signalLabel)
-       px_active := false
-       px_signalBarIndex := na
-
-
-
-
-    // Fiyat HEDEF-1 bölgesine temas etti
-    else if low <= px_h1
-       // Yenileri hesaplanmadan önce orijinal Proje-X HEDEF-2 seviyesini sakla
-       float critical_h2 = px_h2
-       bool price_above_h2 = close > critical_h2
-
-      // HEDEF-2 üzerindeyse artık direnç değil destek kabul edilir
-      color watch_color = price_above_h2 ? color.green : color.orange
-      color watch_text_color = price_above_h2 ? color.white : color.black
-
-      string watch_text = price_above_h2 ?
-         "🟢  YÜKSELİŞ DEVAM\n" +
-
-  "✅  HEDEF-2 ARTIK DESTEK\n" +
-  "DESTEK: " + str.tostring(critical_h2, format.mintick) +
-  "\nFİYAT: " + str.tostring(close, format.mintick) :
-  "⚠️ İZLEMEYE AL DİKKAT!\n" +
-  "🔍  HEDEF-2 KIRILMASI İZLENMELİ!\n" +
-  "DİRENÇ: " + str.tostring(critical_h2, format.mintick) +
-  "\nFİYAT: " + str.tostring(close, format.mintick)
-
-      label.new(
-         x=bar_index,
-         y=low,
-         text=watch_text,
-         yloc=yloc.belowbar,
-         style=label.style_label_up,
-         color=watch_color,
-         textcolor=watch_text_color,
-         size=size.normal)
-
-      // Duruma göre dinamik uyarı
-      if price_above_h2
-         alert(
-            "🟢     YÜKSELİŞ DEVAM! Fiyat HEDEF-2 üzerinde kapandı. " +
-            "HEDEF-2 artık DESTEK: " +
-            str.tostring(critical_h2, format.mintick) +
-            " | Fiyat: " +
-            str.tostring(close, format.mintick),
-            alert.freq_once_per_bar_close)
-      else
-         alert(
-            "⚠️     İZLEMEYE AL! HEDEF-2 direncinin kırılması bekleniyor. " +
-            "HEDEF-2: " +
-            str.tostring(critical_h2, format.mintick) +
-            " | Fiyat: " +
-            str.tostring(close, format.mintick))
-
-// Temas mumunun kapanışından yeni yükseliş hedeflerini hesapla
-float new_baseMove = px_atr * 1.5
-px_h1 := close + new_baseMove
-px_h2 := px_h1 + (new_baseMove * px_decayFactor)
-px_h3 := px_h2 + (new_baseMove * math.pow(px_decayFactor, 2))
-
-// Eski hedef çizgilerini ve etiketlerini temizle
-line.delete(px_targetLine1)
-line.delete(px_targetLine2)
-line.delete(px_targetLine3)
-
-label.delete(px_targetLabel1)
-label.delete(px_targetLabel2)
-label.delete(px_targetLabel3)
-
-// Yeni hedefleri çiz
-color px_color = color.lime
-
-px_targetLine1 := line.new(
-  bar_index, px_h1,
-  bar_index + 10, px_h1,
-  color=color.new(px_color, 30),
-  style=line.style_solid,
-  width=2,
-  extend=extend.right)
-
-px_targetLine2 := line.new(
-  bar_index, px_h2,
-  bar_index + 10, px_h2,
-  color=color.new(px_color, 50),
-  style=line.style_solid,
-  width=2,
-  extend=extend.right)
-
-px_targetLine3 := line.new(
-  bar_index, px_h3,
-  bar_index + 10, px_h3,
-  color=color.new(px_color, 70),
-  style=line.style_solid,
-  width=2,
-  extend=extend.right)
-
-px_targetLabel1 := label.new(
-  bar_index + 12, px_h1,
-  text="HEDEF1: " + str.tostring(px_h1, format.mintick),
-  style=label.style_label_left,
-  color=color.new(px_color, 100),
-  textcolor=px_color,
-  size=size.normal)
-
-px_targetLabel2 := label.new(
-  bar_index + 12, px_h2,
-  text="HEDEF2: " + str.tostring(px_h2, format.mintick),
-  style=label.style_label_left,
-  color=color.new(px_color, 100),
-  textcolor=px_color,
-  size=size.normal)
-
-px_targetLabel3 := label.new(
-  bar_index + 12, px_h3,
-  text="HEDEF3: " + str.tostring(px_h3, format.mintick),
-  style=label.style_label_left,
-  color=color.new(px_color, 100),
-  textcolor=px_color,
-  size=size.normal)
-
-px_signalBarIndex := bar_index
-px_reached_h3 := false
+            px_signalBarIndex := bar_index
+            px_reached_h3 := false
