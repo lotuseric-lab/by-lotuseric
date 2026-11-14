@@ -671,6 +671,7 @@
       if(name==="hlc3")return new SeriesRef(ctxBars.map(b=>(b.high+b.low+b.close)/3),()=>currentIndex);
       if(name==="ohlc4")return new SeriesRef(ctxBars.map(b=>(b.open+b.high+b.low+b.close)/4),()=>currentIndex);
       if(name==="bar_index")return new SeriesRef(Array.from({length:ctxBars.length},(_,i)=>i),()=>currentIndex);
+      if(name==="last_bar_index")return ctxBars.length-1;
       if(name==="true")return true;if(name==="false")return false;
       if(Object.prototype.hasOwnProperty.call(builtins,name))return builtins[name];
       if(Object.prototype.hasOwnProperty.call(functions,name))return functions[name];
