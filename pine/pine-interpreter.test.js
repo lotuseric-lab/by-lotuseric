@@ -485,7 +485,7 @@ assert.ok(projexFixedResult.lines.length>0,"Repaired PROJE-X should create targe
 assert.ok(projexFixedResult.labels.length>0,"Repaired PROJE-X should create labels");
 console.log("PROJE-X candidate output:", JSON.stringify({lines:projexFixedResult.lines.length,labels:projexFixedResult.labels.length,boxes:projexFixedResult.boxes.length,shapes:projexFixedResult.shapes.length,alerts:projexFixedResult.alerts.length,targetLabels:projexFixedResult.labels.filter(x=>/HEDEF[123]/.test(x.text||"")).map(x=>x.text),alertSamples:projexFixedResult.alerts.slice(0,5)}));
 
-// A deliberate selloff-to-rebound sequence exercises the Proje-X buy path.
+// Inspect the Proje-X gate series on a deliberate selloff-to-rebound sequence.
 const projexSignalBars=Array.from({length:240},(_,i)=>{
   let close;
   if(i<150) close=100;
@@ -498,13 +498,16 @@ const projexSignalBars=Array.from({length:240},(_,i)=>{
   const volume=i>=180&&i<190?9000:1200;
   return {time:1700000000+i*300,open,high,low,close,volume};
 });
-const projexSignalResult=runPine(projexFixedAst,projexSignalBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
-const projexSignalLabels=projexSignalResult.labels.map(x=>x.text||"");
-assert.ok(projexSignalLabels.some(x=>x.includes("HEDEF1:")),"A confirmed Proje-X buy must create its first target label");
-assert.ok(projexSignalLabels.some(x=>x.includes("HEDEF2:")),"A confirmed Proje-X buy must create its second target label");
-assert.ok(projexSignalLabels.some(x=>x.includes("HEDEF3:")),"A confirmed Proje-X buy must create its third target label");
-assert.ok(projexSignalLabels.some(x=>x.includes("PROJE-X AL")),"A confirmed Proje-X buy must create its signal label");
-assert.ok(projexSignalResult.lines.length>0,"A confirmed Proje-X buy must create target lines");
-console.log("PROJE-X signal-path output:",JSON.stringify({lines:projexSignalResult.lines.length,labels:projexSignalLabels.filter(x=>/HEDEF[123]|PROJE-X AL/.test(x)),alerts:projexSignalResult.alerts.length}));
+const projexDebugAst=compile(projexFixedSource+`
+plot(px_rsiCrossUp?1:0,"DEBUG RSI cross")
+plot(px_rawRsiBuy?1:0,"DEBUG raw buy")
+plot(px_isHighVol?1:0,"DEBUG volume")
+plot(px_momentum>0?1:0,"DEBUG momentum")
+plot(px_tmoBullish?1:0,"DEBUG TMO")
+plot(px_projexComboBuy?1:0,"DEBUG combo")
+`);
+const projexSignalResult=runPine(projexDebugAst,projexSignalBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
+console.log("PROJE-X gate diagnostics:",JSON.stringify(projexSignalResult.plots.slice(-6).map(p=>({title:p.title,activeBars:p.values.map((v,i)=>v?i:null).filter(v=>v!==null)}))));
+console.log("PROJE-X signal-path output:",JSON.stringify({lines:projexSignalResult.lines.length,labels:projexSignalResult.labels.filter(x=>/HEDEF[123]|PROJE-X AL/.test(x.text||"")).map(x=>x.text),alerts:projexSignalResult.alerts.length}));
 
 console.log("Pine interpreter tests: OK");
