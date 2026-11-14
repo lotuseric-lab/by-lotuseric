@@ -8,7 +8,11 @@ const { runPine } = require('./pine-interpreter.js');
 const cases = [
   ['quant-alib-hma-v6.pine', 'HMA'],
   ['quant-alib-fisher-v6.pine', 'FISHER'],
-  ['quant-alib-qqe-v6.pine', 'QQE']
+  ['quant-alib-qqe-v6.pine', 'QQE'],
+  ['quant-alib-obv-v6.pine', 'OBV'],
+  ['quant-alib-vwap-v6.pine', 'VWAP'],
+  ['quant-alib-bbands-v6.pine', 'BBANDS'],
+  ['quant-alib-kama-v6.pine', 'KAMA']
 ];
 const bars = Array.from({ length: 900 }, (_, i) => {
   const trend = 250 + i * 0.025;
