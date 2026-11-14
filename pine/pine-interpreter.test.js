@@ -661,7 +661,50 @@ assert.ok(goldenRoseResult.plots.length > 0 || goldenRoseResult.shapes.length > 
 
 // Indicator compatibility pass 4: Sniper session ranges, breakout boxes and labels.
 const sniperCompatSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_SNIPER.pine"), "utf8");
-const sniperCompatAst = compile(sniperCompatSource);
+// The supplied source indexes i-1 at i=0 in both level arrays. Pine correctly
+// rejects that negative index; keep the original unchanged and test a guarded
+// candidate that performs the same overlap comparison only when a prior item exists.
+assert.throws(() => runPine(compile(sniperCompatSource), supportBars, {
+  timeframe: "5m", symbol: "TEST-USDT", mintick: 0.01, maxSteps: 7000000
+}), /Array index out of bounds: -1/);
+const sniperGuardedSource = sniperCompatSource
+  .replace(`        l1 = lower_lvl.get(i-1)
+
+        mid = l.mid
+        mid1 = l1.mid
+
+        // Overlaps
+        if math.abs(mid - mid1) < atr 
+            l_ = level.new(na, na, na, na, na)
+            lower_lvl.set(i-1, l_)`, `        mid = l.mid
+        // Compare with a preceding level only when one exists.
+        if i > 0
+            l1 = lower_lvl.get(i-1)
+            mid1 = l1.mid
+            if math.abs(mid - mid1) < atr
+                l_ = level.new(na, na, na, na, na)
+                lower_lvl.set(i-1, l_)`)
+  .replace(`        l1 = upper_lvl.get(i-1)
+
+        upper = l.upper
+
+        mid = l.mid
+        mid1 = l1.mid
+
+        // Overlaps
+        if math.abs(mid - mid1) < atr 
+            l_ = level.new(na, na, na, na, na)
+            upper_lvl.set(i-1, l_)`, `        upper = l.upper
+        mid = l.mid
+        // Compare with a preceding level only when one exists.
+        if i > 0
+            l1 = upper_lvl.get(i-1)
+            mid1 = l1.mid
+            if math.abs(mid - mid1) < atr
+                l_ = level.new(na, na, na, na, na)
+                upper_lvl.set(i-1, l_)`);
+assert.notEqual(sniperGuardedSource, sniperCompatSource, "Sniper guarded candidate must apply both negative-index guards");
+const sniperCompatAst = compile(sniperGuardedSource);
 const sniperCompatResult = runPine(sniperCompatAst, supportBars, {
   timeframe: "5m", symbol: "TEST-USDT", mintick: 0.01, maxSteps: 7000000
 });
