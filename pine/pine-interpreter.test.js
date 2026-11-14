@@ -418,6 +418,18 @@ assert.equal(result.plots[0].values.at(-1), 1);
 assert.equal(result.plots[1].values.at(-1), 3);
 
 result = runPine(compile(`//@version=5
+indicator("String split and numeric conversion")
+fibLevels = "0.236, 0.382, 0.5, 0.618, 0.786"
+levels = str.split(fibLevels, ", ")
+first = str.tonumber(array.get(levels, 0))
+last = str.tonumber(array.get(levels, 4))
+plot(first, "First level")
+plot(last, "Last level")
+`), bars);
+assert.equal(result.plots[0].values.at(-1), 0.236);
+assert.equal(result.plots[1].values.at(-1), 0.786);
+
+result = runPine(compile(`//@version=5
 indicator("last_bar_index built-in")
 plot(last_bar_index, "Last bar index")
 plot(bar_index, "Bar index")
