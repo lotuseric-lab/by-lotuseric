@@ -69,6 +69,31 @@ for (const item of cases) {
       JSON.stringify({ chartBars: chartBars.length, lowerBars: bars.length,
         tables: fiveMinuteOutput.tables?.length || 0,
         alerts: fiveMinuteOutput.alerts?.length || 0 }));
+
+    const fifteenMinuteBars = [];
+    for (let i = 0; i < bars.length; i += 15) {
+      const chunk = bars.slice(i, i + 15);
+      if (chunk.length !== 15) continue;
+      fifteenMinuteBars.push({
+        time: chunk[0].time,
+        open: chunk[0].open,
+        high: Math.max(...chunk.map(b => b.high)),
+        low: Math.min(...chunk.map(b => b.low)),
+        close: chunk[chunk.length - 1].close,
+        volume: chunk.reduce((sum, b) => sum + b.volume, 0)
+      });
+    }
+    const fifteenMinuteOutput = runPine(parsed, fifteenMinuteBars, {
+      symbol: 'BTCUSDT',
+      timeframe: '15',
+      lowerTimeframeData: { '1': bars }
+    });
+    assert.ok(fifteenMinuteOutput.tables?.length > 0,
+      'MTF dashboard must derive its 5m request.security series from 1m intrabars on a 15m chart');
+    console.log('Unmodified community Pine v6 passed: MTF Dashboard on 15m chart',
+      JSON.stringify({ chartBars: fifteenMinuteBars.length, lowerBars: bars.length,
+        tables: fifteenMinuteOutput.tables?.length || 0,
+        alerts: fifteenMinuteOutput.alerts?.length || 0 }));
   }
 }
 console.log('Additional community Pine tests: ' + cases.length + ' indicators passed.');
