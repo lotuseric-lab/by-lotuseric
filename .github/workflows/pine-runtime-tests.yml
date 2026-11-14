@@ -52,3 +52,4 @@ jobs:
 # Strategy exit regression coverage refreshed
 # Strategy performance summary coverage refreshed
 # Empty-history strategy safety regression refreshed
+# Guard empty-bar performance summary regression
