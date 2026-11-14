@@ -860,29 +860,52 @@
             if(!mapped){
               const targetMs=timeframeMs(tf),baseMs=timeframeMs(opts.timeframe||"5");
               if(!Number.isFinite(targetMs)||!Number.isFinite(baseMs))throw new PineExecutionError("request.security zaman dilimi tanınmadı: "+tf,n,"PINE_MTF_UNSUPPORTED");
-              if(targetMs<baseMs)throw new PineExecutionError("Daha düşük zaman dilimi request.security henüz desteklenmiyor; security_lower_tf gerekir.",n,"PINE_MTF_LOWER_TF");
-              if(targetMs%baseMs!==0)throw new PineExecutionError("İstenen zaman dilimi grafik zaman diliminin tam katı olmalı.",n,"PINE_MTF_ALIGNMENT");
               if(String(sym)!==String(opts.symbol||""))throw new PineExecutionError("Harici sembol request.security henüz desteklenmiyor: "+sym,n,"PINE_MTF_SYMBOL");
-              const mtfBars=targetMs===baseMs?cleanBars:aggregateBars(cleanBars,targetMs,baseMs);
               const hasInputCall=(node)=>{if(!node||typeof node!=="object")return false;if(node.type==="CallExpression"&&node.callee&&node.callee.type==="MemberExpression"&&node.callee.object&&node.callee.object.type==="Identifier"&&node.callee.object.name==="input")return true;return Object.keys(node).some(k=>{const v=node[k];return Array.isArray(v)?v.some(hasInputCall):v&&typeof v==="object"?hasInputCall(v):false;});};
               const isLiteralSetup=(node)=>node&&["StringLiteral","NumericLiteral","Literal"].includes(node.type);
               const setupNodes=ast.body.filter(node=>node&&node.type==="AssignmentStatement"&&node.target&&node.target.type==="Identifier"&&(hasInputCall(node.value)||isLiteralSetup(node.value)));
-              // captureExpression evaluates the requested expression once at the
-              // end of each MTF bar. Do not also append it as a statement to mini.body:
-              // that would execute stateful user functions twice per bar and corrupt
-              // their local series history (e.g. direction[1]).
+              // captureExpression evaluates the requested expression once per source bar.
+              // Never append it to mini.body: stateful helper functions would run twice.
               const mini={type:"Program",body:[...setupNodes,...ast.body.filter(node=>node&&node.type==="FunctionDeclaration")],diagnostics:[]};
-              const res=runPine(mini,mtfBars,{...opts,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityData:null});
-              const vals=res.expression||[];
               const gaps=n.arguments.slice(3).find(a=>a.type==="NamedArgument"&&a.name==="gaps");
               const gapsOn=!!(gaps&&value(evalExpr(gaps.value,scope))==="gaps_on");
-              mapped=cleanBars.map((bar)=>{
-                const closeTime=(bar.time*1000)+baseMs;let j=-1;
-                for(let k=0;k<mtfBars.length;k++)if((mtfBars[k].time*1000)+targetMs<=closeTime)j=k;else break;
-                if(j<0)return NA;
-                if(gapsOn&&(mtfBars[j].time*1000)+targetMs!==closeTime)return NA;
-                return vals[j]===undefined?NA:vals[j];
-              });
+              if(targetMs<baseMs){
+                if(baseMs%targetMs!==0)throw new PineExecutionError("Alt zaman dilimi grafik zaman dilimini tam bölmeli.",n,"PINE_MTF_ALIGNMENT");
+                const supplied=opts.securityLowerTfData||opts.lowerTimeframeData||{};
+                const lowerBars=supplied[String(tf)]||supplied[String(sym)+"|"+String(tf)];
+                if(!Array.isArray(lowerBars)||!lowerBars.length)throw new PineExecutionError("Düşük zaman dilimli request.security için opts.lowerTimeframeData['"+tf+"'] alt mum verisi gerekli.",n,"PINE_MTF_DATA_REQUIRED");
+                let previousTime=-Infinity;
+                for(let i=0;i<lowerBars.length;i++){
+                  const t=Number(lowerBars[i]?.time);
+                  if(!Number.isFinite(t)||t<=previousTime)throw new PineExecutionError("Alt zaman dilimi mumları artan ve benzersiz zaman damgalı olmalı.",n,"PINE_MTF_DATA_INVALID");
+                  previousTime=t;
+                }
+                const res=runPine(mini,lowerBars,{...opts,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityData:null,securityLowerTfData:null,lowerTimeframeData:null});
+                const vals=res.expression||[];
+                let lastValue=NA;
+                mapped=cleanBars.map(bar=>{
+                  const start=bar.time*1000,end=start+baseMs;
+                  let found=false,selected=lastValue;
+                  for(let i=0;i<lowerBars.length;i++){
+                    const t=Number(lowerBars[i].time)*1000;
+                    if(t>=start&&t<end){selected=vals[i]===undefined?NA:vals[i];found=true;}
+                  }
+                  if(found)lastValue=selected;
+                  return gapsOn&&!found?NA:selected;
+                });
+              }else{
+                if(targetMs%baseMs!==0)throw new PineExecutionError("İstenen zaman dilimi grafik zaman diliminin tam katı olmalı.",n,"PINE_MTF_ALIGNMENT");
+                const mtfBars=targetMs===baseMs?cleanBars:aggregateBars(cleanBars,targetMs,baseMs);
+                const res=runPine(mini,mtfBars,{...opts,timeframe:String(tf),symbol:String(sym),captureExpression:exprNode,securityData:null});
+                const vals=res.expression||[];
+                mapped=cleanBars.map((bar)=>{
+                  const closeTime=(bar.time*1000)+baseMs;let j=-1;
+                  for(let k=0;k<mtfBars.length;k++)if((mtfBars[k].time*1000)+targetMs<=closeTime)j=k;else break;
+                  if(j<0)return NA;
+                  if(gapsOn&&(mtfBars[j].time*1000)+targetMs!==closeTime)return NA;
+                  return vals[j]===undefined?NA:vals[j];
+                });
+              }
               securityCache.set(cacheKey,mapped);
             }
             const tupleSample=mapped.find(Array.isArray);
