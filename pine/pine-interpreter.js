@@ -454,7 +454,7 @@
         exit_price:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.exit_price:NA;},
         exit_bar_index:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.exit_bar:NA;},
         exit_time:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?tradeTime(t.exit_bar):NA;},
-        exit_id:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.exit_reason:NA;},
+        exit_id:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?(String(t.exit_reason||"").startsWith("strategy.exit:")?String(t.exit_reason).slice(15):t.exit_reason):NA;},
         profit:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.profit:NA;},
         profit_percent:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t&&t.entry_price&&t.qty?t.profit/(Math.abs(t.entry_price*t.qty))*100:NA;},
         commission:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?(t.commission||0):NA;},
