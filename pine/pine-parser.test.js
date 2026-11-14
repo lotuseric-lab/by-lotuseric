@@ -58,4 +58,25 @@ if tradeOpen and breakoutDir != 0 and not slHit and bar_index > breakoutBar
 `).tokens);
 assert.deepEqual(nestedLabelMethod.diagnostics,[]);
 
+const commaContinuation=parsePine(lexPine(`//@version=6
+indicator("Comma continuation")
+if close > open
+    line.delete(firstLine), line.delete(secondLine),
+line.delete(thirdLine)
+else
+    value := 0
+`).tokens);
+assert.deepEqual(commaContinuation.diagnostics,[]);
+assert.equal(commaContinuation.body[1].body.length,3);
+assert.equal(commaContinuation.body[1].alternate.length,1);
+
+const ternaryContinuation=parsePine(lexPine(`//@version=6
+indicator("Ternary continuation")
+float selected = close > open ? close :
+open
+plot(selected)
+`).tokens);
+assert.deepEqual(ternaryContinuation.diagnostics,[]);
+assert.equal(ternaryContinuation.body[1].type,"TypedDeclarationStatement");
+
 console.log("Pine parser tests: OK");
