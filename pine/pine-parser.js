@@ -171,7 +171,9 @@
     }
     function attachElseChain(node,indent){
       const next=lines[cursor];
-      if(!next||next.indent!==indent||next.tokens[0].value!=="else")return;
+      // Recover a one-column else mismatch only when it immediately follows this if body.
+      // General block indentation remains strict.
+      if(!next||Math.abs(next.indent-indent)>1||next.tokens[0].value!=="else")return;
       const line=lines[cursor++];
       if(line.tokens[1]&&line.tokens[1].value==="if"){
         const nested={type:"IfStatement",test:expression(line.tokens,2),body:[],alternate:[],loc:loc(line.tokens[0]),indent};
