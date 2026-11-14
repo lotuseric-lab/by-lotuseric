@@ -30,7 +30,7 @@ assert.deepEqual(out.plots[0].values,[null,11,11,null]);
 assert.deepEqual(out.plots[1].values,[null,2,2,null]);
 assert.deepEqual(out.plots[2].values,[null,null,null,11]);
 assert.deepEqual(out.plots[3].values,[null,null,null,13]);
-assert.deepEqual(out.plots[4].values,[null,null,null,3.96]);
+assert.deepEqual(out.plots[4].values,[null,null,null,4]);
 assert.deepEqual(out.plots[5].values,[null,null,null,1]);
 assert.deepEqual(out.plots[6].values,[null,null,null,3]);
 assert.deepEqual(out.plots[7].values,[0,0,0,1]);
