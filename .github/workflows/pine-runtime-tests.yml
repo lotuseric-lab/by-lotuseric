@@ -41,6 +41,7 @@ jobs:
       - run: node pine/pine-drawing-mutation.test.js
       - run: node pine/pine-strategy-basic.test.js
       - run: node pine/pine-strategy-exit.test.js
+      - run: node pine/pine-strategy-partial-trailing.test.js
       - run: node pine/pine-force-overlay.test.js
       - run: node pine/pine-chart-adapter.test.js
       - run: node pine/pine-drawing-pane.test.js
