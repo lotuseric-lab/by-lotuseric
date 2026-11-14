@@ -516,5 +516,6 @@ console.log("PROJE-X AST matches:",JSON.stringify(pxMatches.slice(0,6)));
 console.log("PROJE-X top-level AST near block:",JSON.stringify(projexDebugAst.body.filter(n=>n.loc&&n.loc.line>=380&&n.loc.line<=430).map(n=>({type:n.type,loc:n.loc,test:n.test,body:n.body?.map(x=>({type:x.type,loc:x.loc,name:x.name,expr:x.expression?.type}))})).slice(0,20)));
 console.log("PROJE-X gate diagnostics:",JSON.stringify(projexSignalResult.plots.slice(-6).map(p=>({title:p.title,activeBars:p.values.map((v,i)=>v?i:null).filter(v=>v!==null)}))));
 console.log("PROJE-X signal-path output:",JSON.stringify({lines:projexSignalResult.lines.length,labels:projexSignalResult.labels.filter(x=>/HEDEF[123]|PROJE-X AL/.test(x.text||"")).map(x=>x.text),alerts:projexSignalResult.alerts.length}));
+console.log("PROJE-X recent drawing objects:",JSON.stringify({labels:projexSignalResult.labels.slice(-12),lines:projexSignalResult.lines.slice(-8)}));
 
 console.log("Pine interpreter tests: OK");
