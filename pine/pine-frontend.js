@@ -103,12 +103,12 @@
         push("NUMBER", text.slice(start, i), startLine, startColumn);
         continue;
       }
-      if (/[A-Za-z_\\p{L}]/u.test(ch)) {
+      if (/[A-Za-z_\p{L}]/u.test(ch)) {
         const startLine = line, startColumn = column, start = i;
         const first = text.codePointAt(i);
         const firstWidth = first > 0xFFFF ? 2 : 1;
         i += firstWidth; column += firstWidth;
-        while (i < text.length && /[A-Za-z0-9_\\p{L}\\p{M}\\p{N}]/u.test(String.fromCodePoint(text.codePointAt(i)))) {
+        while (i < text.length && /[A-Za-z0-9_\p{L}\p{M}\p{N}]/u.test(String.fromCodePoint(text.codePointAt(i)))) {
           const cp = text.codePointAt(i), width = cp > 0xFFFF ? 2 : 1;
           i += width; column += width;
         }
