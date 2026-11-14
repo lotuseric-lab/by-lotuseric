@@ -63,19 +63,26 @@
   }
 
   function logicalLines(tokens) {
-    const lines=[];let current=[],depth=0,first=null,last=null;
-    const flush=()=>{if(current.length){lines.push({tokens:current,indent:current[0].column,line:current[0].line});current=[];first=null;last=null;}};
-    for(const t of tokens){
+    const lines=[];let current=[],depth=0,physicalIndent=1;
+    const flush=()=>{if(current.length){lines.push({tokens:current,indent:physicalIndent,line:current[0].line});current=[];}};
+    for(let index=0;index<tokens.length;index++){
+      const t=tokens[index];
       if(t.type==="EOF"){flush();break;}
       if(t.type==="DIRECTIVE")continue;
       if(t.type==="NEWLINE"){
-        if(depth>0)continue;
         const prev=current[current.length-1];
-        if(prev&&prev.type==="OPERATOR"&&[",","+","-","*","/","%","=",":=","?","and","or"].includes(prev.value))continue;
-        flush();continue;
+        const next=tokens[index+1];
+        const continuationOps=[",","+","-","*","/","%","=" ,":=","?","and","or",">=","<=",">","<","==","!="];
+        if(depth>0||(prev&&prev.type==="OPERATOR"&&continuationOps.includes(prev.value))||
+          (next&&next.type==="OPERATOR"&&continuationOps.includes(next.value)))continue;
+        flush();physicalIndent=1;continue;
       }
-      if(!first)first=t;
-      current.push(t);last=t;
+      if(!current.length)physicalIndent=t.column;
+      if(t.value===","&&depth===0){
+        flush();
+        continue;
+      }
+      current.push(t);
       if(["(","[","{"].includes(t.value))depth++;
       if([")","]","}"].includes(t.value))depth=Math.max(0,depth-1);
     }
