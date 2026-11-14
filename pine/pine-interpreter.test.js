@@ -505,6 +505,9 @@ plot(px_isHighVol?1:0,"DEBUG volume")
 plot(px_momentum>0?1:0,"DEBUG momentum")
 plot(px_tmoBullish?1:0,"DEBUG TMO")
 plot(px_projexComboBuy?1:0,"DEBUG combo")
+plot(px_inCooldown?1:0,"DEBUG cooldown")
+plot(px_isNewBuy?1:0,"DEBUG new buy")
+plot(show_projex_al?1:0,"DEBUG show toggle")
 `);
 const projexSignalResult=runPine(projexDebugAst,projexSignalBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
 console.log("PROJE-X gate diagnostics:",JSON.stringify(projexSignalResult.plots.slice(-6).map(p=>({title:p.title,activeBars:p.values.map((v,i)=>v?i:null).filter(v=>v!==null)}))));
