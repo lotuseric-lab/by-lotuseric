@@ -615,8 +615,8 @@ async function runCustomPine(showMessage=true){
   if(report.calls['strategy']||Object.keys(report.calls).some(k=>k.startsWith('strategy.')))throw new Error('strategy.* emir ve strateji komutları indikatör motorunda desteklenmez.');
   const lowerTimeframeData={};
   const baseTf=String(tf).trim().toLowerCase();
-  const baseMinutes=/^\\d+m$/.test(baseTf)?Number(baseTf.slice(0,-1)):/^\\d+h$/.test(baseTf)?Number(baseTf.slice(0,-1))*60:/^\\d+d$/.test(baseTf)?Number(baseTf.slice(0,-1))*1440:/^\\d+w$/.test(baseTf)?Number(baseTf.slice(0,-1))*10080:1;
-  if(baseMinutes>1&&/\\brequest\\s*\\.\\s*security\\s*\\(/.test(code)){
+  const baseMinutes=/^\d+m$/.test(baseTf)?Number(baseTf.slice(0,-1)):/^\d+h$/.test(baseTf)?Number(baseTf.slice(0,-1))*60:/^\d+d$/.test(baseTf)?Number(baseTf.slice(0,-1))*1440:/^\d+w$/.test(baseTf)?Number(baseTf.slice(0,-1))*10080:1;
+  if(baseMinutes>1&&/\brequest\s*\\.\s*security\s*\\(/.test(code)){
    const cacheKey=exchange+'|'+current+'|1m';
    let cached=customPineLowerCache.get(cacheKey);
    if(!cached||Date.now()-cached.at>60000){
