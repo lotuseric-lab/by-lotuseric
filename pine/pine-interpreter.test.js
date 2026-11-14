@@ -483,5 +483,6 @@ const projexFixedResult=runPine(projexFixedAst,projexBars,{timeframe:"5m",symbol
 assert.equal(projexFixedResult.metadata.title,"MONEY TRADER - TAVAN ADAYI + PROJE-X");
 assert.ok(projexFixedResult.lines.length>0,"Repaired PROJE-X should create target lines");
 assert.ok(projexFixedResult.labels.length>0,"Repaired PROJE-X should create labels");
+console.log("PROJE-X candidate output:", JSON.stringify({lines:projexFixedResult.lines.length,labels:projexFixedResult.labels.length,boxes:projexFixedResult.boxes.length,shapes:projexFixedResult.shapes.length,alerts:projexFixedResult.alerts.length,targetLabels:projexFixedResult.labels.filter(x=>/HEDEF[123]/.test(x.text||"")).map(x=>x.text),alertSamples:projexFixedResult.alerts.slice(0,5)}));
 
 console.log("Pine interpreter tests: OK");
