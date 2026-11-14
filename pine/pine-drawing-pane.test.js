@@ -84,11 +84,11 @@ assert.equal(state.paneSvg.children.length, 5, "two active lines, one label, one
 assert.equal(state.paneSvg.children.filter(x => x.tag === "line").length, 2, "deleted lines must not render");
 assert.equal(state.paneSvg.children.filter(x => x.tag === "text").length, 1, "deleted labels must not render");
 assert.equal(state.paneSvg.children.filter(x => x.tag === "polygon").length, 1, "linefills referencing deleted lines must not render");
-assert.equal(state.paneSvg.children[0].attrs.x1, "1", "initial line x-coordinate should match the chart scale");
+assert.equal(state.paneSvg.children.find(x => x.tag === "line").attrs.x1, "1", "initial line x-coordinate should match the chart scale");
 xDivisor=5;
 logicalRangeListener();
 assert.equal(state.paneSvg.children.length, 5, "redraw should replace rather than duplicate SVG drawings");
-assert.equal(state.paneSvg.children[0].attrs.x1, "2", "drawing coordinates should update after chart zoom/scroll");
+assert.equal(state.paneSvg.children.find(x => x.tag === "line").attrs.x1, "2", "drawing coordinates should update after chart zoom/scroll");
 priceRangeListener();
 sizeListener();
 state.clear();
