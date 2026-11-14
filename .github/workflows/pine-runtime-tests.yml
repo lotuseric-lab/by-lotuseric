@@ -50,3 +50,4 @@ jobs:
       - run: node pine/pine-fixture-parse.test.js
       - run: node pine/check-inline-scripts.js
 # Strategy exit regression coverage refreshed
+# Strategy performance summary coverage refreshed
