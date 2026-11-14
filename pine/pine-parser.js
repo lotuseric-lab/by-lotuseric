@@ -63,7 +63,7 @@
   }
 
   function logicalLines(tokens) {
-    const lines=[];let current=[],depth=0,physicalIndent=1;
+    const lines=[];let current=[],depth=0,physicalIndent=1,commaIndent=null,afterComma=false;
     const flush=()=>{if(current.length){lines.push({tokens:current,indent:physicalIndent,line:current[0].line});current=[];}};
     for(let index=0;index<tokens.length;index++){
       const t=tokens[index];
@@ -72,13 +72,15 @@
       if(t.type==="NEWLINE"){
         const prev=current[current.length-1];
         const next=tokens[index+1];
-        const continuationOps=[",","+","-","*","/","%","=" ,":=","?","and","or",">=","<=",">","<","==","!="];
+        const continuationOps=[",","+","-","*","/","%","=" ,":=","?",":","and","or",">=","<=",">","<","==","!="];
+        if(afterComma){afterComma=false;continue;}
         if(depth>0||(prev&&prev.type==="OPERATOR"&&continuationOps.includes(prev.value))||
           (next&&next.type==="OPERATOR"&&continuationOps.includes(next.value)))continue;
-        flush();physicalIndent=1;continue;
+        flush();physicalIndent=1;commaIndent=null;continue;
       }
-      if(!current.length)physicalIndent=t.column;
+      if(!current.length){physicalIndent=commaIndent==null?t.column:commaIndent;commaIndent=null;afterComma=false;}
       if(t.value===","&&depth===0){
+        commaIndent=physicalIndent;afterComma=true;
         flush();
         continue;
       }
@@ -236,7 +238,7 @@
             if(node.type==="IfStatement")attachElseChain(node,line.indent);
           }
           body.push(node);
-        }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.line||line.line,column:error.column||line.indent});}
+        }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.message==="İfade bekleniyordu."?line.line:(error.line||line.line),column:error.message==="İfade bekleniyordu."?line.indent:(error.column||line.indent)});}
       }
       return body;
     }
@@ -255,7 +257,7 @@
           if(node.type==="IfStatement")attachElseChain(node,line.indent);
         }
         body.push(node);
-      }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.line||line.line,column:error.column||line.indent});}
+      }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.message==="İfade bekleniyordu."?line.line:(error.line||line.line),column:error.message==="İfade bekleniyordu."?line.indent:(error.column||line.indent)});}
     }
     return {type:"Program",body,diagnostics};
   }
