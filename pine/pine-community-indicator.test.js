@@ -7,7 +7,7 @@ const { runPine } = require('./pine-interpreter.js');
 
 const file = path.join(__dirname, 'community', 'smc-quantum-algo-v6.pine');
 const source = fs.readFileSync(file, 'utf8');
-assert.match(source, /^\\/\\/@version=6/m, 'community source must remain Pine v6');
+assert.ok(source.startsWith('//@version=6'), 'community source must remain Pine v6');
 const lexed = lexPine(source);
 assert.deepEqual(lexed.diagnostics, [], 'community SMC lexer diagnostics');
 const parsed = parsePine(lexed.tokens);
