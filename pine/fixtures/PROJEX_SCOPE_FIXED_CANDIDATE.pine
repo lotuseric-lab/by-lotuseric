@@ -386,56 +386,51 @@ var float px_h2 = na
 var float px_h3 = na
 
 if px_isNewBuy and show_projex_al
-   line.delete(px_targetLine1), line.delete(px_targetLine2), line.delete(px_targetLine3)
-   label.delete(px_targetLabel1), label.delete(px_targetLabel2), label.delete(px_targetLabel3)
-   label.delete(px_signalLabel)
+    line.delete(px_targetLine1), line.delete(px_targetLine2), line.delete(px_targetLine3)
+    label.delete(px_targetLabel1), label.delete(px_targetLabel2), label.delete(px_targetLabel3)
+    label.delete(px_signalLabel)
 
+    float px_baseMove = px_atr * 1.5
+    px_h1 := close + px_baseMove
+    px_h2 := px_h1 + (px_baseMove * px_decayFactor)
+    px_h3 := px_h2 + (px_baseMove * math.pow(px_decayFactor, 2))
 
+    px_active := true
+    px_reached_h3 := false
 
+    color px_color = color.lime
 
-  float px_baseMove = px_atr * 1.5
-  px_h1 := close + px_baseMove
-  px_h2 := px_h1 + (px_baseMove * px_decayFactor)
-  px_h3 := px_h2 + (px_baseMove * math.pow(px_decayFactor, 2))
+    px_targetLine1 := line.new(
+      bar_index, px_h1, bar_index + 10, px_h1,
+      color=color.new(px_color, 30), style=line.style_solid, width=2, extend=extend.right)
+    px_targetLine2 := line.new(
+      bar_index, px_h2, bar_index + 10, px_h2,
+      color=color.new(px_color, 50), style=line.style_solid, width=2, extend=extend.right)
+    px_targetLine3 := line.new(
+      bar_index, px_h3, bar_index + 10, px_h3,
+      color=color.new(px_color, 70), style=line.style_solid, width=2, extend=extend.right)
 
+    px_targetLabel1 := label.new(
+      bar_index + 12, px_h1,
+      text="HEDEF1: " + str.tostring(px_h1, format.mintick),
+      style=label.style_label_left, color=color.new(px_color, 100), textcolor=px_color,
+      size=size.normal)
+    px_targetLabel2 := label.new(
+      bar_index + 12, px_h2,
+      text="HEDEF2: " + str.tostring(px_h2, format.mintick),
+      style=label.style_label_left, color=color.new(px_color, 100), textcolor=px_color,
+      size=size.normal)
+    px_targetLabel3 := label.new(
+      bar_index + 12, px_h3,
+      text="HEDEF3: " + str.tostring(px_h3, format.mintick),
+      style=label.style_label_left, color=color.new(px_color, 100), textcolor=px_color,
+      size=size.normal)
 
-
-
-  px_active := true
-  px_reached_h3 := false
-
-
-
-
-  color px_color = color.lime
-
-
-
-
-  px_targetLine1 := line.new(bar_index, px_h1, bar_index + 10, px_h1,
-color=color.new(px_color, 30), style=line.style_solid, width=2, extend=extend.right)
-  px_targetLine2 := line.new(bar_index, px_h2, bar_index + 10, px_h2,
-color=color.new(px_color, 50), style=line.style_solid, width=2, extend=extend.right)
-  px_targetLine3 := line.new(bar_index, px_h3, bar_index + 10, px_h3,
-color=color.new(px_color, 70), style=line.style_solid, width=2, extend=extend.right)
-
-
-
-
-   px_targetLabel1 := label.new(bar_index + 12, px_h1, text="HEDEF1: " + str.tostring(px_h1,
-format.mintick), style=label.style_label_left, color=color.new(px_color, 100), textcolor=px_color,
-size=size.normal)
-   px_targetLabel2 := label.new(bar_index + 12, px_h2, text="HEDEF2: " + str.tostring(px_h2,
-format.mintick), style=label.style_label_left, color=color.new(px_color, 100), textcolor=px_color,
-size=size.normal)
-   px_targetLabel3 := label.new(bar_index + 12, px_h3, text="HEDEF3: " + str.tostring(px_h3,
-format.mintick), style=label.style_label_left, color=color.new(px_color, 100), textcolor=px_color,
-size=size.normal)
-
-  px_signalBarIndex := bar_index
-  px_signalLabel := label.new(bar_index, close, text=" PROJE-X AL\n" + str.tostring(close,
-format.mintick), style=label.style_label_up, color=color.new(#00E676, 20),
-textcolor=color.white, size=size.normal)
+    px_signalBarIndex := bar_index
+    px_signalLabel := label.new(
+      bar_index, close, text=" PROJE-X AL\\n" + str.tostring(close, format.mintick),
+      style=label.style_label_up, color=color.new(#00E676, 20),
+      textcolor=color.white, size=size.normal)
 
 // HEDEF3 -> HEDEF1 Geri Çekilme, Stop (SAT) ve İzleme Takibi
 if px_active and show_projex_al and barstate.isconfirmed
