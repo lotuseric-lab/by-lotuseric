@@ -500,9 +500,9 @@ const projexSignalBars=Array.from({length:240},(_,i)=>{
 });
 const projexSignalResult=runPine(projexFixedAst,projexSignalBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
 const projexTargetTexts=projexSignalResult.labels.map(x=>x.text||"");
-assert.ok(projexTargetTexts.some(x=>/^HEDEF1: (?!NaN$)\\d/.test(x)),"Proje-X target 1 must render a numeric price");
-assert.ok(projexTargetTexts.some(x=>/^HEDEF2: (?!NaN$)\\d/.test(x)),"Proje-X target 2 must render a numeric price");
-assert.ok(projexTargetTexts.some(x=>/^HEDEF3: (?!NaN$)\\d/.test(x)),"Proje-X target 3 must render a numeric price");
+assert.ok(projexTargetTexts.some(x=>/^HEDEF1: (?!NaN$)\d/.test(x)),"Proje-X target 1 must render a numeric price");
+assert.ok(projexTargetTexts.some(x=>/^HEDEF2: (?!NaN$)\d/.test(x)),"Proje-X target 2 must render a numeric price");
+assert.ok(projexTargetTexts.some(x=>/^HEDEF3: (?!NaN$)\d/.test(x)),"Proje-X target 3 must render a numeric price");
 assert.ok(projexTargetTexts.some(x=>x.includes("PROJE-X AL")),"Proje-X entry label must render");
 assert.ok(projexSignalResult.lines.some(x=>!x.deleted),"Proje-X target lines must remain active on the signal bar");
 console.log("Pine interpreter tests: OK");
