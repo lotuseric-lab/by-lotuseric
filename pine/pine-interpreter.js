@@ -300,7 +300,7 @@
         const take=Math.min(trade.qty,remaining),gross=(price-trade.entry_price)*take*direction;
         const fees=strategyState.commissionType==="percent"?(strategyCommission(price*take)+strategyCommission(trade.entry_price*take)):0;
         const pnl=gross-fees;
-        strategyState.closedTrades.push({...trade,qty:take,exit_bar:bar,exit_price:price,exit_reason:reason,profit:pnl});
+        strategyState.closedTrades.push({...trade,qty:take,exit_bar:bar,exit_price:price,exit_reason:reason,profit:pnl,commission:fees});
         realized+=pnl;feesTotal+=fees;closed+=take;remaining-=take;
         if(trade.qty-take>1e-12)survivors.push({...trade,qty:trade.qty-take});
       }
@@ -442,13 +442,49 @@
           maxDrawdown:strategyState.maxDrawdown,maxDrawdownPercent:strategyState.peakEquity?strategyState.maxDrawdown/strategyState.peakEquity*100:0};
       }
     });
+    const tradeIndex=(collection,index)=>{const i=Math.trunc(num(value(index)));return Number.isInteger(i)&&i>=0&&i<collection.length?collection[i]:null;};
+    const tradeTime=index=>Number.isInteger(index)&&ctx.bars[index]?ctx.bars[index].time:NA;
+    const closedTradeApi=()=>{
+      const api=new Number(strategyState.closedTrades.length);
+      const methods={
+        entry_price:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.entry_price:NA;},
+        entry_bar_index:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.entry_bar:NA;},
+        entry_time:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?tradeTime(t.entry_bar):NA;},
+        entry_id:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.id:NA;},
+        exit_price:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.exit_price:NA;},
+        exit_bar_index:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.exit_bar:NA;},
+        exit_time:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?tradeTime(t.exit_bar):NA;},
+        exit_id:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.exit_reason:NA;},
+        profit:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.profit:NA;},
+        profit_percent:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t&&t.entry_price&&t.qty?t.profit/(Math.abs(t.entry_price*t.qty))*100:NA;},
+        commission:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?(t.commission||0):NA;},
+        size:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.direction*t.qty:NA;}
+      };
+      Object.assign(api,methods,{first_index:strategyState.closedTrades.length?0:NA,last_index:strategyState.closedTrades.length?strategyState.closedTrades.length-1:NA});
+      return api;
+    };
+    const openTradeApi=()=>{
+      const api=new Number(strategyState.openTrades.length);
+      const methods={
+        entry_price:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?t.entry_price:NA;},
+        entry_bar_index:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?t.entry_bar:NA;},
+        entry_time:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?tradeTime(t.entry_bar):NA;},
+        entry_id:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?t.id:NA;},
+        profit:i=>{const t=tradeIndex(strategyState.openTrades,i);const bar=ctx.bars[ctx.index];return t&&bar?(bar.close-t.entry_price)*t.qty*t.direction:NA;},
+        profit_percent:i=>{const t=tradeIndex(strategyState.openTrades,i);const bar=ctx.bars[ctx.index];return t&&bar&&t.entry_price?(bar.close-t.entry_price)*t.direction/t.entry_price*100:NA;},
+        commission:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?strategyCommission(t.entry_price*t.qty):NA;},
+        size:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?t.direction*t.qty:NA;}
+      };
+      Object.assign(api,methods,{first_index:strategyState.openTrades.length?0:NA,last_index:strategyState.openTrades.length?strategyState.openTrades.length-1:NA});
+      return api;
+    };
     Object.defineProperties(strategyNS,{
       position_size:{get:()=>strategyState.positionSize},position_avg_price:{get:()=>strategyState.positionAvgPrice||NA},
       openprofit:{get:()=>strategyState.positionSize&&ctx.bars[ctx.index]?strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice):0},
       netprofit:{get:()=>strategyState.realized},equity:{get:()=>strategyEquity()},initial_capital:{get:()=>strategyState.initialCapital},
       grossprofit:{get:()=>strategyState.grossProfit},grossloss:{get:()=>strategyState.grossLoss},
       wintrades:{get:()=>strategyState.winTrades},losstrades:{get:()=>strategyState.lossTrades},
-      opentrades:{get:()=>strategyState.openTrades.length},closedtrades:{get:()=>strategyState.closedTrades.length},
+      opentrades:{get:()=>openTradeApi()},closedtrades:{get:()=>closedTradeApi()},
       max_drawdown:{get:()=>strategyState.maxDrawdown},
       netprofit_percent:{get:()=>strategyState.initialCapital?strategyState.realized/strategyState.initialCapital*100:NA},
       percent_profitable:{get:()=>strategyState.closedTrades.length?strategyState.winTrades/strategyState.closedTrades.length*100:0},
