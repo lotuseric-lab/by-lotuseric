@@ -872,8 +872,27 @@
               if(targetMs<baseMs){
                 if(baseMs%targetMs!==0)throw new PineExecutionError("Alt zaman dilimi grafik zaman dilimini tam bölmeli.",n,"PINE_MTF_ALIGNMENT");
                 const supplied=opts.securityLowerTfData||opts.lowerTimeframeData||{};
-                const lowerBars=supplied[String(tf)]||supplied[String(sym)+"|"+String(tf)];
-                if(!Array.isArray(lowerBars)||!lowerBars.length)throw new PineExecutionError("Düşük zaman dilimli request.security için opts.lowerTimeframeData['"+tf+"'] alt mum verisi gerekli.",n,"PINE_MTF_DATA_REQUIRED");
+                let lowerBars=supplied[String(tf)]||supplied[String(sym)+"|"+String(tf)];
+                if(!Array.isArray(lowerBars)||!lowerBars.length){
+                  // A finer supplied interval can be safely aggregated to the
+                  // requested lower interval (e.g. 1m -> 5m inside a 15m chart).
+                  const candidates=Object.entries(supplied).map(([key,bars])=>{
+                    const sourceTf=key.includes("|")?key.slice(key.lastIndexOf("|")+1):key;
+                    return {bars,sourceTf,sourceMs:timeframeMs(sourceTf)};
+                  }).filter(x=>Array.isArray(x.bars)&&x.bars.length&&Number.isFinite(x.sourceMs)&&x.sourceMs<targetMs&&targetMs%x.sourceMs===0)
+                    .sort((a,b)=>a.sourceMs-b.sourceMs);
+                  if(candidates.length){
+                    const source=candidates[0];
+                    let sourcePrevious=-Infinity;
+                    for(let i=0;i<source.bars.length;i++){
+                      const t=Number(source.bars[i]?.time);
+                      if(!Number.isFinite(t)||t<=sourcePrevious)throw new PineExecutionError("Alt zaman dilimi mumları artan ve benzersiz zaman damgalı olmalı.",n,"PINE_MTF_DATA_INVALID");
+                      sourcePrevious=t;
+                    }
+                    lowerBars=aggregateBars(source.bars,targetMs,source.sourceMs);
+                  }
+                }
+                if(!Array.isArray(lowerBars)||!lowerBars.length)throw new PineExecutionError("Düşük zaman dilimli request.security için "+tf+" alt mum verisi gerekli; daha küçük bir aralık sağlanırsa otomatik birleştirilir.",n,"PINE_MTF_DATA_REQUIRED");
                 let previousTime=-Infinity;
                 for(let i=0;i<lowerBars.length;i++){
                   const t=Number(lowerBars[i]?.time);
