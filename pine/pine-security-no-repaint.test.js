@@ -12,12 +12,12 @@ const bars = Array.from({ length: 30 }, (_, i) => ({
   volume: 100 + i
 }));
 
-function execute(source) {
+function execute(source, timeframe = "1") {
   const lexed = lexPine(source);
   assert.deepEqual(lexed.diagnostics, []);
   const parsed = parsePine(lexed.tokens);
   assert.deepEqual(parsed.diagnostics, []);
-  return runPine(parsed, bars, { symbol: "TEST", timeframe: "1" });
+  return runPine(parsed, bars, { symbol: "TEST", timeframe });
 }
 
 const lookaheadOff = execute(`//@version=6
@@ -55,7 +55,7 @@ plot(value)`),
 assert.throws(
   () => execute(`//@version=6
 indicator("Reject lower TF request.security")
-value = request.security(syminfo.tickerid, "1", close)
+value = request.security(syminfo.tickerid, "30S", close)
 plot(value)`),
   error => error.code === "PINE_MTF_LOWER_TF" || String(error.message).includes("düşük zaman dilimi")
 );
