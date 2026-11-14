@@ -284,14 +284,14 @@
     ta.mfi=(src,len)=>{const p=seriesValues(src),v=ctx.bars.slice(0,ctx.index+1).map(b=>b.volume),n=Math.trunc(num(value(len)));if(p.length<=n)return NA;let pos=0,neg=0;for(let i=p.length-n;i<p.length;i++){const flow=num(p[i])*v[i];if(num(p[i])>num(p[i-1]))pos+=flow;else if(num(p[i])<num(p[i-1]))neg+=flow;}return neg===0?100:100-100/(1+pos/neg);};
     ta.vwap=(src)=>{const p=src?seriesValues(src):ctx.bars.slice(0,ctx.index+1).map(b=>(b.high+b.low+b.close)/3);let pv=0,vol=0;ctx.bars.slice(0,ctx.index+1).forEach((b,i)=>{pv+=num(p[i])*b.volume;vol+=b.volume;});return vol?pv/vol:NA;};
 
-    const strategyState={initialCapital:100000,commissionPercent:0,slippageTicks:0,pyramiding:1,defaultQtyType:"fixed",defaultQtyValue:1,positionSize:0,positionAvgPrice:0,realized:0,grossProfit:0,grossLoss:0,winTrades:0,lossTrades:0,pending:[],openTrades:[],closedTrades:[],fills:[],peakEquity:100000,maxDrawdown:0};
+    const strategyState={initialCapital:100000,commissionPercent:0,slippageTicks:0,pyramiding:1,defaultQtyType:"fixed",defaultQtyValue:1,commissionType:"percent",positionSize:0,positionAvgPrice:0,realized:0,grossProfit:0,grossLoss:0,winTrades:0,lossTrades:0,pending:[],openTrades:[],closedTrades:[],fills:[],peakEquity:100000,maxDrawdown:0};
     const strategyEquity=()=>strategyState.initialCapital+strategyState.realized+(strategyState.positionSize===0?0:strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice));
     const strategyCommission=notional=>Math.abs(notional)*strategyState.commissionPercent/100;
     const closeStrategyPosition=(price,bar,reason)=>{
       if(!strategyState.positionSize)return;
       const qty=Math.abs(strategyState.positionSize),direction=Math.sign(strategyState.positionSize);
       const gross=(price-strategyState.positionAvgPrice)*qty*direction;
-      const fees=strategyCommission(price*qty)+strategyCommission(strategyState.positionAvgPrice*qty),pnl=gross-fees;
+      const fees=strategyState.commissionType==="percent"?(strategyCommission(price*qty)+strategyCommission(strategyState.positionAvgPrice*qty)):0,pnl=gross-fees;
       strategyState.realized+=pnl;
       if(pnl>=0){strategyState.grossProfit+=pnl;strategyState.winTrades++;}else{strategyState.grossLoss+=Math.abs(pnl);strategyState.lossTrades++;}
       const trade=strategyState.openTrades.pop()||{};
@@ -324,7 +324,7 @@
       outputs.metadata.title=value(title)||"Pine Strategy";outputs.metadata.scriptType="strategy";
       const cfg=drawCfg(args);
       if(Number.isFinite(Number(cfg.initial_capital)))strategyState.initialCapital=Number(cfg.initial_capital);
-      if(Number.isFinite(Number(cfg.commission_value)))strategyState.commissionPercent=Number(cfg.commission_value);
+      if(Number.isFinite(Number(cfg.commission_value)))strategyState.commissionPercent=Number(cfg.commission_value);\n      if(cfg.commission_type!==undefined){if(cfg.commission_type!=="percent"&&Number(cfg.commission_value||0)>0)throw new PineExecutionError("Şimdilik yalnız strategy.commission.percent destekleniyor.",null,"PINE_STRATEGY_COMMISSION");strategyState.commissionType=cfg.commission_type;}
       if(Number.isFinite(Number(cfg.slippage)))strategyState.slippageTicks=Number(cfg.slippage);
       if(Number.isFinite(Number(cfg.pyramiding)))strategyState.pyramiding=Math.max(1,Math.trunc(Number(cfg.pyramiding)));
       if(cfg.default_qty_type==="strategy.percent_of_equity")strategyState.defaultQtyType="percent_of_equity";
@@ -332,7 +332,7 @@
       strategyState.peakEquity=strategyState.initialCapital;return null;
     };
     Object.assign(strategyNS,{
-      long:1,short:-1,percent_of_equity:"strategy.percent_of_equity",fixed:"strategy.fixed",
+      long:1,short:-1,percent_of_equity:"strategy.percent_of_equity",fixed:"strategy.fixed",commission:{percent:"percent",cash_per_order:"cash_per_order",cash_per_contract:"cash_per_contract"},
       entry:(id,direction,...args)=>{
         const cfg=drawCfg(args),dir=num(value(direction));
         if(cfg.when!==undefined&&!truth(cfg.when))return null;
@@ -875,7 +875,7 @@
     }
     for(const p of outputs.plots)delete p._id;
     delete outputs._plotValuesThisBar;
-    outputs.strategy={fills:strategyState.fills.slice(),closedTrades:strategyState.closedTrades.slice(),openTrades:strategyState.openTrades.slice(),initialCapital:strategyState.initialCapital,netprofit:strategyState.realized,equity:strategyState.initialCapital+strategyState.realized,positionSize:strategyState.positionSize,positionAvgPrice:strategyState.positionAvgPrice,maxDrawdown:strategyState.maxDrawdown};
+    outputs.strategy={fills:strategyState.fills.slice(),closedTrades:strategyState.closedTrades.slice(),openTrades:strategyState.openTrades.slice(),initialCapital:strategyState.initialCapital,netprofit:strategyState.realized,equity:strategyEquity(),positionSize:strategyState.positionSize,positionAvgPrice:strategyState.positionAvgPrice,maxDrawdown:strategyState.maxDrawdown};
     outputs.inputs=inputValues;
     outputs.barCount=cleanBars.length;
     outputs.metadata=Object.assign(outputs.metadata,opts.metadata||{});
