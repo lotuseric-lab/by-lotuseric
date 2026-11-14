@@ -285,7 +285,7 @@
     ta.vwap=(src)=>{const p=src?seriesValues(src):ctx.bars.slice(0,ctx.index+1).map(b=>(b.high+b.low+b.close)/3);let pv=0,vol=0;ctx.bars.slice(0,ctx.index+1).forEach((b,i)=>{pv+=num(p[i])*b.volume;vol+=b.volume;});return vol?pv/vol:NA;};
 
     const strategyState={initialCapital:100000,commissionPercent:0,slippageTicks:0,pyramiding:1,defaultQtyType:"fixed",defaultQtyValue:1,commissionType:"percent",positionSize:0,positionAvgPrice:0,realized:0,grossProfit:0,grossLoss:0,winTrades:0,lossTrades:0,pending:[],exitOrders:[],openTrades:[],closedTrades:[],fills:[],peakEquity:100000,maxDrawdown:0};
-    const strategyEquity=()=>strategyState.initialCapital+strategyState.realized+(strategyState.positionSize===0?0:strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice));
+    const strategyEquity=()=>strategyState.initialCapital+strategyState.realized+(strategyState.positionSize===0||!ctx.bars[ctx.index]?0:strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice));
     const strategyCommission=notional=>Math.abs(notional)*strategyState.commissionPercent/100;
     const closeStrategyQuantity=(price,bar,reason,requestedQty=Infinity,entryId=null)=>{
       const direction=Math.sign(strategyState.positionSize);
@@ -444,7 +444,7 @@
     });
     Object.defineProperties(strategyNS,{
       position_size:{get:()=>strategyState.positionSize},position_avg_price:{get:()=>strategyState.positionAvgPrice||NA},
-      openprofit:{get:()=>strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice)},
+      openprofit:{get:()=>strategyState.positionSize&&ctx.bars[ctx.index]?strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice):0},
       netprofit:{get:()=>strategyState.realized},equity:{get:()=>strategyEquity()},initial_capital:{get:()=>strategyState.initialCapital},
       grossprofit:{get:()=>strategyState.grossProfit},grossloss:{get:()=>strategyState.grossLoss},
       wintrades:{get:()=>strategyState.winTrades},losstrades:{get:()=>strategyState.lossTrades},
