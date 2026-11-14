@@ -124,7 +124,7 @@
       }
       // Decorative Unicode symbols are common in Pine titles and section separators.
       // Ignore symbol/emoji code points while retaining diagnostics for unsupported syntax.
-      if (/^[\\p{S}\\p{P}]+$/u.test(String.fromCodePoint(text.codePointAt(i)))) {
+      if (/^[\p{S}\p{P}]+$/u.test(String.fromCodePoint(text.codePointAt(i)))) {
         const cp = text.codePointAt(i), width = cp > 0xFFFF ? 2 : 1;
         i += width; column += width; continue;
       }
