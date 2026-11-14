@@ -590,7 +590,7 @@ function savedPine(){try{return JSON.parse(localStorage.getItem('byLotusericPine
 function renderSavedPine(){const root=$('savedCustomIndicators'),items=savedPine();root.innerHTML=items.map((x,i)=>'<div class="indicatorSavedItem"><div><b>'+x.name.replace(/[<>]/g,'')+'</b><small class="muted">'+new Date(x.updated).toLocaleString('tr-TR')+'</small></div><div style="display:flex;gap:6px"><button data-edit-pine="'+i+'">Düzenle</button><button data-delete-pine="'+i+'">Sil</button></div></div>').join('')||'<p class="notice">Henüz kaydedilmiş özel kod yok.</p>';root.querySelectorAll('[data-edit-pine]').forEach(b=>b.onclick=()=>{const x=items[+b.dataset.editPine];$('customIndicatorName').value=x.name;$('customPineCode').value=x.code;customPineInputs=Object.assign(Object.create(null),x.inputs||{});customPineLastCode=x.code;customPineSettingsCode=''});root.querySelectorAll('[data-delete-pine]').forEach(b=>b.onclick=()=>{if(!confirm('Bu kayıt silinsin mi?'))return;items.splice(+b.dataset.deletePine,1);localStorage.setItem('byLotusericPineLibrary',JSON.stringify(items));renderSavedPine()})}
 document.querySelectorAll('[data-ind-tab]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-ind-tab]').forEach(x=>x.classList.toggle('active',x===b));['free','requested','custom'].forEach(k=>$('ind'+k[0].toUpperCase()+k.slice(1)+'Pane').classList.toggle('hidden',k!==b.dataset.indTab));if(b.dataset.indTab==='requested')renderMoneyIndicatorCatalog($('moneyIndicatorSearch').value)}));
 $('indicatorSearch').addEventListener('input',e=>renderIndicatorCatalog(e.target.value));$('moneyIndicatorSearch').addEventListener('input',e=>renderMoneyIndicatorCatalog(e.target.value));$('closeIndicatorLibrary').onclick=()=>$('indicatorLibrary').classList.add('hidden');$('indicatorLibrary').addEventListener('click',e=>{if(e.target===$('indicatorLibrary'))$('indicatorLibrary').classList.add('hidden')});$('saveCustomIndicator').onclick=()=>{const name=$('customIndicatorName').value.trim(),code=$('customPineCode').value.trim();if(!name||!code){alert('İndikatör adı ve Pine Script kodu gerekli.');return}const items=savedPine(),idx=items.findIndex(x=>x.name===name);const entry={name,code,inputs:customPineInputs,updated:Date.now()};if(idx>=0)items[idx]=entry;else items.unshift(entry);try{localStorage.setItem('byLotusericPineLibrary',JSON.stringify(items));renderSavedPine();alert('Pine Script kodu bu cihazda kaydedildi.')}catch(e){alert('Kaydedilemedi: cihaz depolama alanı dolu olabilir.')}};$('clearCustomIndicator').onclick=()=>{$('customPineCode').value='';$('customIndicatorName').value=''};
-let customPineChartState=null,customPineLastCode='',customPineSettingsCode='';let customPineInputs=Object.create(null);
+let customPineChartState=null,customPineLastCode='',customPineSettingsCode='';let customPineInputs=Object.create(null);let customPineRunToken=0,customPineLowerCache=new Map();
 function renderCustomPineSettings(defs){
  const root=$('customPineSettings');root.innerHTML='';
  if(!defs||!defs.length){root.innerHTML='<p class="notice">Bu göstergede kullanıcı ayarı bulunmuyor.</p>';return;}
@@ -599,7 +599,8 @@ function renderCustomPineSettings(defs){
   input.addEventListener('change',()=>{let v=input.type==='checkbox'?input.checked:input.type==='number'?(d.type==='int'?parseInt(input.value,10):parseFloat(input.value)):input.value;if(input.type==='number'&&!Number.isFinite(v))return;customPineInputs[d.key]=v;runCustomPine(false)});row.append(title,input);root.append(row);
  }
 }
-function runCustomPine(showMessage=true){
+async function runCustomPine(showMessage=true){
+ const runToken=++customPineRunToken;
  const code=$('customPineCode').value;
  if(code!==customPineLastCode){customPineInputs=Object.create(null);customPineSettingsCode='';}
  const status=$('customPineStatus');
@@ -612,7 +613,26 @@ function runCustomPine(showMessage=true){
   const ast=ByLotusericPineParser.parsePine(front.tokens);
   if(ast.diagnostics.length)throw Object.assign(new Error(ast.diagnostics[0].message),ast.diagnostics[0]);
   if(report.calls['strategy']||Object.keys(report.calls).some(k=>k.startsWith('strategy.')))throw new Error('strategy.* emir ve strateji komutları indikatör motorunda desteklenmez.');
-  const output=ByLotusericPineInterpreter.runPine(ast,barData,{inputs:customPineInputs,timeframe:tf,symbol:current});
+  const lowerTimeframeData={};
+  const baseTf=String(tf).trim().toLowerCase();
+  const baseMinutes=/^\\d+m$/.test(baseTf)?Number(baseTf.slice(0,-1)):/^\\d+h$/.test(baseTf)?Number(baseTf.slice(0,-1))*60:/^\\d+d$/.test(baseTf)?Number(baseTf.slice(0,-1))*1440:/^\\d+w$/.test(baseTf)?Number(baseTf.slice(0,-1))*10080:1;
+  if(baseMinutes>1&&/\\brequest\\s*\\.\\s*security\\s*\\(/.test(code)){
+   const cacheKey=exchange+'|'+current+'|1m';
+   let cached=customPineLowerCache.get(cacheKey);
+   if(!cached||Date.now()-cached.at>60000){
+    status.textContent='MTF için 1 dakikalık alt mumlar alınıyor…';
+    status.style.color='var(--muted)';
+    const rows=await fetchCandles(exchange,current,'1m',1000);
+    if(runToken!==customPineRunToken)return null;
+    const closed=rows.filter(x=>x.confirm===true||x.confirm===1||x.confirm==='1');
+    if(!closed.length)throw new Error('Borsa 1 dakikalık kapanmış alt mum verisi döndürmedi.');
+    cached={data:closed,at:Date.now()};
+    customPineLowerCache.set(cacheKey,cached);
+   }
+   lowerTimeframeData['1']=cached.data;
+  }
+  if(runToken!==customPineRunToken)return null;
+  const output=ByLotusericPineInterpreter.runPine(ast,barData,{inputs:customPineInputs,timeframe:tf,symbol:current,lowerTimeframeData});
   if(customPineSettingsCode!==code){renderCustomPineSettings(output.inputDefs);customPineSettingsCode=code;}
   if(customPineChartState)customPineChartState.clear();
   const addForTarget=(target,type,options)=>{
@@ -626,6 +646,7 @@ function runCustomPine(showMessage=true){
   status.style.color='var(--green)';
   return output;
  }catch(error){
+  if(runToken!==customPineRunToken)return null;
   const line=error.line?' · Satır '+error.line+(error.column?':'+error.column:''):'';
   status.textContent='Pine hatası'+line+': '+error.message;
   status.style.color='var(--red)';
