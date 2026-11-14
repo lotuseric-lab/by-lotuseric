@@ -20,3 +20,13 @@ This directory contains unmodified, publicly published Pine sources used as comp
   - `lib/trends_FIR/hma/hma.pine`
   - `lib/oscillators/fisher/fisher.pine`
   - `lib/oscillators/qqe/qqe.pine`
+
+## Additional MPL-2.0 Pine v6 compatibility fixtures
+- Volume Profile (Regard Hodler): `volume-profile-regard-hodler-v6.pine`
+  - Source: https://github.com/regardhodler/tradingview-volume-profile/blob/master/volume-profile.pine
+  - License: MPL-2.0 as declared in the source header; see `MPL-2.0.txt`.
+  - Exercises: array bins, loops, while loops, box/line/label creation and deletion, barstate.islast.
+- MTF Checklist Dashboard (EliasVictor): `mtf-checklist-eliasvictor-v6.pine`
+  - Source: https://github.com/eliasvictor-trading/multi-time-frame/blob/main/matrix_v7.pine
+  - License: MPL-2.0; see `MPL-2.0.txt`.
+  - Exercises: `request.security`, tuple returns, dynamic timeframe loops, table operations, sessions, alerts, arrays and helper functions.
