@@ -46,7 +46,7 @@ strategy("Trailing stop", default_qty_type=strategy.fixed, default_qty_value=1)
 if barstate.isfirst
     strategy.entry("L", strategy.long)
 if bar_index == 1
-    strategy.exit("Trail", "L", trail_points=5, trail_offset=2)
+    strategy.exit("Trail", "L", trail_points=500, trail_offset=200)
 plot(strategy.position_size)
 `,[
   bars[0],bars[1],
