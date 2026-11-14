@@ -540,3 +540,39 @@ assert.equal(projexStopResult.labels.filter(x=>/PROJE-X SAT \(STOP\)/.test(x.tex
   "STOP/SAT label must not repeat after the active cycle is closed");
 
 console.log("Pine interpreter tests: OK");
+
+// Drawing object lifecycle: a var handle must retain its identity while its
+// coordinates/text are updated on later bars; deletion must tombstone it and
+// remove it from the corresponding *.all collection.
+const drawingLifecycleBars = Array.from({length:4},(_,i)=>({
+  time:1700000000+i*300,open:10+i,high:12+i,low:9+i,close:11+i,volume:100+i
+}));
+const drawingLifecycleResult = runPine(compile(`//@version=6
+indicator("Drawing object lifecycle")
+var line trackedLine = line.new(bar_index, close, bar_index, close, color=color.blue)
+var label trackedLabel = label.new(bar_index, close, "initial")
+line.set_xy2(trackedLine, bar_index, close + 5)
+label.set_xy(trackedLabel, bar_index, close + 2)
+label.set_text(trackedLabel, "bar-" + str.tostring(bar_index))
+plot(array.size(line.all), "Active lines")
+plot(array.size(label.all), "Active labels")
+if bar_index == 2
+    line.delete(trackedLine)
+    label.delete(trackedLabel)
+`), drawingLifecycleBars);
+assert.equal(drawingLifecycleResult.lines.length, 1, "one persistent line handle must not create one line per bar");
+assert.equal(drawingLifecycleResult.labels.length, 1, "one persistent label handle must not create one label per bar");
+assert.equal(drawingLifecycleResult.lines[0].id, 1, "line identity must remain stable across bars");
+assert.equal(drawingLifecycleResult.labels[0].id, 2, "label identity must remain stable across bars");
+assert.equal(drawingLifecycleResult.lines[0].x2, 3, "line endpoint must reflect the latest setter call");
+assert.equal(drawingLifecycleResult.lines[0].y2, drawingLifecycleBars[3].close + 5);
+assert.equal(drawingLifecycleResult.labels[0].x, 3, "label position must reflect the latest setter call");
+assert.equal(drawingLifecycleResult.labels[0].y, drawingLifecycleBars[3].close + 2);
+assert.equal(drawingLifecycleResult.labels[0].text, "bar-3", "label text must update in place");
+assert.equal(drawingLifecycleResult.lines[0].deleted, true, "line.delete must tombstone the retained line object");
+assert.equal(drawingLifecycleResult.labels[0].deleted, true, "label.delete must tombstone the retained label object");
+assert.deepEqual(drawingLifecycleResult.plots.map(p=>p.values), [
+  [1,1,1,0],
+  [1,1,1,0]
+], "deleted drawings must disappear from line.all and label.all on the next execution bar");
+
