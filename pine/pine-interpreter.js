@@ -287,40 +287,76 @@
     const strategyState={initialCapital:100000,commissionPercent:0,slippageTicks:0,pyramiding:1,defaultQtyType:"fixed",defaultQtyValue:1,commissionType:"percent",positionSize:0,positionAvgPrice:0,realized:0,grossProfit:0,grossLoss:0,winTrades:0,lossTrades:0,pending:[],exitOrders:[],openTrades:[],closedTrades:[],fills:[],peakEquity:100000,maxDrawdown:0};
     const strategyEquity=()=>strategyState.initialCapital+strategyState.realized+(strategyState.positionSize===0?0:strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice));
     const strategyCommission=notional=>Math.abs(notional)*strategyState.commissionPercent/100;
-    const closeStrategyPosition=(price,bar,reason)=>{
-      if(!strategyState.positionSize)return;
-      const qty=Math.abs(strategyState.positionSize),direction=Math.sign(strategyState.positionSize);
-      const gross=(price-strategyState.positionAvgPrice)*qty*direction;
-      const fees=strategyState.commissionType==="percent"?(strategyCommission(price*qty)+strategyCommission(strategyState.positionAvgPrice*qty)):0,pnl=gross-fees;
-      strategyState.realized+=pnl;
-      if(pnl>=0){strategyState.grossProfit+=pnl;strategyState.winTrades++;}else{strategyState.grossLoss+=Math.abs(pnl);strategyState.lossTrades++;}
-      const trades=strategyState.openTrades.splice(0);
-      if(trades.length){
-        for(const trade of trades){const share=trade.qty/qty,tradeProfit=pnl*share;strategyState.closedTrades.push({...trade,exit_bar:bar,exit_price:price,exit_reason:reason,profit:tradeProfit});}
-      }else strategyState.closedTrades.push({exit_bar:bar,exit_price:price,exit_reason:reason,profit:pnl});
-      strategyState.fills.push({bar,side:direction>0?"sell":"buy",price,qty,kind:"exit",reason,profit:pnl});
-      strategyState.exitOrders=[];
-      strategyState.positionSize=0;strategyState.positionAvgPrice=0;
+    const closeStrategyQuantity=(price,bar,reason,requestedQty=Infinity,entryId=null)=>{
+      const direction=Math.sign(strategyState.positionSize);
+      if(!direction)return 0;
+      let remaining=Math.min(Math.abs(strategyState.positionSize),Math.max(0,Number(requestedQty)||0));
+      if(!Number.isFinite(remaining))remaining=Math.abs(strategyState.positionSize);
+      if(!remaining)return 0;
+      let closed=0,realized=0,feesTotal=0;
+      const survivors=[];
+      for(const trade of strategyState.openTrades){
+        if(remaining<=1e-12||entryId!==null&&trade.id!==entryId){survivors.push(trade);continue;}
+        const take=Math.min(trade.qty,remaining),gross=(price-trade.entry_price)*take*direction;
+        const fees=strategyState.commissionType==="percent"?(strategyCommission(price*take)+strategyCommission(trade.entry_price*take)):0;
+        const pnl=gross-fees;
+        strategyState.closedTrades.push({...trade,qty:take,exit_bar:bar,exit_price:price,exit_reason:reason,profit:pnl});
+        realized+=pnl;feesTotal+=fees;closed+=take;remaining-=take;
+        if(trade.qty-take>1e-12)survivors.push({...trade,qty:trade.qty-take});
+      }
+      if(closed<=0)return 0;
+      strategyState.openTrades=survivors;
+      strategyState.realized+=realized;
+      if(realized>=0){strategyState.grossProfit+=realized;strategyState.winTrades++;}else{strategyState.grossLoss+=Math.abs(realized);strategyState.lossTrades++;}
+      const left=Math.max(0,Math.abs(strategyState.positionSize)-closed);
+      strategyState.positionSize=left<=1e-12?0:direction*left;
+      if(strategyState.positionSize===0){strategyState.positionAvgPrice=0;strategyState.exitOrders=[];}
+      else {
+        const remainingCost=strategyState.openTrades.reduce((sum,t)=>sum+t.entry_price*t.qty,0);
+        strategyState.positionAvgPrice=left?remainingCost/left:0;
+      }
+      strategyState.fills.push({bar,side:direction>0?"sell":"buy",price,qty:closed,kind:"exit",reason,profit:realized,commission:feesTotal});
+      return closed;
+    };
+    const closeStrategyPosition=(price,bar,reason,entryId=null)=>{
+      const qty=entryId===null?Math.abs(strategyState.positionSize):strategyState.openTrades.filter(t=>t.id===entryId).reduce((sum,t)=>sum+t.qty,0);
+      return closeStrategyQuantity(price,bar,reason,qty,entryId);
     };
     const executeStrategyOrders=barIndex=>{
-      const bar=ctx.bars[barIndex];
+      const bar=ctx.bars[barIndex],tick=Number(options.mintick)||0.00000001;
       if(strategyState.positionSize){
         for(const order of strategyState.exitOrders.slice()){
           if(order.activeFromBar>barIndex)continue;
-          if(order.fromEntry&&!strategyState.openTrades.some(t=>t.id===order.fromEntry))continue;
-          const isLong=strategyState.positionSize>0,hitStop=order.stop!==null&&(isLong?bar.low<=order.stop:bar.high>=order.stop),
-            hitLimit=order.limit!==null&&(isLong?bar.high>=order.limit:bar.low<=order.limit);
+          const eligible=strategyState.openTrades.filter(t=>!order.fromEntry||t.id===order.fromEntry);
+          const eligibleQty=eligible.reduce((sum,t)=>sum+t.qty,0);
+          if(!eligibleQty){strategyState.exitOrders=strategyState.exitOrders.filter(o=>o!==order);continue;}
+          const isLong=strategyState.positionSize>0;
+          if(order.trailPoints!==null||order.trailOffset!==null||order.trailPrice!==null){
+            if(!order.trailActive){
+              if(order.trailPrice!==null)order.trailActive=isLong?bar.high>=order.trailPrice:bar.low<=order.trailPrice;
+              else {
+                const activation=eligible.reduce((v,t)=>isLong?Math.min(v,t.entry_price+order.trailPoints*tick):Math.max(v,t.entry_price-order.trailPoints*tick),isLong?Infinity:-Infinity);
+                order.trailActive=isLong?bar.high>=activation:bar.low<=activation;
+              }
+              if(order.trailActive)order.trailExtreme=isLong?bar.high:bar.low;
+            }else order.trailExtreme=isLong?Math.max(order.trailExtreme,bar.high):Math.min(order.trailExtreme,bar.low);
+          }
+          let stop=order.stop,limit=order.limit;
+          if(order.trailActive&&order.trailOffset!==null){
+            const trailStop=isLong?order.trailExtreme-order.trailOffset*tick:order.trailExtreme+order.trailOffset*tick;
+            stop=stop===null?trailStop:(isLong?Math.max(stop,trailStop):Math.min(stop,trailStop));
+          }
+          const hitStop=stop!==null&&(isLong?bar.low<=stop:bar.high>=stop),hitLimit=limit!==null&&(isLong?bar.high>=limit:bar.low<=limit);
           if(!hitStop&&!hitLimit)continue;
           let useLimit=hitLimit&&!hitStop;
-          if(hitLimit&&hitStop){
-            const highFirst=Math.abs(bar.open-bar.high)<=Math.abs(bar.open-bar.low);
-            useLimit=isLong?highFirst:!highFirst;
-          }
-          let fill=useLimit?order.limit:order.stop;
+          if(hitLimit&&hitStop){const highFirst=Math.abs(bar.open-bar.high)<=Math.abs(bar.open-bar.low);useLimit=isLong?highFirst:!highFirst;}
+          let fill=useLimit?limit:stop;
           if(useLimit){if(isLong&&bar.open>fill)fill=bar.open;if(!isLong&&bar.open<fill)fill=bar.open;}
           else {if(isLong&&bar.open<fill)fill=bar.open;if(!isLong&&bar.open>fill)fill=bar.open;}
-          closeStrategyPosition(fill,barIndex,"strategy.exit:"+order.id);
-          break;
+          const qty=order.qty!==null?Math.min(order.qty,eligibleQty):order.qtyPercent!==null?eligibleQty*order.qtyPercent/100:eligibleQty;
+          closeStrategyQuantity(fill,barIndex,"strategy.exit:"+order.id,qty,order.fromEntry);
+          strategyState.exitOrders=strategyState.exitOrders.filter(o=>o!==order);
+          if(!strategyState.positionSize)break;
         }
       }
       const pending=strategyState.pending.splice(0);
@@ -377,11 +413,16 @@
         const positional=fromEntry&&fromEntry.__named?[fromEntry,...args]:args;
         const cfg=drawCfg(positional),entryId=cfg.from_entry!==undefined?String(value(cfg.from_entry)):fromEntry===undefined||fromEntry&&fromEntry.__named?null:String(value(fromEntry));
         if(cfg.when!==undefined&&!truth(cfg.when))return null;
-        if(cfg.qty!==undefined||cfg.qty_percent!==undefined)throw new PineExecutionError("strategy.exit kısmi qty/qty_percent kapatmaları henüz desteklenmiyor.",null,"PINE_STRATEGY_PARTIAL_EXIT");
-        if(cfg.profit!==undefined||cfg.loss!==undefined||cfg.trail_points!==undefined||cfg.trail_offset!==undefined)throw new PineExecutionError("strategy.exit şimdilik doğrudan stop ve limit fiyatı bekliyor.",null,"PINE_STRATEGY_EXIT_MODE");
+        if(cfg.profit!==undefined||cfg.loss!==undefined)throw new PineExecutionError("strategy.exit profit/loss tick tabanlı hedefleri henüz desteklenmiyor; stop/limit fiyatı kullanın.",null,"PINE_STRATEGY_EXIT_MODE");
         const stop=cfg.stop===undefined?null:num(value(cfg.stop)),limit=cfg.limit===undefined?null:num(value(cfg.limit));
-        if(stop===null&&limit===null)throw new PineExecutionError("strategy.exit için stop veya limit gerekli.",null,"PINE_STRATEGY_EXIT_ARGUMENT");
-        const order={id:String(value(id)),fromEntry:entryId,stop,limit,activeFromBar:ctx.index+1};
+        const qty=cfg.qty===undefined?null:num(value(cfg.qty)),qtyPercent=cfg.qty_percent===undefined?null:num(value(cfg.qty_percent));
+        if(qty!==null&&(!(qty>0)||!Number.isFinite(qty)))throw new PineExecutionError("strategy.exit qty pozitif olmalı.",null,"PINE_STRATEGY_EXIT_QTY");
+        if(qtyPercent!==null&&(!(qtyPercent>0)||qtyPercent>100||!Number.isFinite(qtyPercent)))throw new PineExecutionError("strategy.exit qty_percent 0-100 aralığında olmalı.",null,"PINE_STRATEGY_EXIT_QTY_PERCENT");
+        const trailPoints=cfg.trail_points===undefined?null:num(value(cfg.trail_points)),trailOffset=cfg.trail_offset===undefined?null:num(value(cfg.trail_offset)),trailPrice=cfg.trail_price===undefined?null:num(value(cfg.trail_price));
+        if((trailPoints!==null||trailPrice!==null)&&trailOffset===null)throw new PineExecutionError("Trailing stop için trail_offset ile trail_points veya trail_price birlikte gerekli.",null,"PINE_STRATEGY_TRAIL_ARGUMENT");
+        if(trailOffset!==null&&!(trailOffset>0)||trailPoints!==null&&!(trailPoints>0))throw new PineExecutionError("Trailing stop değerleri pozitif olmalı.",null,"PINE_STRATEGY_TRAIL_VALUE");
+        if(stop===null&&limit===null&&trailOffset===null)throw new PineExecutionError("strategy.exit için stop, limit veya geçerli trailing stop gerekli.",null,"PINE_STRATEGY_EXIT_ARGUMENT");
+        const order={id:String(value(id)),fromEntry:entryId,stop,limit,qty,qtyPercent,trailPoints,trailOffset,trailPrice,trailActive:false,trailExtreme:null,activeFromBar:ctx.index+1};
         const existing=strategyState.exitOrders.findIndex(o=>o.id===order.id);
         if(existing>=0)strategyState.exitOrders[existing]=order;else strategyState.exitOrders.push(order);
         return null;
