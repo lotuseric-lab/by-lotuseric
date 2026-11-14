@@ -1036,7 +1036,6 @@
           }
           assignTarget(n.target,v,scope,n);
           if(n.target.type==="Identifier"&&Object.prototype.hasOwnProperty.call(persistent,n.target.name))persistent[n.target.name]=value(v);
-          const functionKey=n.target.type==="Identifier"?getFunctionSeriesKey(scope):null;
           if(functionKey!==null){const persistentKey=functionKey+"::"+n.target.name;if(functionPersistent.has(persistentKey))functionPersistent.set(persistentKey,value(v));}
           return v;
         }
