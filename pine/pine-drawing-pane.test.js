@@ -80,14 +80,14 @@ assert.ok(state.paneSvg, "pane drawing SVG should be created even without plot()
 const anchor = added.find(s => s.target === paneChart);
 assert.ok(anchor, "an invisible pane scale anchor should be created");
 assert.deepEqual(anchor.data, [{ time: 10, value: -10 }, { time: 30, value: 20 }]);
-assert.equal(state.paneSvg.children.length, 4, "two active lines, one label, one box and one active linefill should render");
+assert.equal(state.paneSvg.children.length, 5, "two active lines, one label, one box and one active linefill should render");
 assert.equal(state.paneSvg.children.filter(x => x.tag === "line").length, 2, "deleted lines must not render");
 assert.equal(state.paneSvg.children.filter(x => x.tag === "text").length, 1, "deleted labels must not render");
 assert.equal(state.paneSvg.children.filter(x => x.tag === "polygon").length, 1, "linefills referencing deleted lines must not render");
 assert.equal(state.paneSvg.children[0].attrs.x1, "1", "initial line x-coordinate should match the chart scale");
 xDivisor=5;
 logicalRangeListener();
-assert.equal(state.paneSvg.children.length, 4, "redraw should replace rather than duplicate SVG drawings");
+assert.equal(state.paneSvg.children.length, 5, "redraw should replace rather than duplicate SVG drawings");
 assert.equal(state.paneSvg.children[0].attrs.x1, "2", "drawing coordinates should update after chart zoom/scroll");
 priceRangeListener();
 sizeListener();
