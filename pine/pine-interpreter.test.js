@@ -576,3 +576,47 @@ assert.deepEqual(drawingLifecycleResult.plots.map(p=>p.values), [
   [1,1,1,0]
 ], "deleted drawings must disappear from line.all and label.all on the next execution bar");
 
+
+
+// Persistent box/linefill lifecycle and Pine v6 set_xloc coordinate arguments.
+const drawingMutationResult = runPine(compile(`//@version=6
+indicator("Drawing mutation and xloc")
+var line leftLine = line.new(bar_index, low, bar_index + 1, low + 2)
+var line rightLine = line.new(bar_index, high, bar_index + 1, high + 2)
+var label timeLabel = label.new(bar_index, close, "time")
+var box zone = box.new(bar_index, high, bar_index + 1, low)
+var linefill band = linefill.new(leftLine, rightLine, color.new(color.blue, 80))
+line.set_xloc(leftLine, xloc.bar_time, time - 300, time)
+line.set_xloc(rightLine, xloc.bar_time, time - 300, time)
+label.set_xloc(timeLabel, xloc.bar_time, time)
+box.set_xloc(zone, xloc.bar_time, time - 300, time)
+box.set_lefttop(zone, time - 600, high + 3)
+box.set_rightbottom(zone, time, low - 3)
+box.set_bgcolor(zone, color.new(color.green, 85))
+linefill.set_color(band, color.new(color.orange, 70))
+plot(array.size(box.all), "Active boxes")
+plot(array.size(linefill.all), "Active linefills")
+if bar_index == 2
+    box.delete(zone)
+    linefill.delete(band)
+`), drawingLifecycleBars);
+assert.equal(drawingMutationResult.boxes.length, 1, "one persistent box handle must be retained");
+assert.equal(drawingMutationResult.boxes[0].deleted, true, "box.delete must tombstone the retained box");
+assert.equal(drawingMutationResult.boxes[0].xloc, "bar_time");
+assert.equal(drawingMutationResult.boxes[0].left, drawingLifecycleBars[3].time - 600, "box.set_xloc and box coordinate setters must update time coordinates");
+assert.equal(drawingMutationResult.boxes[0].right, drawingLifecycleBars[3].time);
+assert.equal(drawingMutationResult.boxes[0].top, drawingLifecycleBars[3].high + 3);
+assert.equal(drawingMutationResult.boxes[0].bottom, drawingLifecycleBars[3].low - 3);
+assert.equal(drawingMutationResult.boxes[0].bgcolor, "rgba(34,197,94,0.15)");
+assert.equal(drawingMutationResult.linefills.length, 1, "one persistent linefill handle must be retained");
+assert.equal(drawingMutationResult.linefills[0].deleted, true, "linefill.delete must tombstone the retained fill");
+assert.equal(drawingMutationResult.linefills[0].color, "rgba(249,115,22,0.3)", "linefill.set_color must update the fill");
+assert.equal(drawingMutationResult.lines[0].xloc, "bar_time");
+assert.equal(drawingMutationResult.lines[0].x1, drawingLifecycleBars[3].time - 300);
+assert.equal(drawingMutationResult.lines[0].x2, drawingLifecycleBars[3].time);
+assert.equal(drawingMutationResult.labels[0].xloc, "bar_time");
+assert.equal(drawingMutationResult.labels[0].x, drawingLifecycleBars[3].time);
+assert.deepEqual(drawingMutationResult.plots.map(p=>p.values), [
+  [1,1,1,0],
+  [1,1,1,0]
+], "deleted boxes and linefills must disappear from their *.all collections on the next bar");
