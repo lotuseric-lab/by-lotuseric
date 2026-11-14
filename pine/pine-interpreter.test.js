@@ -214,18 +214,18 @@ assert.equal(result.hlines[0].linestyle, "dashed");
 
 result = runPine(compile(`//@version=6
 indicator("Alert frequency constants")
-alert("default")
-alert("bar", alert.freq_once_per_bar)
-alert("close", alert.freq_once_per_bar_close)
-alert("all", alert.freq_all)
+alert("FREQTEST:default")
+alert("FREQTEST:bar", alert.freq_once_per_bar)
+alert("FREQTEST:close", alert.freq_once_per_bar_close)
+alert("FREQTEST:all", alert.freq_all)
 alertcondition(bar_index == 2, "Condition", "Triggered")
 `), bars);
-const frequencyAlerts=result.alerts.filter(x=>["default","bar","close","all"].includes(x.message));
+const frequencyAlerts=result.alerts.filter(x=>(x.message||"").startsWith("FREQTEST:"));
 assert.deepEqual(frequencyAlerts.map(x=>x.frequency||"once_per_bar"),[
   "once_per_bar","once_per_bar","once_per_bar_close","all"
 ]);
-assert.equal(frequencyAlerts[2].message,"close");
-assert.equal(frequencyAlerts[3].message,"all");
+assert.equal(frequencyAlerts[2].message,"FREQTEST:close");
+assert.equal(frequencyAlerts[3].message,"FREQTEST:all");
 const conditionAlerts=result.alerts.filter(x=>x.title==="Condition");
 assert.equal(conditionAlerts.length,1);
 assert.equal(conditionAlerts[0].bar,2);
