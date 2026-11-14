@@ -350,7 +350,9 @@
       close_all:(...args)=>{const cfg=drawCfg(args);if(cfg.when!==undefined&&!truth(cfg.when))return null;strategyState.pending.push({type:"close_all",id:"close_all"});return null;},
       cancel:id=>{const key=String(value(id));strategyState.pending=strategyState.pending.filter(o=>o.id!==key);},
       cancel_all:()=>{strategyState.pending=[];},
-      exit:()=>{throw new PineExecutionError("strategy.exit stop/limit bracket emirleri sonraki aşamada eklenecek.",null,"PINE_STRATEGY_EXIT_UNSUPPORTED");}
+      exit:()=>{throw new PineExecutionError("strategy.exit stop/limit bracket emirleri sonraki aşamada eklenecek.",null,"PINE_STRATEGY_EXIT_UNSUPPORTED");},
+      _updateBar:()=>{const eq=strategyEquity();strategyState.peakEquity=Math.max(strategyState.peakEquity,eq);strategyState.maxDrawdown=Math.max(strategyState.maxDrawdown,strategyState.peakEquity-eq);},
+      _snapshot:()=>({fills:strategyState.fills.slice(),closedTrades:strategyState.closedTrades.slice(),openTrades:strategyState.openTrades.slice(),initialCapital:strategyState.initialCapital,netprofit:strategyState.realized,equity:strategyEquity(),positionSize:strategyState.positionSize,positionAvgPrice:strategyState.positionAvgPrice,maxDrawdown:strategyState.maxDrawdown})
     });
     Object.defineProperties(strategyNS,{
       position_size:{get:()=>strategyState.positionSize},position_avg_price:{get:()=>strategyState.positionAvgPrice||NA},
@@ -872,11 +874,11 @@
       try{execBlock(ast.body,barScope);if(opts.captureExpression)outputs.expression.push(value(evalExpr(opts.captureExpression,barScope)));}
       catch(error){if(error&&error.__pineBreak)throw new PineExecutionError("break yalnızca döngü içinde kullanılabilir.");if(error&&error.__pineContinue)throw new PineExecutionError("continue yalnızca döngü içinde kullanılabilir.");if(error instanceof PineExecutionError)throw error;throw new PineExecutionError(error.message,null);}
       for(const p of outputs.plots)p.values.push(outputs._plotValuesThisBar.has(p._id)?outputs._plotValuesThisBar.get(p._id):NA);
-      const currentEquity=strategyEquity();strategyState.peakEquity=Math.max(strategyState.peakEquity,currentEquity);strategyState.maxDrawdown=Math.max(strategyState.maxDrawdown,strategyState.peakEquity-currentEquity);
+      builtins.strategy._updateBar();
     }
     for(const p of outputs.plots)delete p._id;
     delete outputs._plotValuesThisBar;
-    outputs.strategy={fills:strategyState.fills.slice(),closedTrades:strategyState.closedTrades.slice(),openTrades:strategyState.openTrades.slice(),initialCapital:strategyState.initialCapital,netprofit:strategyState.realized,equity:strategyEquity(),positionSize:strategyState.positionSize,positionAvgPrice:strategyState.positionAvgPrice,maxDrawdown:strategyState.maxDrawdown};
+    outputs.strategy=builtins.strategy._snapshot();
     outputs.inputs=inputValues;
     outputs.barCount=cleanBars.length;
     outputs.metadata=Object.assign(outputs.metadata,opts.metadata||{});
