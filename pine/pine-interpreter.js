@@ -322,8 +322,10 @@
       const qty=entryId===null?Math.abs(strategyState.positionSize):strategyState.openTrades.filter(t=>t.id===entryId).reduce((sum,t)=>sum+t.qty,0);
       return closeStrategyQuantity(price,bar,reason,qty,entryId);
     };
+    const updateTradeExcursions=barIndex=>{const bar=ctx.bars[barIndex];if(!bar)return;for(const trade of strategyState.openTrades){const favorable=trade.direction>0?bar.high-trade.entry_price:trade.entry_price-bar.low;const adverse=trade.direction>0?trade.entry_price-bar.low:bar.high-trade.entry_price;trade.maxRunupPerUnit=Math.max(trade.maxRunupPerUnit||0,Math.max(0,favorable));trade.maxDrawdownPerUnit=Math.max(trade.maxDrawdownPerUnit||0,Math.max(0,adverse));}};
     const executeStrategyOrders=barIndex=>{
       const bar=ctx.bars[barIndex],tick=Number(options.mintick)||0.00000001;
+      updateTradeExcursions(barIndex);
       if(strategyState.positionSize){
         for(const order of strategyState.exitOrders.slice()){
           if(order.activeFromBar>barIndex)continue;
@@ -376,7 +378,7 @@
         const oldQty=Math.abs(strategyState.positionSize),newQty=oldQty+qty;
         strategyState.positionAvgPrice=oldQty?(strategyState.positionAvgPrice*oldQty+fillPrice*qty)/newQty:fillPrice;
         strategyState.positionSize=side*newQty;
-        strategyState.openTrades.push({id:order.id,direction:side,entry_bar:barIndex,entry_price:fillPrice,qty});
+        strategyState.openTrades.push({id:order.id,direction:side,entry_bar:barIndex,entry_price:fillPrice,qty,maxRunupPerUnit:0,maxDrawdownPerUnit:0});
         strategyState.fills.push({bar:barIndex,side:side>0?"buy":"sell",price:fillPrice,qty,kind:"entry",id:order.id});
       }
     };
@@ -456,6 +458,10 @@
         exit_time:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?tradeTime(t.exit_bar):NA;},
         exit_id:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?(String(t.exit_reason||"").startsWith("strategy.exit:")?String(t.exit_reason).slice(15):t.exit_reason):NA;},
         profit:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.profit:NA;},
+        max_runup:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?(t.maxRunupPerUnit||0)*t.qty:NA;},
+        max_drawdown:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?(t.maxDrawdownPerUnit||0)*t.qty:NA;},
+        max_runup_percent:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t&&t.entry_price?(t.maxRunupPerUnit||0)/t.entry_price*100:NA;},
+        max_drawdown_percent:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t&&t.entry_price?(t.maxDrawdownPerUnit||0)/t.entry_price*100:NA;},
         profit_percent:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t&&t.entry_price&&t.qty?t.profit/(Math.abs(t.entry_price*t.qty))*100:NA;},
         commission:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?(t.commission||0):NA;},
         size:i=>{const t=tradeIndex(strategyState.closedTrades,i);return t?t.direction*t.qty:NA;}
@@ -471,6 +477,10 @@
         entry_time:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?tradeTime(t.entry_bar):NA;},
         entry_id:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?t.id:NA;},
         profit:i=>{const t=tradeIndex(strategyState.openTrades,i);const bar=ctx.bars[ctx.index];return t&&bar?(bar.close-t.entry_price)*t.qty*t.direction:NA;},
+        max_runup:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?(t.maxRunupPerUnit||0)*t.qty:NA;},
+        max_drawdown:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?(t.maxDrawdownPerUnit||0)*t.qty:NA;},
+        max_runup_percent:i=>{const t=tradeIndex(strategyState.openTrades,i);return t&&t.entry_price?(t.maxRunupPerUnit||0)/t.entry_price*100:NA;},
+        max_drawdown_percent:i=>{const t=tradeIndex(strategyState.openTrades,i);return t&&t.entry_price?(t.maxDrawdownPerUnit||0)/t.entry_price*100:NA;},
         profit_percent:i=>{const t=tradeIndex(strategyState.openTrades,i);const bar=ctx.bars[ctx.index];return t&&bar&&t.entry_price?(bar.close-t.entry_price)*t.direction/t.entry_price*100:NA;},
         commission:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?strategyCommission(t.entry_price*t.qty):NA;},
         size:i=>{const t=tradeIndex(strategyState.openTrades,i);return t?t.direction*t.qty:NA;}
