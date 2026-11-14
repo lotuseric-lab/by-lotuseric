@@ -466,14 +466,22 @@ const projexBars=Array.from({length:600},(_,i)=>{
   return {time:1700000000+i*300,open:close-Math.sin(i*0.31)*0.5,high:close+0.9+(i%6)*0.12,low:close-0.8-(i%5)*0.1,close,volume:1500+(i%13)*140};
 });
 assert.ok(projexAst.body.length>0,"PROJE-X source should produce a non-empty syntax tree");
-// The supplied source parses, but its own local-scope reference is invalid:
-// watch_text is declared inside the `else if` block and read after that block.
+// Keep the original source as a regression fixture: its out-of-block reference is invalid.
 assert.throws(
   () => runPine(projexAst,projexBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000}),
   error => error instanceof PineExecutionError &&
     error.code === "PINE_UNDEFINED_IDENTIFIER" &&
     /watch_text/.test(error.message),
-  "PROJE-X fixture currently references block-local watch_text outside its scope"
+  "Original PROJE-X source must report its block-local watch_text reference"
 );
+
+// The isolated repair candidate moves dependent drawing/alert calls into their
+// declaring branch and quotes emoji prefixes; execute it over 600 synthetic bars.
+const projexFixedSource=fs.readFileSync(path.join(__dirname,"fixtures","PROJEX_SCOPE_FIXED_CANDIDATE.pine"),"utf8");
+const projexFixedAst=compile(projexFixedSource);
+const projexFixedResult=runPine(projexFixedAst,projexBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
+assert.equal(projexFixedResult.metadata.title,"MONEY TRADER - TAVAN ADAYI + PROJE-X");
+assert.ok(projexFixedResult.lines.length>0,"Repaired PROJE-X should create target lines");
+assert.ok(projexFixedResult.labels.length>0,"Repaired PROJE-X should create labels");
 
 console.log("Pine interpreter tests: OK");
