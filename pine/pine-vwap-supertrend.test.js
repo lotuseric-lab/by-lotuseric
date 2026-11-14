@@ -141,11 +141,11 @@ for (let i = 0; i < bars.length; i++) {
 }
 
 const alwaysReset = execute(
-  '//@version=6\\nindicator("VWAP constant true")\\nv=ta.vwap(hlc3,true)\\nplot(v,"VWAP")',
+  '//@version=6\nindicator("VWAP constant true")\nv=ta.vwap(hlc3,true)\nplot(v,"VWAP")',
   bars
 ).plots[0].values;
 const neverReset = execute(
-  '//@version=6\\nindicator("VWAP constant false")\\nv=ta.vwap(hlc3,false)\\nplot(v,"VWAP")',
+  '//@version=6\nindicator("VWAP constant false")\nv=ta.vwap(hlc3,false)\nplot(v,"VWAP")',
   bars
 ).plots[0].values;
 for (let i = 0; i < bars.length; i++) {
