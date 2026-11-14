@@ -15,6 +15,7 @@ plot(strategy.closedtrades.exit_price(0), title="Closed exit")
 plot(strategy.closedtrades.profit(0), title="Closed profit")
 plot(strategy.closedtrades.entry_bar_index(0), title="Entry bar")
 plot(strategy.closedtrades.exit_bar_index(0), title="Exit bar")
+plot(strategy.closedtrades.exit_id(0) == "Long-A" ? 1 : 0, title="Exit id")
 `;
 const front=lexPine(source);assert.deepEqual(front.diagnostics,[]);
 const ast=parsePine(front.tokens);assert.deepEqual(ast.diagnostics,[]);
@@ -32,6 +33,7 @@ assert.deepEqual(out.plots[3].values,[null,null,null,13]);
 assert.deepEqual(out.plots[4].values,[null,null,null,3.96]);
 assert.deepEqual(out.plots[5].values,[null,null,null,1]);
 assert.deepEqual(out.plots[6].values,[null,null,null,3]);
+assert.deepEqual(out.plots[7].values,[0,0,0,1]);
 assert.equal(out.strategy.closedTrades[0].id,"Long-A");
 assert.equal(out.strategy.closedTrades[0].commission,0);
 console.log("Pine strategy open/closed trade history accessors: OK");
