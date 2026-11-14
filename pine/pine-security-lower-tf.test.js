@@ -58,4 +58,29 @@ assert.throws(
   () => runPine(ast, bars, {symbol:"TEST",timeframe:"5"}),
   error => error.code === "PINE_MTF_DATA_REQUIRED",
 );
-console.log("Pine request.security_lower_tf tests: OK");
+const lowerSecuritySource = `//@version=6
+indicator("Lower timeframe request.security")
+lastIntrabarClose = request.security(syminfo.tickerid, "1", close, lookahead=barmerge.lookahead_off)
+[lastClose, lastOpen] = request.security(syminfo.tickerid, "1", [close, open], lookahead=barmerge.lookahead_off)
+plot(lastIntrabarClose, "Last intrabar close")
+plot(lastClose, "Tuple last close")
+plot(lastOpen, "Tuple last open")
+`;
+const lowerSecurityAst = parsePine(lexPine(lowerSecuritySource).tokens);
+const lowerSecurityOutput = runPine(lowerSecurityAst, bars, {
+  symbol: "TEST", timeframe: "5",
+  lowerTimeframeData: { "1": lowerBars },
+});
+assert.deepEqual(lowerSecurityOutput.plots[0].values, [105, 115],
+  "request.security on a lower timeframe must select the last intrabar in each chart bar");
+assert.deepEqual(lowerSecurityOutput.plots[1].values, [105, 115],
+  "lower-timeframe tuple request must select the final intrabar tuple");
+assert.deepEqual(lowerSecurityOutput.plots[2].values, [104, 114],
+  "lower-timeframe tuple values must stay aligned");
+
+assert.throws(
+  () => runPine(lowerSecurityAst, bars, { symbol: "TEST", timeframe: "5" }),
+  error => error.code === "PINE_MTF_DATA_REQUIRED",
+  "lower-timeframe request.security must require real intrabar data instead of inventing it"
+);
+console.log("Pine request.security_lower_tf and lower request.security tests: OK");
