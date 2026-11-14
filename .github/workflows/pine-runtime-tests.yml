@@ -36,6 +36,7 @@ jobs:
       - run: node pine/pine-security-lower-tf.test.js
       - run: node pine/pine-ta-history-functions.test.js
       - run: node pine/pine-dmi-performance.test.js
+      - run: node pine/pine-vwap-supertrend.test.js
       - run: node pine/pine-table-merge.test.js
       - run: node pine/pine-table-api.test.js
       - run: node pine/pine-drawing-mutation.test.js
