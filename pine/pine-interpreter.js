@@ -324,7 +324,8 @@
       outputs.metadata.title=value(title)||"Pine Strategy";outputs.metadata.scriptType="strategy";
       const cfg=drawCfg(args);
       if(Number.isFinite(Number(cfg.initial_capital)))strategyState.initialCapital=Number(cfg.initial_capital);
-      if(Number.isFinite(Number(cfg.commission_value)))strategyState.commissionPercent=Number(cfg.commission_value);\n      if(cfg.commission_type!==undefined){if(cfg.commission_type!=="percent"&&Number(cfg.commission_value||0)>0)throw new PineExecutionError("Şimdilik yalnız strategy.commission.percent destekleniyor.",null,"PINE_STRATEGY_COMMISSION");strategyState.commissionType=cfg.commission_type;}
+      if(Number.isFinite(Number(cfg.commission_value)))strategyState.commissionPercent=Number(cfg.commission_value);
+      if(cfg.commission_type!==undefined){if(cfg.commission_type!=="percent"&&Number(cfg.commission_value||0)>0)throw new PineExecutionError("Şimdilik yalnız strategy.commission.percent destekleniyor.",null,"PINE_STRATEGY_COMMISSION");strategyState.commissionType=cfg.commission_type;}
       if(Number.isFinite(Number(cfg.slippage)))strategyState.slippageTicks=Number(cfg.slippage);
       if(Number.isFinite(Number(cfg.pyramiding)))strategyState.pyramiding=Math.max(1,Math.trunc(Number(cfg.pyramiding)));
       if(cfg.default_qty_type==="strategy.percent_of_equity")strategyState.defaultQtyType="percent_of_equity";
