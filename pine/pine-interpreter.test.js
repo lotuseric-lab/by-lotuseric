@@ -712,3 +712,15 @@ assert.equal(sniperCompatResult.metadata.title, "SNIPER BOT SIGNALS [ALL BREAKOU
 assert.ok(sniperCompatResult.inputDefs.length >= 10, "Sniper inputs should be exposed");
 assert.ok(sniperCompatResult.boxes.length > 0 || sniperCompatResult.lines.length > 0,
   "Sniper should draw session ranges or breakout levels");
+
+
+// Indicator compatibility pass 5: Wizzard automatic pivot support/resistance manager.
+const wizzardSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_WIZZARD.pine"), "utf8");
+const wizzardAst = compile(wizzardSource);
+const wizzardResult = runPine(wizzardAst, supportBars, {
+  timeframe: "5m", symbol: "TEST-USDT", mintick: 0.01, maxSteps: 7000000
+});
+assert.equal(wizzardResult.metadata.title, "Money Trader — Otomatik Destek/Direnç");
+assert.ok(wizzardResult.inputDefs.length >= 15, "Wizzard inputs should be exposed");
+assert.ok(wizzardResult.lines.length > 0, "Wizzard should draw managed support/resistance levels");
+assert.ok(wizzardResult.labels.length > 0, "Wizzard should annotate support/resistance levels");
