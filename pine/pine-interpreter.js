@@ -351,6 +351,7 @@
       cancel:id=>{const key=String(value(id));strategyState.pending=strategyState.pending.filter(o=>o.id!==key);},
       cancel_all:()=>{strategyState.pending=[];},
       exit:()=>{throw new PineExecutionError("strategy.exit stop/limit bracket emirleri sonraki aşamada eklenecek.",null,"PINE_STRATEGY_EXIT_UNSUPPORTED");},
+      _executeBar:barIndex=>executeStrategyOrders(barIndex),
       _updateBar:()=>{const eq=strategyEquity();strategyState.peakEquity=Math.max(strategyState.peakEquity,eq);strategyState.maxDrawdown=Math.max(strategyState.maxDrawdown,strategyState.peakEquity-eq);},
       _snapshot:()=>({fills:strategyState.fills.slice(),closedTrades:strategyState.closedTrades.slice(),openTrades:strategyState.openTrades.slice(),initialCapital:strategyState.initialCapital,netprofit:strategyState.realized,equity:strategyEquity(),positionSize:strategyState.positionSize,positionAvgPrice:strategyState.positionAvgPrice,maxDrawdown:strategyState.maxDrawdown})
     });
@@ -868,7 +869,7 @@
     // Install OHLCV series progressively; each bar is evaluated in source order.
     const barKeys=["open","high","low","close","volume","time"];
     for(let i=0;i<cleanBars.length;i++){
-      currentIndex=i;if(i>0)executeStrategyOrders(i);outputs._plotValuesThisBar=new Map();
+      currentIndex=i;if(i>0)builtins.strategy._executeBar(i);outputs._plotValuesThisBar=new Map();
       for(const k of barKeys){if(!vars[k])vars[k]=[];vars[k].push(cleanBars[i][k]);}
       const barScope=new Scope(global);activeBarScope=barScope;
       try{execBlock(ast.body,barScope);if(opts.captureExpression)outputs.expression.push(value(evalExpr(opts.captureExpression,barScope)));}
