@@ -156,7 +156,7 @@ for (let i = 0; i < bars.length; i++) {
 
 
 const banded = execute(
-  '//@version=6\\nindicator("VWAP deviation bands")\\na=bar_index==80 or bar_index==130\\n[mid,upper,lower]=ta.vwap(hlc3,a,2.0)\\nplot(mid,"MID")\\nplot(upper,"UPPER")\\nplot(lower,"LOWER")',
+  '//@version=6\nindicator("VWAP deviation bands")\na=bar_index==80 or bar_index==130\n[mid,upper,lower]=ta.vwap(hlc3,a,2.0)\nplot(mid,"MID")\nplot(upper,"UPPER")\nplot(lower,"LOWER")',
   bars
 );
 for (let i = 0; i < bars.length; i++) {
