@@ -457,4 +457,17 @@ assert.ok(result.tables.length === 1, "Diagnostics table should be emitted");
 assert.equal(result.tables[0].cells["0:0"].text, "BY LOTUSERIC");
 assert.ok(result.tables[0].cells["1:1"].text.length > 0);
 
+
+const projexSource=fs.readFileSync(path.join(__dirname,"fixtures","MONEY_TRADER_PROJEX.pine"),"utf8");
+const projexAst=compile(projexSource);
+const projexBars=Array.from({length:600},(_,i)=>{
+  const wave=Math.sin(i*0.11)*2.5+Math.sin(i*0.037)*1.2;
+  const close=100+wave+i*0.025;
+  return {time:1700000000+i*300,open:close-Math.sin(i*0.31)*0.5,high:close+0.9+(i%6)*0.12,low:close-0.8-(i%5)*0.1,close,volume:1500+(i%13)*140};
+});
+result=runPine(projexAst,projexBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
+assert.equal(result.metadata.title,"MONEY TRADER - TAVAN ADAYI + PROJE-X");
+assert.ok(result.inputDefs.length>=25,"PROJE-X input definitions should be exposed");
+assert.ok(result.plots.length>0,"PROJE-X should emit chart plots");
+
 console.log("Pine interpreter tests: OK");
