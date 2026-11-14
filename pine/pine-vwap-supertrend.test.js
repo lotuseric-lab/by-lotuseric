@@ -154,4 +154,25 @@ for (let i = 0; i < bars.length; i++) {
   assert.ok(Math.abs(neverReset[i] - referenceDailyVwap(bars, i, 0)) < 1e-10, "constant false anchor at " + i);
 }
 
+
+const banded = execute(
+  '//@version=6\\nindicator("VWAP deviation bands")\\na=bar_index==80 or bar_index==130\\n[mid,upper,lower]=ta.vwap(hlc3,a,2.0)\\nplot(mid,"MID")\\nplot(upper,"UPPER")\\nplot(lower,"LOWER")',
+  bars
+);
+for (let i = 0; i < bars.length; i++) {
+  const start = i >= 130 ? 130 : i >= 80 ? 80 : 0;
+  const mid = referenceDailyVwap(bars, i, start);
+  let weightedVariance = 0;
+  let totalVolume = 0;
+  for (let k = start; k <= i; k++) {
+    const price = (bars[k].high + bars[k].low + bars[k].close) / 3;
+    weightedVariance += bars[k].volume * (price - mid) ** 2;
+    totalVolume += bars[k].volume;
+  }
+  const band = 2 * Math.sqrt(weightedVariance / totalVolume);
+  assert.ok(Math.abs(banded.plots[0].values[i] - mid) < 1e-10, "VWAP band basis at " + i);
+  assert.ok(Math.abs(banded.plots[1].values[i] - (mid + band)) < 1e-10, "VWAP upper band at " + i);
+  assert.ok(Math.abs(banded.plots[2].values[i] - (mid - band)) < 1e-10, "VWAP lower band at " + i);
+}
+
 console.log("VWAP daily + anchored: " + bars.length + " bars matched; Supertrend 3x10: " + valid + " bars matched.");
