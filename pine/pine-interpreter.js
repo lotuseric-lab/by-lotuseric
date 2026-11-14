@@ -430,7 +430,17 @@
       },
       _executeBar:barIndex=>executeStrategyOrders(barIndex),
       _updateBar:()=>{const eq=strategyEquity();strategyState.peakEquity=Math.max(strategyState.peakEquity,eq);strategyState.maxDrawdown=Math.max(strategyState.maxDrawdown,strategyState.peakEquity-eq);},
-      _snapshot:()=>({fills:strategyState.fills.slice(),closedTrades:strategyState.closedTrades.slice(),openTrades:strategyState.openTrades.slice(),exitOrders:strategyState.exitOrders.slice(),initialCapital:strategyState.initialCapital,netprofit:strategyState.realized,equity:strategyEquity(),positionSize:strategyState.positionSize,positionAvgPrice:strategyState.positionAvgPrice,maxDrawdown:strategyState.maxDrawdown})
+      _snapshot:()=>{
+        const totalTrades=strategyState.closedTrades.length,avgTrade=totalTrades?strategyState.realized/totalTrades:0;
+        const profitFactor=strategyState.grossLoss>0?strategyState.grossProfit/strategyState.grossLoss:strategyState.grossProfit>0?Infinity:NA;
+        const equity=strategyEquity(),openProfit=strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice);
+        return {fills:strategyState.fills.slice(),closedTrades:strategyState.closedTrades.slice(),openTrades:strategyState.openTrades.slice(),exitOrders:strategyState.exitOrders.slice(),
+          initialCapital:strategyState.initialCapital,netprofit:strategyState.realized,netprofitPercent:strategyState.initialCapital?strategyState.realized/strategyState.initialCapital*100:NA,
+          grossprofit:strategyState.grossProfit,grossloss:strategyState.grossLoss,profitFactor,winTrades:strategyState.winTrades,lossTrades:strategyState.lossTrades,
+          percentProfitable:totalTrades?strategyState.winTrades/totalTrades*100:0,averageTrade:avgTrade,totalTrades,
+          equity,openProfit,positionSize:strategyState.positionSize,positionAvgPrice:strategyState.positionAvgPrice,
+          maxDrawdown:strategyState.maxDrawdown,maxDrawdownPercent:strategyState.peakEquity?strategyState.maxDrawdown/strategyState.peakEquity*100:0};
+      }
     });
     Object.defineProperties(strategyNS,{
       position_size:{get:()=>strategyState.positionSize},position_avg_price:{get:()=>strategyState.positionAvgPrice||NA},
@@ -439,8 +449,12 @@
       grossprofit:{get:()=>strategyState.grossProfit},grossloss:{get:()=>strategyState.grossLoss},
       wintrades:{get:()=>strategyState.winTrades},losstrades:{get:()=>strategyState.lossTrades},
       opentrades:{get:()=>strategyState.openTrades.length},closedtrades:{get:()=>strategyState.closedTrades.length},
-      max_drawdown:{get:()=>strategyState.maxDrawdown},fills:{get:()=>strategyState.fills.slice()},
-      closedtrades_data:{get:()=>strategyState.closedTrades.slice()}
+      max_drawdown:{get:()=>strategyState.maxDrawdown},
+      netprofit_percent:{get:()=>strategyState.initialCapital?strategyState.realized/strategyState.initialCapital*100:NA},
+      percent_profitable:{get:()=>strategyState.closedTrades.length?strategyState.winTrades/strategyState.closedTrades.length*100:0},
+      profit_factor:{get:()=>strategyState.grossLoss>0?strategyState.grossProfit/strategyState.grossLoss:strategyState.grossProfit>0?Infinity:NA},
+      avg_trade:{get:()=>strategyState.closedTrades.length?strategyState.realized/strategyState.closedTrades.length:0},
+      fills:{get:()=>strategyState.fills.slice()},closedtrades_data:{get:()=>strategyState.closedTrades.slice()}
     });
 
     const barstate={isrealtime:false,isconfirmed:true,isnew:true,ishistory:true};Object.defineProperties(barstate,{isfirst:{get:()=>ctx.index===0},islast:{get:()=>ctx.index===ctx.bars.length-1},islastconfirmedhistory:{get:()=>ctx.index===ctx.bars.length-1}});
