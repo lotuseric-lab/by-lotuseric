@@ -28,7 +28,7 @@ for (const item of cases) {
   assert.deepEqual(parsed.diagnostics, [], item.name + ' parser diagnostics');
   let output;
   try {
-    output = runPine(parsed, bars, { symbol: 'BTCUSDT', timeframe: item.name === 'MTF Checklist Dashboard' ? '1' : '5' });
+    output = runPine(parsed, bars, { symbol: 'BTCUSDT', timeframe: '1' });
   } catch (error) {
     console.error('UNMODIFIED COMMUNITY INDICATOR FAILED:', item.name);
     console.error({ name: error.name, code: error.code, message: error.message, line: error.line, column: error.column });
