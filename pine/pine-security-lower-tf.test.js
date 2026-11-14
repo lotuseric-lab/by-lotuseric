@@ -83,4 +83,33 @@ assert.throws(
   error => error.code === "PINE_MTF_DATA_REQUIRED",
   "lower-timeframe request.security must require real intrabar data instead of inventing it"
 );
-console.log("Pine request.security_lower_tf and lower request.security tests: OK");
+const fifteenMinuteBars = Array.from({ length: 3 }, (_, i) => {
+  const chunk = lowerBars.slice(i * 15, i * 15 + 15);
+  return {
+    time: start + i * 900,
+    open: chunk[0].open,
+    high: Math.max(...chunk.map(b => b.high)),
+    low: Math.min(...chunk.map(b => b.low)),
+    close: chunk[chunk.length - 1].close,
+    volume: chunk.reduce((sum, b) => sum + b.volume, 0)
+  };
+});
+const oneMinuteIntrabars = Array.from({ length: 45 }, (_, i) => {
+  const close = 200 + Math.floor(i / 5) * 10 + (i % 5);
+  return { time: start + i * 60, open: close - 1, high: close + 2,
+    low: close - 2, close, volume: 1000 };
+});
+const aggregateLowerSource = `//@version=6
+indicator("Aggregate finer intrabars for lower request.security")
+lastFiveMinuteClose = request.security(syminfo.tickerid, "5", close, lookahead=barmerge.lookahead_off)
+plot(lastFiveMinuteClose, "Last 5m close")
+`;
+const aggregateLowerAst = parsePine(lexPine(aggregateLowerSource).tokens);
+const aggregateLowerOutput = runPine(aggregateLowerAst, fifteenMinuteBars, {
+  symbol: "TEST", timeframe: "15",
+  lowerTimeframeData: { "1": oneMinuteIntrabars }
+});
+assert.deepEqual(aggregateLowerOutput.plots[0].values, [224, 254, 284],
+  "1m intrabars must aggregate into 5m bars and select the final 5m bar inside each 15m chart bar");
+
+console.log("Pine request.security_lower_tf, lower request.security and derived lower-interval tests: OK");
