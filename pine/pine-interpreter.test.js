@@ -657,3 +657,15 @@ assert.ok(goldenRoseResult.inputDefs.length >= 10, "Golden Rose inputs should be
 assert.ok(goldenRoseResult.lines.length > 0, "Golden Rose should draw confirmed support/resistance lines");
 assert.ok(goldenRoseResult.plots.length > 0 || goldenRoseResult.shapes.length > 0,
   "Golden Rose should emit chart data or signal markers");
+
+
+// Indicator compatibility pass 4: Sniper session ranges, breakout boxes and labels.
+const sniperSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_SNIPER.pine"), "utf8");
+const sniperAst = compile(sniperSource);
+const sniperResult = runPine(sniperAst, supportBars, {
+  timeframe: "5m", symbol: "TEST-USDT", mintick: 0.01, maxSteps: 7000000
+});
+assert.equal(sniperResult.metadata.title, "SNIPER BOT SIGNALS [ALL BREAKOUTS]");
+assert.ok(sniperResult.inputDefs.length >= 10, "Sniper inputs should be exposed");
+assert.ok(sniperResult.boxes.length > 0 || sniperResult.lines.length > 0,
+  "Sniper should draw session ranges or breakout levels");
