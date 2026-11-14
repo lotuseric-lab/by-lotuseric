@@ -83,8 +83,13 @@ assert.throws(
   error => error.code === "PINE_MTF_DATA_REQUIRED",
   "lower-timeframe request.security must require real intrabar data instead of inventing it"
 );
+const oneMinuteIntrabars = Array.from({ length: 45 }, (_, i) => {
+  const close = 200 + Math.floor(i / 5) * 10 + (i % 5);
+  return { time: start + i * 60, open: close - 1, high: close + 2,
+    low: close - 2, close, volume: 1000 };
+});
 const fifteenMinuteBars = Array.from({ length: 3 }, (_, i) => {
-  const chunk = lowerBars.slice(i * 15, i * 15 + 15);
+  const chunk = oneMinuteIntrabars.slice(i * 15, i * 15 + 15);
   return {
     time: start + i * 900,
     open: chunk[0].open,
@@ -93,11 +98,6 @@ const fifteenMinuteBars = Array.from({ length: 3 }, (_, i) => {
     close: chunk[chunk.length - 1].close,
     volume: chunk.reduce((sum, b) => sum + b.volume, 0)
   };
-});
-const oneMinuteIntrabars = Array.from({ length: 45 }, (_, i) => {
-  const close = 200 + Math.floor(i / 5) * 10 + (i % 5);
-  return { time: start + i * 60, open: close - 1, high: close + 2,
-    low: close - 2, close, volume: 1000 };
 });
 const aggregateLowerSource = `//@version=6
 indicator("Aggregate finer intrabars for lower request.security")
