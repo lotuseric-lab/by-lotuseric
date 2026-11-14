@@ -331,6 +331,7 @@
           const eligibleQty=eligible.reduce((sum,t)=>sum+t.qty,0);
           if(!eligibleQty){strategyState.exitOrders=strategyState.exitOrders.filter(o=>o!==order);continue;}
           const isLong=strategyState.positionSize>0;
+          let trailActivatedThisBar=false;
           if(order.trailPoints!==null||order.trailOffset!==null||order.trailPrice!==null){
             if(!order.trailActive){
               if(order.trailPrice!==null)order.trailActive=isLong?bar.high>=order.trailPrice:bar.low<=order.trailPrice;
@@ -338,7 +339,7 @@
                 const activation=eligible.reduce((v,t)=>isLong?Math.min(v,t.entry_price+order.trailPoints*tick):Math.max(v,t.entry_price-order.trailPoints*tick),isLong?Infinity:-Infinity);
                 order.trailActive=isLong?bar.high>=activation:bar.low<=activation;
               }
-              if(order.trailActive)order.trailExtreme=isLong?bar.high:bar.low;
+              if(order.trailActive){order.trailExtreme=isLong?bar.high:bar.low;trailActivatedThisBar=true;}
             }else order.trailExtreme=isLong?Math.max(order.trailExtreme,bar.high):Math.min(order.trailExtreme,bar.low);
           }
           let stop=order.stop,limit=order.limit;
@@ -352,7 +353,7 @@
           if(hitLimit&&hitStop){const highFirst=Math.abs(bar.open-bar.high)<=Math.abs(bar.open-bar.low);useLimit=isLong?highFirst:!highFirst;}
           let fill=useLimit?limit:stop;
           if(useLimit){if(isLong&&bar.open>fill)fill=bar.open;if(!isLong&&bar.open<fill)fill=bar.open;}
-          else {if(isLong&&bar.open<fill)fill=bar.open;if(!isLong&&bar.open>fill)fill=bar.open;}
+          else if(!trailActivatedThisBar){if(isLong&&bar.open<fill)fill=bar.open;if(!isLong&&bar.open>fill)fill=bar.open;}
           const qty=order.qty!==null?Math.min(order.qty,eligibleQty):order.qtyPercent!==null?eligibleQty*order.qtyPercent/100:eligibleQty;
           closeStrategyQuantity(fill,barIndex,"strategy.exit:"+order.id,qty,order.fromEntry);
           strategyState.exitOrders=strategyState.exitOrders.filter(o=>o!==order);
@@ -419,7 +420,7 @@
         if(qty!==null&&(!(qty>0)||!Number.isFinite(qty)))throw new PineExecutionError("strategy.exit qty pozitif olmalı.",null,"PINE_STRATEGY_EXIT_QTY");
         if(qtyPercent!==null&&(!(qtyPercent>0)||qtyPercent>100||!Number.isFinite(qtyPercent)))throw new PineExecutionError("strategy.exit qty_percent 0-100 aralığında olmalı.",null,"PINE_STRATEGY_EXIT_QTY_PERCENT");
         const trailPoints=cfg.trail_points===undefined?null:num(value(cfg.trail_points)),trailOffset=cfg.trail_offset===undefined?null:num(value(cfg.trail_offset)),trailPrice=cfg.trail_price===undefined?null:num(value(cfg.trail_price));
-        if((trailPoints!==null||trailPrice!==null)&&trailOffset===null)throw new PineExecutionError("Trailing stop için trail_offset ile trail_points veya trail_price birlikte gerekli.",null,"PINE_STRATEGY_TRAIL_ARGUMENT");
+        if((trailPoints!==null||trailPrice!==null)&&trailOffset===null||trailOffset!==null&&trailPoints===null&&trailPrice===null)throw new PineExecutionError("Trailing stop için trail_offset ile trail_points veya trail_price birlikte gerekli.",null,"PINE_STRATEGY_TRAIL_ARGUMENT");
         if(trailOffset!==null&&!(trailOffset>0)||trailPoints!==null&&!(trailPoints>0))throw new PineExecutionError("Trailing stop değerleri pozitif olmalı.",null,"PINE_STRATEGY_TRAIL_VALUE");
         if(stop===null&&limit===null&&trailOffset===null)throw new PineExecutionError("strategy.exit için stop, limit veya geçerli trailing stop gerekli.",null,"PINE_STRATEGY_EXIT_ARGUMENT");
         const order={id:String(value(id)),fromEntry:entryId,stop,limit,qty,qtyPercent,trailPoints,trailOffset,trailPrice,trailActive:false,trailExtreme:null,activeFromBar:ctx.index+1};
