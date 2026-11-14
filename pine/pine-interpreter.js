@@ -207,6 +207,7 @@
     };
     const str = {
       tostring:(v,fmt)=>{const x=value(v),f=value(fmt);if(isNA(x))return "NaN";if(f==="mintick"&&Number.isFinite(Number(options.mintick))&&Number(options.mintick)>0){const tick=Number(options.mintick),digits=Math.max(0,Math.min(12,(-Math.floor(Math.log10(tick))+(tick/Math.pow(10,Math.floor(Math.log10(tick)))%1?1:0))));return Number(x).toFixed(digits);}if(f==="percent")return (Number(x)*100).toFixed(2)+"%";return String(x);},length:v=>String(value(v)||"").length,
+      split:(s,sep)=>String(value(s)??"").split(String(value(sep)??"")),
       lower:v=>String(value(v)||"").toLowerCase(),upper:v=>String(value(v)||"").toUpperCase(),
       contains:(a,b)=>String(value(a)).includes(String(value(b))),startswith:(a,b)=>String(value(a)).startsWith(String(value(b))),
       endswith:(a,b)=>String(value(a)).endsWith(String(value(b))),substring:(a,start,end)=>String(value(a)).slice(Math.trunc(num(value(start))),end===undefined?undefined:Math.trunc(num(value(end)))),
