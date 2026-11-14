@@ -620,3 +620,15 @@ assert.deepEqual(drawingMutationResult.plots.map(p=>p.values), [
   [1,1,1,0],
   [1,1,1,0]
 ], "deleted boxes and linefills must disappear from their *.all collections on the next bar");
+
+
+// Indicator compatibility pass 1: ADX + DI + MACD + RSI confirmation.
+const adxIndicatorSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_ADX.pine"), "utf8");
+const adxIndicatorAst = compile(adxIndicatorSource);
+const adxIndicatorResult = runPine(adxIndicatorAst, supportBars, {
+  timeframe: "5m", symbol: "TEST-USDT", mintick: 0.01, maxSteps: 5000000
+});
+assert.equal(adxIndicatorResult.metadata.title, "MONEY TRADER - ADX DI Kesişim [MACD + RSI ONAYLI]");
+assert.ok(adxIndicatorResult.inputDefs.length >= 15, "ADX indicator inputs should be exposed");
+assert.ok(adxIndicatorResult.plots.length >= 3, "ADX indicator should emit DI/ADX plots");
+assert.ok(adxIndicatorResult.tables.length > 0, "ADX indicator dashboard table should render");
