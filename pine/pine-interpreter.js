@@ -284,7 +284,7 @@
     ta.mfi=(src,len)=>{const p=seriesValues(src),v=ctx.bars.slice(0,ctx.index+1).map(b=>b.volume),n=Math.trunc(num(value(len)));if(p.length<=n)return NA;let pos=0,neg=0;for(let i=p.length-n;i<p.length;i++){const flow=num(p[i])*v[i];if(num(p[i])>num(p[i-1]))pos+=flow;else if(num(p[i])<num(p[i-1]))neg+=flow;}return neg===0?100:100-100/(1+pos/neg);};
     ta.vwap=(src)=>{const p=src?seriesValues(src):ctx.bars.slice(0,ctx.index+1).map(b=>(b.high+b.low+b.close)/3);let pv=0,vol=0;ctx.bars.slice(0,ctx.index+1).forEach((b,i)=>{pv+=num(p[i])*b.volume;vol+=b.volume;});return vol?pv/vol:NA;};
 
-    const strategyState={initialCapital:100000,commissionPercent:0,slippageTicks:0,pyramiding:1,defaultQtyType:"fixed",defaultQtyValue:1,commissionType:"percent",positionSize:0,positionAvgPrice:0,realized:0,grossProfit:0,grossLoss:0,winTrades:0,lossTrades:0,pending:[],openTrades:[],closedTrades:[],fills:[],peakEquity:100000,maxDrawdown:0};
+    const strategyState={initialCapital:100000,commissionPercent:0,slippageTicks:0,pyramiding:1,defaultQtyType:"fixed",defaultQtyValue:1,commissionType:"percent",positionSize:0,positionAvgPrice:0,realized:0,grossProfit:0,grossLoss:0,winTrades:0,lossTrades:0,pending:[],exitOrders:[],openTrades:[],closedTrades:[],fills:[],peakEquity:100000,maxDrawdown:0};
     const strategyEquity=()=>strategyState.initialCapital+strategyState.realized+(strategyState.positionSize===0?0:strategyState.positionSize*(ctx.bars[ctx.index].close-strategyState.positionAvgPrice));
     const strategyCommission=notional=>Math.abs(notional)*strategyState.commissionPercent/100;
     const closeStrategyPosition=(price,bar,reason)=>{
@@ -294,13 +294,36 @@
       const fees=strategyState.commissionType==="percent"?(strategyCommission(price*qty)+strategyCommission(strategyState.positionAvgPrice*qty)):0,pnl=gross-fees;
       strategyState.realized+=pnl;
       if(pnl>=0){strategyState.grossProfit+=pnl;strategyState.winTrades++;}else{strategyState.grossLoss+=Math.abs(pnl);strategyState.lossTrades++;}
-      const trade=strategyState.openTrades.pop()||{};
-      strategyState.closedTrades.push({...trade,exit_bar:bar,exit_price:price,exit_reason:reason,profit:pnl});
+      const trades=strategyState.openTrades.splice(0);
+      if(trades.length){
+        for(const trade of trades){const share=trade.qty/qty,tradeProfit=pnl*share;strategyState.closedTrades.push({...trade,exit_bar:bar,exit_price:price,exit_reason:reason,profit:tradeProfit});}
+      }else strategyState.closedTrades.push({exit_bar:bar,exit_price:price,exit_reason:reason,profit:pnl});
       strategyState.fills.push({bar,side:direction>0?"sell":"buy",price,qty,kind:"exit",reason,profit:pnl});
+      strategyState.exitOrders=[];
       strategyState.positionSize=0;strategyState.positionAvgPrice=0;
     };
     const executeStrategyOrders=barIndex=>{
-      const pending=strategyState.pending.splice(0),bar=ctx.bars[barIndex];
+      const bar=ctx.bars[barIndex];
+      if(strategyState.positionSize){
+        for(const order of strategyState.exitOrders.slice()){
+          if(order.activeFromBar>barIndex)continue;
+          if(order.fromEntry&&!strategyState.openTrades.some(t=>t.id===order.fromEntry))continue;
+          const isLong=strategyState.positionSize>0,hitStop=order.stop!==null&&(isLong?bar.low<=order.stop:bar.high>=order.stop),
+            hitLimit=order.limit!==null&&(isLong?bar.high>=order.limit:bar.low<=order.limit);
+          if(!hitStop&&!hitLimit)continue;
+          let useLimit=hitLimit&&!hitStop;
+          if(hitLimit&&hitStop){
+            const highFirst=Math.abs(bar.open-bar.high)<=Math.abs(bar.open-bar.low);
+            useLimit=isLong?highFirst:!highFirst;
+          }
+          let fill=useLimit?order.limit:order.stop;
+          if(useLimit){if(isLong&&bar.open>fill)fill=bar.open;if(!isLong&&bar.open<fill)fill=bar.open;}
+          else {if(isLong&&bar.open<fill)fill=bar.open;if(!isLong&&bar.open>fill)fill=bar.open;}
+          closeStrategyPosition(fill,barIndex,"strategy.exit:"+order.id);
+          break;
+        }
+      }
+      const pending=strategyState.pending.splice(0);
       for(const order of pending){
         const side=order.direction>0?1:-1,slip=strategyState.slippageTicks*(Number(options.mintick)||0);
         const fillPrice=bar.open+(side>0?slip:-slip);
@@ -350,10 +373,22 @@
       close_all:(...args)=>{const cfg=drawCfg(args);if(cfg.when!==undefined&&!truth(cfg.when))return null;strategyState.pending.push({type:"close_all",id:"close_all"});return null;},
       cancel:id=>{const key=String(value(id));strategyState.pending=strategyState.pending.filter(o=>o.id!==key);},
       cancel_all:()=>{strategyState.pending=[];},
-      exit:()=>{throw new PineExecutionError("strategy.exit stop/limit bracket emirleri sonraki aşamada eklenecek.",null,"PINE_STRATEGY_EXIT_UNSUPPORTED");},
+      exit:(id,fromEntry,...args)=>{
+        const positional=fromEntry&&fromEntry.__named?[fromEntry,...args]:args;
+        const cfg=drawCfg(positional),entryId=cfg.from_entry!==undefined?String(value(cfg.from_entry)):fromEntry===undefined||fromEntry&&fromEntry.__named?null:String(value(fromEntry));
+        if(cfg.when!==undefined&&!truth(cfg.when))return null;
+        if(cfg.qty!==undefined||cfg.qty_percent!==undefined)throw new PineExecutionError("strategy.exit kısmi qty/qty_percent kapatmaları henüz desteklenmiyor.",null,"PINE_STRATEGY_PARTIAL_EXIT");
+        if(cfg.profit!==undefined||cfg.loss!==undefined||cfg.trail_points!==undefined||cfg.trail_offset!==undefined)throw new PineExecutionError("strategy.exit şimdilik doğrudan stop ve limit fiyatı bekliyor.",null,"PINE_STRATEGY_EXIT_MODE");
+        const stop=cfg.stop===undefined?null:num(value(cfg.stop)),limit=cfg.limit===undefined?null:num(value(cfg.limit));
+        if(stop===null&&limit===null)throw new PineExecutionError("strategy.exit için stop veya limit gerekli.",null,"PINE_STRATEGY_EXIT_ARGUMENT");
+        const order={id:String(value(id)),fromEntry:entryId,stop,limit,activeFromBar:ctx.index+1};
+        const existing=strategyState.exitOrders.findIndex(o=>o.id===order.id);
+        if(existing>=0)strategyState.exitOrders[existing]=order;else strategyState.exitOrders.push(order);
+        return null;
+      },
       _executeBar:barIndex=>executeStrategyOrders(barIndex),
       _updateBar:()=>{const eq=strategyEquity();strategyState.peakEquity=Math.max(strategyState.peakEquity,eq);strategyState.maxDrawdown=Math.max(strategyState.maxDrawdown,strategyState.peakEquity-eq);},
-      _snapshot:()=>({fills:strategyState.fills.slice(),closedTrades:strategyState.closedTrades.slice(),openTrades:strategyState.openTrades.slice(),initialCapital:strategyState.initialCapital,netprofit:strategyState.realized,equity:strategyEquity(),positionSize:strategyState.positionSize,positionAvgPrice:strategyState.positionAvgPrice,maxDrawdown:strategyState.maxDrawdown})
+      _snapshot:()=>({fills:strategyState.fills.slice(),closedTrades:strategyState.closedTrades.slice(),openTrades:strategyState.openTrades.slice(),exitOrders:strategyState.exitOrders.slice(),initialCapital:strategyState.initialCapital,netprofit:strategyState.realized,equity:strategyEquity(),positionSize:strategyState.positionSize,positionAvgPrice:strategyState.positionAvgPrice,maxDrawdown:strategyState.maxDrawdown})
     });
     Object.defineProperties(strategyNS,{
       position_size:{get:()=>strategyState.positionSize},position_avg_price:{get:()=>strategyState.positionAvgPrice||NA},
