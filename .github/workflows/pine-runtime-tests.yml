@@ -57,6 +57,7 @@ jobs:
       - run: node pine/pine-fixture-runtime.test.js
       - run: node pine/pine-community-indicator.test.js
       - run: node pine/pine-community-quant-alib.test.js
+      - run: node pine/pine-community-advanced.test.js
       - run: node pine/check-inline-scripts.js
 # Strategy exit regression coverage refreshed
 # Strategy performance summary coverage refreshed
