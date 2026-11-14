@@ -16,6 +16,7 @@
   }
   function remove(state){
     if(!state)return;
+    for(const unsubscribe of state.unsubscribers||[]){try{unsubscribe()}catch{}}
     for(const s of state.series||[]){try{s.chart.removeSeries(s.series)}catch{}}
     if(state.fillSvg)try{state.fillSvg.remove()}catch{}if(state.svg)try{state.svg.remove()}catch{}for(const m of state.markers||[])try{m.detach()}catch{}for(const el of state.tableEls||[])try{el.remove()}catch{}for(const p of state.panes||[]){try{p.chart.remove()}catch{}try{p.wrap.remove()}catch{}}
   }
@@ -23,7 +24,7 @@
   function mount(config){
     const {chart,addChartSeries,bars,output,host,drawingHost,priceSeries}=config;
     if(!chart||typeof addChartSeries!=="function"||!Array.isArray(bars)||!output)throw new TypeError("Pine chart adapter eksik yapılandırıldı.");
-    const state={series:[],panes:[],markers:[],tableEls:[],output};
+    const state={series:[],panes:[],markers:[],tableEls:[],unsubscribers:[],output};
     const overlay=output.metadata?.overlay!==false;
     let target=chart;
     if(!overlay&&host){
@@ -57,20 +58,35 @@
         host.append(svg);state.fillSvg=svg;
         const groups=new Map();
         for(const f of output.fills){if(!groups.has(f.id))groups.set(f.id,[]);groups.get(f.id)[f.bar]=f;}
-        for(const records of groups.values()){
-          const first=records.find(Boolean);if(!first)continue;
-          const a=plotById.get(first.plot1),b=plotById.get(first.plot2);if(!a||!b)continue;
-          for(let i=0;i<bars.length-1;i++){
-            const f=records[i]||records[i+1],a1=a.values[i],a2=a.values[i+1],b1=b.values[i],b2=b.values[i+1];
-            if(!f||!f.color||![a1,a2,b1,b2].every(v=>typeof v==="number"&&Number.isFinite(v)))continue;
-            const x1=target.timeScale().timeToCoordinate(bars[i].time),x2=target.timeScale().timeToCoordinate(bars[i+1].time);
-            const y11=priceScale.priceToCoordinate(a1),y12=priceScale.priceToCoordinate(a2),y21=priceScale.priceToCoordinate(b1),y22=priceScale.priceToCoordinate(b2);
-            if([x1,x2,y11,y12,y21,y22].some(v=>v==null))continue;
-            const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
-            poly.setAttribute("points",[[x1,y11],[x2,y12],[x2,y22],[x1,y21]].map(p=>p.join(",")).join(" "));
-            poly.setAttribute("fill",f.color);poly.setAttribute("stroke","none");svg.append(poly);
+        const redrawFills=()=>{
+          if(typeof svg.replaceChildren==="function")svg.replaceChildren();
+          else if(Array.isArray(svg.children))svg.children.length=0;
+          else while(svg.firstChild)svg.removeChild(svg.firstChild);
+          for(const records of groups.values()){
+            const first=records.find(Boolean);if(!first)continue;
+            const a=plotById.get(first.plot1),b=plotById.get(first.plot2);if(!a||!b)continue;
+            for(let i=0;i<bars.length-1;i++){
+              const f=records[i]||records[i+1],a1=a.values[i],a2=a.values[i+1],b1=b.values[i],b2=b.values[i+1];
+              if(!f||!f.color||![a1,a2,b1,b2].every(v=>typeof v==="number"&&Number.isFinite(v)))continue;
+              const x1=target.timeScale().timeToCoordinate(bars[i].time),x2=target.timeScale().timeToCoordinate(bars[i+1].time);
+              const y11=priceScale.priceToCoordinate(a1),y12=priceScale.priceToCoordinate(a2),y21=priceScale.priceToCoordinate(b1),y22=priceScale.priceToCoordinate(b2);
+              if([x1,x2,y11,y12,y21,y22].some(v=>v==null))continue;
+              const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
+              poly.setAttribute("points",[[x1,y11],[x2,y12],[x2,y22],[x1,y21]].map(p=>p.join(",")).join(" "));
+              poly.setAttribute("fill",f.color);poly.setAttribute("stroke","none");svg.append(poly);
+            }
           }
-        }
+        };
+        redrawFills();
+        const subscribe=(target,method,unsubscribe)=>{
+          if(typeof target?.[method]!=="function")return;
+          target[method](redrawFills);
+          state.unsubscribers.push(()=>{try{target[unsubscribe]?.(redrawFills)}catch{}});
+        };
+        const timeScale=target.timeScale();
+        subscribe(timeScale,"subscribeVisibleLogicalRangeChange","unsubscribeVisibleLogicalRangeChange");
+        subscribe(priceScale,"subscribeVisiblePriceRangeChange","unsubscribeVisiblePriceRangeChange");
+        subscribe(target,"subscribeSizeChange","unsubscribeSizeChange");
       }
     }
     for(const h of output.hlines||[]){
@@ -80,22 +96,160 @@
       series.setData(bars.map(b=>({time:b.time,value:h.value})));
       state.series.push({chart:target,series});
     }
-    if(drawingHost&&priceSeries&&(output.lines?.length||output.labels?.length||output.boxes?.length)){
+    const renderDrawingLayer=(drawChart,drawHost,drawPriceSeries,lines,labels,boxes,linefills,layerName)=>{
+      if(!drawChart||!drawHost||!drawPriceSeries||!(lines.length||labels.length||boxes.length||linefills.length))return null;
       const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
-      svg.setAttribute("class","pineDrawingOverlay");
+      svg.setAttribute("class","pineDrawingOverlay pineDrawingOverlay-"+layerName);
       Object.assign(svg.style,{position:"absolute",inset:"0",width:"100%",height:"100%",pointerEvents:"none",overflow:"visible",zIndex:"6"});
-      drawingHost.append(svg);state.svg=svg;
-      const timeScale=chart.timeScale(),hostWidth=hostWidthSafe(drawingHost);
-      const indexToX=index=>{const n=Number(index);if(!Number.isFinite(n)||!bars.length)return null;const i=Math.trunc(n),last=bars.length-1;const t=i>=0&&i<=last?bars[i]?.time:null;if(t!=null){const x=timeScale.timeToCoordinate(t);if(x!=null)return x;}const x1=timeScale.timeToCoordinate(bars[last]?.time),x0=last>0?timeScale.timeToCoordinate(bars[last-1]?.time):null;const step=x1!=null&&x0!=null?x1-x0:0;if(x1==null||!step)return null;return x1+(i-last)*step;};
-      const xy=(x,y,xloc)=>{let px;if(xloc==="bar_time"){const time=Number(x);px=timeScale.timeToCoordinate(time);if(px==null&&bars.length>1){const last=bars[bars.length-1],prev=bars[bars.length-2],x1=timeScale.timeToCoordinate(last.time),x0=timeScale.timeToCoordinate(prev.time),dt=last.time-prev.time;if(x1!=null&&x0!=null&&dt)px=x1+((time-last.time)/dt)*(x1-x0);}}else px=indexToX(x);const py=priceSeries.priceToCoordinate(Number(y));return px==null||py==null?null:{x:px,y:py};};
-      const line=o=>{const a=xy(o.x1,o.y1,o.xloc),b=xy(o.x2,o.y2,o.xloc);if(!a||!b)return;let x1=a.x,x2=b.x,y1=a.y,y2=b.y;const dx=b.x-a.x,dy=b.y-a.y;if(o.extend==="right"||o.extend==="both"){x2=hostWidth;y2=Math.abs(dx)>0.0001?a.y+(hostWidth-a.x)*(dy/dx):b.y;}if(o.extend==="left"||o.extend==="both"){x1=0;y1=Math.abs(dx)>0.0001?a.y+(0-a.x)*(dy/dx):a.y;}const el=document.createElementNS("http://www.w3.org/2000/svg","line");for(const [k,v] of Object.entries({x1,y1,x2,y2,stroke:o.color||"#2962ff","stroke-width":o.width||2,"stroke-dasharray":o.style==="dashed"?"7 5":o.style==="dotted"?"2 4":""}))el.setAttribute(k,String(v));svg.append(el);};
-      for(const o of output.lines||[])if(!o.deleted)line(o);
-      for(const o of output.boxes||[])if(!o.deleted){const a=xy(o.left,o.top,o.xloc),b=xy(o.right,o.bottom,o.xloc);if(!a||!b)continue;const el=document.createElementNS("http://www.w3.org/2000/svg","rect");for(const [k,v] of Object.entries({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:o.bgcolor||"none",stroke:o.border_color||"none","stroke-width":o.border_width||1}))el.setAttribute(k,String(v));svg.append(el);}
-      for(const o of output.labels||[])if(!o.deleted){const p=xy(o.x,o.y,o.xloc);if(!p)continue;const el=document.createElementNS("http://www.w3.org/2000/svg","text");el.setAttribute("x",String(p.x));el.setAttribute("y",String(p.y));el.setAttribute("fill",o.textcolor||"#fff");el.setAttribute("font-size","12");el.textContent=o.text;svg.append(el);}
-      const linesById=new Map((output.lines||[]).map(o=>[o.id,o]));for(const f of output.linefills||[]){if(f.deleted)continue;const a=linesById.get(f.line1?.id),b=linesById.get(f.line2?.id);if(!a||!b||a.deleted||b.deleted)continue;const p1=xy(a.x1,a.y1,a.xloc),p2=xy(a.x2,a.y2,a.xloc),p3=xy(b.x2,b.y2,b.xloc),p4=xy(b.x1,b.y1,b.xloc);if(!p1||!p2||!p3||!p4)continue;const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");poly.setAttribute("points",[p1,p2,p3,p4].map(p=>p.x+","+p.y).join(" "));poly.setAttribute("fill",f.color||"rgba(41,98,255,0.18)");poly.setAttribute("stroke","none");svg.insertBefore(poly,svg.firstChild);}
+      if(!drawHost.style.position)drawHost.style.position="relative";
+      drawHost.append(svg);
+      const redraw=()=>{
+        if(typeof svg.replaceChildren==="function")svg.replaceChildren();
+        else if(Array.isArray(svg.children))svg.children.length=0;
+        else while(svg.firstChild)svg.removeChild(svg.firstChild);
+        const timeScale=drawChart.timeScale(),hostWidth=hostWidthSafe(drawHost);
+        const indexToX=index=>{
+          const n=Number(index);if(!Number.isFinite(n)||!bars.length)return null;
+          const i=Math.trunc(n),last=bars.length-1,t=i>=0&&i<=last?bars[i]?.time:null;
+          if(t!=null){const x=timeScale.timeToCoordinate(t);if(x!=null)return x;}
+          const x1=timeScale.timeToCoordinate(bars[last]?.time),x0=last>0?timeScale.timeToCoordinate(bars[last-1]?.time):null;
+          const step=x1!=null&&x0!=null?x1-x0:0;return x1==null||!step?null:x1+(i-last)*step;
+        };
+        const xy=(x,y,xloc)=>{
+          let px;
+          if(xloc==="bar_time"){
+            const time=Number(x);px=timeScale.timeToCoordinate(time);
+            if(px==null&&bars.length>1){const last=bars[bars.length-1],prev=bars[bars.length-2],x1=timeScale.timeToCoordinate(last.time),x0=timeScale.timeToCoordinate(prev.time),dt=last.time-prev.time;if(x1!=null&&x0!=null&&dt)px=x1+((time-last.time)/dt)*(x1-x0);}
+          }else px=indexToX(x);
+          const py=drawPriceSeries.priceToCoordinate(Number(y));
+          return px==null||py==null?null:{x:px,y:py};
+        };
+        const line=o=>{
+          const a=xy(o.x1,o.y1,o.xloc),b=xy(o.x2,o.y2,o.xloc);if(!a||!b)return;
+          let x1=a.x,x2=b.x,y1=a.y,y2=b.y;const dx=b.x-a.x,dy=b.y-a.y;
+          if(o.extend==="right"||o.extend==="both"){x2=hostWidth;y2=Math.abs(dx)>0.0001?a.y+(hostWidth-a.x)*(dy/dx):b.y;}
+          if(o.extend==="left"||o.extend==="both"){x1=0;y1=Math.abs(dx)>0.0001?a.y+(0-a.x)*(dy/dx):a.y;}
+          const el=document.createElementNS("http://www.w3.org/2000/svg","line");
+          for(const [k,v] of Object.entries({x1,y1,x2,y2,stroke:o.color||"#2962ff","stroke-width":o.width||2,"stroke-dasharray":o.style==="dashed"?"7 5":o.style==="dotted"?"2 4":""}))el.setAttribute(k,String(v));
+          svg.append(el);
+        };
+        for(const o of lines)if(!o.deleted)line(o);
+        for(const o of boxes)if(!o.deleted){
+          const a=xy(o.left,o.top,o.xloc),b=xy(o.right,o.bottom,o.xloc);if(!a||!b)continue;
+          const el=document.createElementNS("http://www.w3.org/2000/svg","rect");
+          for(const [k,v] of Object.entries({x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(b.x-a.x),height:Math.abs(b.y-a.y),fill:o.bgcolor||"none",stroke:o.border_color||"none","stroke-width":o.border_width||1}))el.setAttribute(k,String(v));
+          svg.append(el);
+        }
+        for(const o of labels)if(!o.deleted){
+          const p=xy(o.x,o.y,o.xloc);if(!p)continue;
+          const el=document.createElementNS("http://www.w3.org/2000/svg","text");
+          el.setAttribute("x",String(p.x));el.setAttribute("y",String(p.y));el.setAttribute("fill",o.textcolor||"#fff");el.setAttribute("font-size","12");el.textContent=o.text;svg.append(el);
+        }
+        const linesById=new Map([...lines,...(output.lines||[])].map(o=>[o.id,o]));
+        for(const f of linefills){
+          if(f.deleted)continue;
+          const a=linesById.get(f.line1?.id),b=linesById.get(f.line2?.id);if(!a||!b||a.deleted||b.deleted)continue;
+          const p1=xy(a.x1,a.y1,a.xloc),p2=xy(a.x2,a.y2,a.xloc),p3=xy(b.x2,b.y2,b.xloc),p4=xy(b.x1,b.y1,b.xloc);
+          if(!p1||!p2||!p3||!p4)continue;
+          const poly=document.createElementNS("http://www.w3.org/2000/svg","polygon");
+          poly.setAttribute("points",[p1,p2,p3,p4].map(p=>p.x+","+p.y).join(" "));poly.setAttribute("fill",f.color||"rgba(41,98,255,0.18)");poly.setAttribute("stroke","none");svg.insertBefore(poly,svg.firstChild);
+        }
+      };
+      redraw();
+      const subscribe=(target,method,unsubscribe)=>{
+        if(typeof target?.[method]!=="function")return;
+        target[method](redraw);
+        state.unsubscribers.push(()=>{try{target[unsubscribe]?.(redraw)}catch{}});
+      };
+      const timeScale=drawChart.timeScale();
+      subscribe(timeScale,"subscribeVisibleLogicalRangeChange","unsubscribeVisibleLogicalRangeChange");
+      const priceScale=drawChart.priceScale?.("right");
+      subscribe(priceScale,"subscribeVisiblePriceRangeChange","unsubscribeVisiblePriceRangeChange");
+      subscribe(drawChart,"subscribeSizeChange","unsubscribeSizeChange");
+      return svg;
+    };
+    const routeToPrice=o=>overlay||o.force_overlay===true;
+    // Tombstoned objects remain in interpreter output for stable handles/history,
+    // but must not participate in chart routing, pane autoscaling or SVG rendering.
+    const activeLines=(output.lines||[]).filter(o=>!o.deleted);
+    const activeLabels=(output.labels||[]).filter(o=>!o.deleted);
+    const activeBoxes=(output.boxes||[]).filter(o=>!o.deleted);
+    const activeLinefills=(output.linefills||[]).filter(o=>!o.deleted);
+    const priceLines=activeLines.filter(routeToPrice),paneLines=activeLines.filter(o=>!routeToPrice(o));
+    const priceLabels=activeLabels.filter(routeToPrice),paneLabels=activeLabels.filter(o=>!routeToPrice(o));
+    const priceBoxes=activeBoxes.filter(routeToPrice),paneBoxes=activeBoxes.filter(o=>!routeToPrice(o));
+    const lineById=new Map(activeLines.map(o=>[o.id,o]));
+    const priceLinefills=activeLinefills.filter(f=>routeToPrice(lineById.get(f.line1?.id)||{}));
+    const paneLinefills=activeLinefills.filter(f=>!routeToPrice(lineById.get(f.line1?.id)||{}));
+    const drawingHasPrice=priceLines.length||priceLabels.length||priceBoxes.length||priceLinefills.length;
+    const drawingHasPane=paneLines.length||paneLabels.length||paneBoxes.length||paneLinefills.length;
+    if(drawingHasPrice)state.svg=renderDrawingLayer(chart,drawingHost,priceSeries,priceLines,priceLabels,priceBoxes,priceLinefills,"price");
+    if(drawingHasPane&&!overlay&&state.panes[0]){
+      // Drawings can exist without plot()/hline() output. In that case the pane
+      // has no series to provide priceToCoordinate(), so add an invisible scale
+      // anchor spanning every drawing y-value. It also expands an existing pane
+      // scale when a drawing extends beyond the plotted oscillator range.
+      const drawingY=[];
+      for(const o of paneLines){drawingY.push(Number(o.y1),Number(o.y2));}
+      for(const o of paneLabels)drawingY.push(Number(o.y));
+      for(const o of paneBoxes)drawingY.push(Number(o.top),Number(o.bottom));
+      for(const f of paneLinefills){
+        const a=lineById.get(f.line1?.id),b=lineById.get(f.line2?.id);
+        if(a)drawingY.push(Number(a.y1),Number(a.y2));
+        if(b)drawingY.push(Number(b.y1),Number(b.y2));
+      }
+      const finiteY=drawingY.filter(Number.isFinite);
+      let paneSeries=state.series.find(s=>s.chart===target)?.series;
+      if(finiteY.length){
+        const minY=Math.min(...finiteY),maxY=Math.max(...finiteY);
+        const anchor=addChartSeries.call(null,target,"LineSeries",{
+          color:"rgba(0,0,0,0)",lineVisible:false,pointMarkersVisible:false,
+          priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false
+        });
+        const anchorData=bars.length>1
+          ? [{time:bars[0].time,value:minY},{time:bars[bars.length-1].time,value:maxY}]
+          : bars.length===1?[{time:bars[0].time,value:minY}]:[];
+        anchor.setData(anchorData);
+        state.series.push({chart:target,series:anchor});
+        paneSeries=anchor;
+      }
+      state.paneSvg=renderDrawingLayer(target,state.panes[0].plot,paneSeries,paneLines,paneLabels,paneBoxes,paneLinefills,"pane");
     }
     if(output.tables?.length&&drawingHost){
-      for(const t of output.tables){if(t.deleted)continue;const el=document.createElement("div");el.className="pineTableOverlay";Object.assign(el.style,{position:"absolute",right:"8px",top:"8px",zIndex:"8",background:t.bgcolor||"#142033",color:"#fff",border:"1px solid "+(t.frame_color||"#64748b"),padding:"4px",fontSize:"11px",pointerEvents:"none"});const table=document.createElement("table");for(let r=0;r<t.rows;r++){const tr=document.createElement("tr");for(let c=0;c<t.columns;c++){const td=document.createElement("td"),cell=t.cells[c+":"+r];td.textContent=cell?.text||"";td.style.padding="3px 5px";td.style.color=cell?.text_color||"#fff";if(cell?.bgcolor)td.style.background=cell.bgcolor;tr.append(td);}table.append(tr);}el.append(table);drawingHost.append(el);state.tableEls.push(el);}
+      for(const t of output.tables){
+        if(t.deleted)continue;
+        const el=document.createElement("div");el.className="pineTableOverlay";
+        const tableAnchors={
+          top_left:{top:"8px",left:"8px"},top_center:{top:"8px",left:"50%",transform:"translateX(-50%)"},top_right:{top:"8px",right:"8px"},
+          middle_left:{top:"50%",left:"8px",transform:"translateY(-50%)"},middle_center:{top:"50%",left:"50%",transform:"translate(-50%,-50%)"},middle_right:{top:"50%",right:"8px",transform:"translateY(-50%)"},
+          bottom_left:{bottom:"8px",left:"8px"},bottom_center:{bottom:"8px",left:"50%",transform:"translateX(-50%)"},bottom_right:{bottom:"8px",right:"8px"}
+        };
+        Object.assign(el.style,{position:"absolute",...(tableAnchors[t.position]||tableAnchors.top_right),zIndex:"8",background:t.bgcolor||"#142033",color:"#fff",border:(t.frame_width??1)+"px solid "+(t.frame_color||"#64748b"),padding:"4px",fontSize:"11px",pointerEvents:"none"});
+        const table=document.createElement("table"),merged=new Map(),covered=new Set();
+        for(const m of t.mergedCells||[]){
+          merged.set(m.start_column+":"+m.start_row,m);
+          for(let r=m.start_row;r<=m.end_row;r++)for(let c=m.start_column;c<=m.end_column;c++)
+            if(c!==m.start_column||r!==m.start_row)covered.add(c+":"+r);
+        }
+        table.style.borderCollapse="collapse";
+        for(let r=0;r<t.rows;r++){
+          const tr=document.createElement("tr");
+          for(let c=0;c<t.columns;c++){
+            const key=c+":"+r;if(covered.has(key))continue;
+            const td=document.createElement("td"),cell=t.cells[key],merge=merged.get(key);
+            td.textContent=cell?.text||"";
+            if(merge){td.colSpan=merge.end_column-merge.start_column+1;td.rowSpan=merge.end_row-merge.start_row+1;}
+            td.style.padding="3px 5px";td.style.color=cell?.text_color||"#fff";
+            td.style.border=(t.border_width??1)+"px solid "+(t.border_color||"#64748b");
+            if(cell?.bgcolor)td.style.background=cell.bgcolor;
+            if(cell?.text_halign)td.style.textAlign=cell.text_halign;
+            if(cell?.text_valign)td.style.verticalAlign=cell.text_valign;const textSizes={tiny:"9px",small:"11px",normal:"13px",large:"16px",huge:"20px"};if(cell?.text_size)td.style.fontSize=textSizes[cell.text_size]||cell.text_size;
+            tr.append(td);
+          }
+          table.append(tr);
+        }
+        el.append(table);drawingHost.append(el);state.tableEls.push(el);
+      }
     }
     if(output.candles?.length){
       const kind=output.candles[0].type==="bar"?"BarSeries":"CandlestickSeries";
@@ -103,17 +257,36 @@
       const data=output.candles.filter(x=>bars[x.bar]).map(x=>({time:bars[x.bar].time,open:x.open,high:x.high,low:x.low,close:x.close,color:x.color,wickColor:x.wickcolor,borderColor:x.bordercolor}));
       series.setData(data);state.series.push({chart:target,series});
     }
-    if(overlay&&output.shapes?.length){
+    if(output.strategy?.fills?.length&&priceSeries&&typeof LightweightCharts!=="undefined"&&typeof LightweightCharts.createSeriesMarkers==="function"){
+      const tradeMarkers=output.strategy.fills.filter(f=>bars[f.bar]).map(f=>{
+        const isBuy=f.side==="buy",entry=f.kind==="entry";
+        const text=entry?(isBuy?"LONG":"SHORT"):(isBuy?"COVER":"EXIT");
+        const pnl=Number.isFinite(f.profit)?(" "+(f.profit>=0?"+":"")+f.profit.toFixed(2)):"";
+        return {time:bars[f.bar].time,position:isBuy?"belowBar":"aboveBar",color:isBuy?"#22c58b":"#ff647c",shape:isBuy?"arrowUp":"arrowDown",text:text+(entry?"":pnl),size:2};
+      });
+      if(tradeMarkers.length)state.markers.push(LightweightCharts.createSeriesMarkers(priceSeries,tradeMarkers));
+    }
+    if(output.shapes?.length){
       const visible=output.shapes.filter(x=>x.value&&bars[x.bar]);
-      if(priceSeries&&typeof LightweightCharts.createSeriesMarkers==="function"){
-        const shapeMap={"shape.triangleup":"arrowUp","shape.arrowup":"arrowUp","shape.labelup":"arrowUp","shape.triangledown":"arrowDown","shape.arrowdown":"arrowDown","shape.labeldown":"arrowDown","shape.square":"square","shape.circle":"circle","shape.diamond":"square","shape.cross":"cross","shape.xcross":"cross"};
-        const sizeMap={tiny:1,small:1,normal:2,large:3,huge:4};
-        const markers=visible.map(x=>({time:bars[x.bar].time,position:x.location==="belowbar"||x.location==="bottom"?"belowBar":x.location==="abovebar"||x.location==="top"?"aboveBar":"inBar",color:x.color||"#2962ff",shape:shapeMap[x.style]||"circle",text:x.text||"",size:sizeMap[x.size]||2}));
-        state.markers.push(LightweightCharts.createSeriesMarkers(priceSeries,markers));
-      }else{
-        const markerSeries=addChartSeries.call(null,target,"LineSeries",{color:"#ffffff",lineVisible:false,pointMarkersVisible:true,pointMarkersRadius:5,priceLineVisible:false,lastValueVisible:false});
-        const points=visible.map(x=>({time:bars[x.bar].time,value:bars[x.bar].close,color:x.color||"#2962ff"}));
-        markerSeries.setData(points);state.series.push({chart:target,series:markerSeries});
+      const priceVisible=visible.filter(x=>overlay||x.force_overlay===true);
+      const paneVisible=visible.filter(x=>!overlay&&x.force_overlay!==true);
+      const shapeMap={"shape.triangleup":"arrowUp","shape.arrowup":"arrowUp","shape.labelup":"arrowUp","shape.triangledown":"arrowDown","shape.arrowdown":"arrowDown","shape.labeldown":"arrowDown","shape.square":"square","shape.circle":"circle","shape.diamond":"square","shape.cross":"cross","shape.xcross":"cross"};
+      const sizeMap={tiny:1,small:1,normal:2,large:3,huge:4};
+      const renderMarkers=(series,items,chartForFallback)=>{
+        if(!items.length)return;
+        if(series&&typeof LightweightCharts.createSeriesMarkers==="function"){
+          const markers=items.map(x=>({time:bars[x.bar].time,position:x.location==="belowbar"||x.location==="bottom"?"belowBar":x.location==="abovebar"||x.location==="top"?"aboveBar":"inBar",color:x.color||"#2962ff",shape:shapeMap[x.style]||"circle",text:x.text||"",size:sizeMap[x.size]||2}));
+          state.markers.push(LightweightCharts.createSeriesMarkers(series,markers));
+        }else{
+          const markerSeries=addChartSeries.call(null,chartForFallback,"LineSeries",{color:"#ffffff",lineVisible:false,pointMarkersVisible:true,pointMarkersRadius:5,priceLineVisible:false,lastValueVisible:false});
+          markerSeries.setData(items.map(x=>({time:bars[x.bar].time,value:bars[x.bar].close,color:x.color||"#2962ff"})));
+          state.series.push({chart:chartForFallback,series:markerSeries});
+        }
+      };
+      if(priceVisible.length)renderMarkers(priceSeries,priceVisible,chart);
+      if(paneVisible.length){
+        const paneSeries=state.series.find(s=>s.chart===target)?.series;
+        renderMarkers(paneSeries,paneVisible,target);
       }
     }
     state.clear=()=>remove(state);

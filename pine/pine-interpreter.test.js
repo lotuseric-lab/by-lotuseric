@@ -212,6 +212,25 @@ assert.equal(result.hlines[0].value, 50);
 assert.equal(result.hlines[0].color, "#f23645");
 assert.equal(result.hlines[0].linestyle, "dashed");
 
+result = runPine(compile(`//@version=6
+indicator("Alert frequency constants")
+alert("FREQTEST:default")
+alert("FREQTEST:bar", alert.freq_once_per_bar)
+alert("FREQTEST:close", alert.freq_once_per_bar_close)
+alert("FREQTEST:all", alert.freq_all)
+alertcondition(bar_index == 2, "Condition", "Triggered")
+`), bars);
+const frequencyAlerts=result.alerts.filter(x=>x.bar===0&&(x.message||"").startsWith("FREQTEST:"));
+assert.deepEqual(frequencyAlerts.map(x=>x.frequency||"once_per_bar"),[
+  "once_per_bar","once_per_bar","once_per_bar_close","all"
+]);
+assert.equal(frequencyAlerts[2].message,"FREQTEST:close");
+assert.equal(frequencyAlerts[3].message,"FREQTEST:all");
+const conditionAlerts=result.alerts.filter(x=>x.title==="Condition");
+assert.equal(conditionAlerts.length,1);
+assert.equal(conditionAlerts[0].bar,2);
+
+
 const crossCloses=[10,9,8,7,8,9,10,11,12,13,14,15,14,13,12,11,10,9,8];
 const crossBars=crossCloses.map((close,i)=>({time:1700000000+i*300,open:close,high:close+1,low:close-1,close,volume:1000}));
 result=runPine(compile(`//@version=6
@@ -386,12 +405,12 @@ assert.equal(result.plots[3].values.at(-1),1);
 
 const supportSource=fs.readFileSync(path.join(__dirname,"fixtures","MONEY_TRADER_SUPPORT_RESISTANCE.pine"),"utf8");
 const supportAst=compile(supportSource);
-const supportBars=Array.from({length:180},(_,i)=>{
+const supportBars=Array.from({length:600},(_,i)=>{
   const wave=Math.sin(i*0.47)*4+Math.sin(i*0.13)*2;
   const close=100+wave+i*0.015;
   return {time:1700000000+i*300,open:close-Math.sin(i)*0.6,high:close+1+(i%7)*0.12,low:close-1-(i%5)*0.1,close,volume:1000+(i%9)*180};
 });
-result=runPine(supportAst,supportBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:500000});
+result=runPine(supportAst,supportBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
 assert.equal(result.metadata.title,"MONEY TRADER Destek/Direnç");
 assert.ok(result.inputDefs.length>=15,"Support/resistance input definitions should be exposed");
 assert.ok(result.lines.length>0,"Support/resistance levels should create chart lines");
@@ -399,4 +418,229 @@ assert.ok(result.linefills.length>0,"Support/resistance channel should create li
 assert.ok(result.labels.length>0,"Support/resistance levels should create price labels");
 assert.ok(result.shapes.length>0,"Support/resistance signals should be represented as shapes");
 
+
+result = runPine(compile(`//@version=5
+indicator("Array sort order compatibility")
+var float[] values = array.new_float()
+if barstate.isfirst
+    array.push(values, 3.0)
+    array.push(values, 1.0)
+    array.push(values, 2.0)
+array.sort(values, order.ascending)
+ascendingFirst = array.get(values, 0)
+array.sort(values, order.descending)
+descendingFirst = array.get(values, 0)
+plot(ascendingFirst, "Ascending first")
+plot(descendingFirst, "Descending first")
+`), bars);
+assert.equal(result.plots[0].values.at(-1), 1);
+assert.equal(result.plots[1].values.at(-1), 3);
+
+result = runPine(compile(`//@version=5
+indicator("String split and numeric conversion")
+fibLevels = "0.236, 0.382, 0.5, 0.618, 0.786"
+levels = str.split(fibLevels, ", ")
+first = str.tonumber(array.get(levels, 0))
+last = str.tonumber(array.get(levels, 4))
+plot(first, "First level")
+plot(last, "Last level")
+`), bars);
+assert.equal(result.plots[0].values.at(-1), 0.236);
+assert.equal(result.plots[1].values.at(-1), 0.786);
+
+result = runPine(compile(`//@version=5
+indicator("last_bar_index built-in")
+plot(last_bar_index, "Last bar index")
+plot(bar_index, "Bar index")
+`), bars);
+assert.equal(result.plots[0].values.length, bars.length);
+assert.equal(result.plots[0].values.at(0), bars.length - 1);
+assert.equal(result.plots[0].values.at(-1), bars.length - 1);
+assert.equal(result.plots[1].values.at(-1), bars.length - 1);
+
+
+const srFibDiSource = fs.readFileSync(path.join(__dirname, "fixtures", "sr-fib-di-integration.pine"), "utf8");
+const srFibDiAst = compile(srFibDiSource);
+const srFibDiBars = Array.from({length:320}, (_,i) => {
+  const wave = Math.sin(i * 0.19) * 3 + Math.sin(i * 0.047) * 1.5;
+  const close = 100 + wave + Math.sin(i * 0.012) * 8 + i * 0.018;
+  return {time:1700000000+i*300,open:close-Math.sin(i*0.7)*0.7,high:close+0.8+(i%5)*0.1,low:close-0.9-(i%4)*0.1,close,volume:1200+(i%11)*125};
+});
+result = runPine(srFibDiAst, srFibDiBars, {timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:1000000});
+assert.equal(result.metadata.title, "BY LOTUSERIC — S/R + Fibonacci + DI integration");
+assert.ok(result.inputDefs.length === 0);
+assert.ok(result.plots.length >= 3, "DI and ADX series should be emitted");
+assert.ok(result.shapes.length > 0, "Signal shapes should be emitted");
+assert.ok(result.lines.length >= 3, "Fibonacci guide lines should be emitted");
+assert.ok(result.tables.length === 1, "Diagnostics table should be emitted");
+assert.equal(result.tables[0].cells["0:0"].text, "BY LOTUSERIC");
+assert.ok(result.tables[0].cells["1:1"].text.length > 0);
+
+
+const projexSource=fs.readFileSync(path.join(__dirname,"fixtures","MONEY_TRADER_PROJEX.pine"),"utf8");
+const projexAst=compile(projexSource);
+const projexBars=Array.from({length:600},(_,i)=>{
+  const wave=Math.sin(i*0.11)*2.5+Math.sin(i*0.037)*1.2;
+  const close=100+wave+i*0.025;
+  return {time:1700000000+i*300,open:close-Math.sin(i*0.31)*0.5,high:close+0.9+(i%6)*0.12,low:close-0.8-(i%5)*0.1,close,volume:1500+(i%13)*140};
+});
+assert.ok(projexAst.body.length>0,"PROJE-X source should produce a non-empty syntax tree");
+// Keep the original source as a regression fixture: its out-of-block reference is invalid.
+assert.throws(
+  () => runPine(projexAst,projexBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000}),
+  error => error instanceof PineExecutionError &&
+    error.code === "PINE_UNDEFINED_IDENTIFIER" &&
+    /watch_text/.test(error.message),
+  "Original PROJE-X source must report its block-local watch_text reference"
+);
+
+// The isolated repair candidate moves dependent drawing/alert calls into their
+// declaring branch and quotes emoji prefixes; execute it over 600 synthetic bars.
+const projexFixedSource=fs.readFileSync(path.join(__dirname,"fixtures","PROJEX_SCOPE_FIXED_CANDIDATE.pine"),"utf8");
+const projexFixedAst=compile(projexFixedSource);
+const projexFixedResult=runPine(projexFixedAst,projexBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
+assert.equal(projexFixedResult.metadata.title,"MONEY TRADER - TAVAN ADAYI + PROJE-X");
+assert.ok(projexFixedResult.lines.length>0,"Repaired PROJE-X should create target lines");
+assert.ok(projexFixedResult.labels.length>0,"Repaired PROJE-X should create labels");
+console.log("PROJE-X candidate output:", JSON.stringify({lines:projexFixedResult.lines.length,labels:projexFixedResult.labels.length,boxes:projexFixedResult.boxes.length,shapes:projexFixedResult.shapes.length,alerts:projexFixedResult.alerts.length,targetLabels:projexFixedResult.labels.filter(x=>/HEDEF[123]/.test(x.text||"")).map(x=>x.text),alertSamples:projexFixedResult.alerts.slice(0,5)}));
+
+// A deliberate selloff-to-rebound sequence triggers the confirmed Proje-X buy path.
+const projexSignalBars=Array.from({length:240},(_,i)=>{
+  let close;
+  if(i<150) close=100;
+  else if(i<180) close=100-(i-150)*0.5;
+  else if(i<195) close=85+(i-180)*1.1;
+  else close=101.5+Math.sin(i*0.4)*0.25;
+  const open=i>=180?close-0.8:close-0.05;
+  const high=Math.max(open,close)+0.45;
+  const low=Math.min(open,close)-0.45;
+  const volume=i>=180&&i<190?9000:1200;
+  return {time:1700000000+i*300,open,high,low,close,volume};
+});
+const projexSignalResult=runPine(projexFixedAst,projexSignalBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
+const projexTargetTexts=projexSignalResult.labels.map(x=>x.text||"");
+assert.ok(projexTargetTexts.some(x=>/^HEDEF1: (?!NaN$)\d/.test(x)),"Proje-X target 1 must render a numeric price");
+assert.ok(projexTargetTexts.some(x=>/^HEDEF2: (?!NaN$)\d/.test(x)),"Proje-X target 2 must render a numeric price");
+assert.ok(projexTargetTexts.some(x=>/^HEDEF3: (?!NaN$)\d/.test(x)),"Proje-X target 3 must render a numeric price");
+assert.ok(projexTargetTexts.some(x=>x.includes("PROJE-X AL")),"Proje-X entry label must render");
+assert.ok(projexSignalResult.lines.some(x=>!x.deleted),"Proje-X target lines must remain active on the signal bar");
+
+// Force a post-H3 collapse to verify the STOP/SAT path emits one close-confirmed alert.
+const projexStopBars=projexSignalBars.map((bar,i)=>{
+  if(i===200)return {...bar,open:110,high:112,low:109,close:111,volume:1200};
+  if(i===201)return {...bar,open:80,high:81,low:78,close:79,volume:1200};
+  return bar;
+});
+const projexStopResult=runPine(projexFixedAst,projexStopBars,{timeframe:"5m",symbol:"TEST-USDT",mintick:0.01,maxSteps:5000000});
+const stopAlerts=projexStopResult.alerts.filter(x=>/Proje-X STOP \/ SAT Sinyali/.test(x.message||""));
+assert.equal(stopAlerts.length,1,"A post-H3 stop must emit exactly one STOP/SAT alert");
+assert.equal(stopAlerts[0].frequency,"once_per_bar_close","STOP/SAT alert must be close-confirmed");
+assert.equal(stopAlerts[0].bar,201,"STOP/SAT alert must be emitted on the stop bar");
+assert.equal(projexStopResult.labels.filter(x=>/PROJE-X SAT \(STOP\)/.test(x.text||"")).length,1,
+  "STOP/SAT label must not repeat after the active cycle is closed");
+
 console.log("Pine interpreter tests: OK");
+
+// Drawing object lifecycle: a var handle must retain its identity while its
+// coordinates/text are updated on later bars; deletion must tombstone it and
+// remove it from the corresponding *.all collection.
+const drawingLifecycleBars = Array.from({length:4},(_,i)=>({
+  time:1700000000+i*300,open:10+i,high:12+i,low:9+i,close:11+i,volume:100+i
+}));
+const drawingLifecycleResult = runPine(compile(`//@version=6
+indicator("Drawing object lifecycle")
+var line trackedLine = line.new(bar_index, close, bar_index, close, color=color.blue)
+var label trackedLabel = label.new(bar_index, close, "initial")
+line.set_xy2(trackedLine, bar_index, close + 5)
+label.set_xy(trackedLabel, bar_index, close + 2)
+label.set_text(trackedLabel, "bar-" + str.tostring(bar_index))
+plot(array.size(line.all), "Active lines")
+plot(array.size(label.all), "Active labels")
+if bar_index == 2
+    line.delete(trackedLine)
+    label.delete(trackedLabel)
+`), drawingLifecycleBars);
+assert.equal(drawingLifecycleResult.lines.length, 1, "one persistent line handle must not create one line per bar");
+assert.equal(drawingLifecycleResult.labels.length, 1, "one persistent label handle must not create one label per bar");
+assert.equal(drawingLifecycleResult.lines[0].id, 1, "line identity must remain stable across bars");
+assert.equal(drawingLifecycleResult.labels[0].id, 2, "label identity must remain stable across bars");
+assert.equal(drawingLifecycleResult.lines[0].x2, 3, "line endpoint must reflect the latest setter call");
+assert.equal(drawingLifecycleResult.lines[0].y2, drawingLifecycleBars[3].close + 5);
+assert.equal(drawingLifecycleResult.labels[0].x, 3, "label position must reflect the latest setter call");
+assert.equal(drawingLifecycleResult.labels[0].y, drawingLifecycleBars[3].close + 2);
+assert.equal(drawingLifecycleResult.labels[0].text, "bar-3", "label text must update in place");
+assert.equal(drawingLifecycleResult.lines[0].deleted, true, "line.delete must tombstone the retained line object");
+assert.equal(drawingLifecycleResult.labels[0].deleted, true, "label.delete must tombstone the retained label object");
+assert.deepEqual(drawingLifecycleResult.plots.map(p=>p.values), [
+  [1,1,1,0],
+  [1,1,1,0]
+], "deleted drawings must disappear from line.all and label.all on the next execution bar");
+
+
+
+// Persistent box/linefill lifecycle and Pine v6 set_xloc coordinate arguments.
+const drawingMutationResult = runPine(compile(`//@version=6
+indicator("Drawing mutation and xloc")
+var line leftLine = line.new(bar_index, low, bar_index + 1, low + 2)
+var line rightLine = line.new(bar_index, high, bar_index + 1, high + 2)
+var label timeLabel = label.new(bar_index, close, "time")
+var box zone = box.new(bar_index, high, bar_index + 1, low)
+var linefill band = linefill.new(leftLine, rightLine, color.new(color.blue, 80))
+line.set_xloc(leftLine, xloc.bar_time, time - 300, time)
+line.set_xloc(rightLine, xloc.bar_time, time - 300, time)
+label.set_xloc(timeLabel, xloc.bar_time, time)
+box.set_xloc(zone, xloc.bar_time, time - 300, time)
+box.set_lefttop(zone, time - 600, high + 3)
+box.set_rightbottom(zone, time, low - 3)
+box.set_bgcolor(zone, color.new(color.green, 85))
+linefill.set_color(band, color.new(color.orange, 70))
+plot(array.size(box.all), "Active boxes")
+plot(array.size(linefill.all), "Active linefills")
+if bar_index == 2
+    box.delete(zone)
+    linefill.delete(band)
+`), drawingLifecycleBars);
+assert.equal(drawingMutationResult.boxes.length, 1, "one persistent box handle must be retained");
+assert.equal(drawingMutationResult.boxes[0].deleted, true, "box.delete must tombstone the retained box");
+assert.equal(drawingMutationResult.boxes[0].xloc, "bar_time");
+assert.equal(drawingMutationResult.boxes[0].left, drawingLifecycleBars[3].time - 600, "box.set_xloc and box coordinate setters must update time coordinates");
+assert.equal(drawingMutationResult.boxes[0].right, drawingLifecycleBars[3].time);
+assert.equal(drawingMutationResult.boxes[0].top, drawingLifecycleBars[3].high + 3);
+assert.equal(drawingMutationResult.boxes[0].bottom, drawingLifecycleBars[3].low - 3);
+assert.equal(drawingMutationResult.boxes[0].bgcolor, "#08998126");
+assert.equal(drawingMutationResult.linefills.length, 1, "one persistent linefill handle must be retained");
+assert.equal(drawingMutationResult.linefills[0].deleted, true, "linefill.delete must tombstone the retained fill");
+assert.equal(drawingMutationResult.linefills[0].color, "#ff98004d", "linefill.set_color must update the fill");
+assert.equal(drawingMutationResult.lines[0].xloc, "bar_time");
+assert.equal(drawingMutationResult.lines[0].x1, drawingLifecycleBars[3].time - 300);
+assert.equal(drawingMutationResult.lines[0].x2, drawingLifecycleBars[3].time);
+assert.equal(drawingMutationResult.labels[0].xloc, "bar_time");
+assert.equal(drawingMutationResult.labels[0].x, drawingLifecycleBars[3].time);
+assert.deepEqual(drawingMutationResult.plots.map(p=>p.values), [
+  [1,1,1,0],
+  [1,1,1,0]
+], "deleted boxes and linefills must disappear from their *.all collections on the next bar");
+
+
+// Indicator compatibility pass 1: ADX + DI + MACD + RSI confirmation.
+const adxIndicatorSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_ADX.pine"), "utf8");
+const adxIndicatorAst = compile(adxIndicatorSource);
+const adxIndicatorResult = runPine(adxIndicatorAst, supportBars, {
+  timeframe: "5m", symbol: "TEST-USDT", mintick: 0.01, maxSteps: 5000000
+});
+assert.equal(adxIndicatorResult.metadata.title, "MONEY TRADER - ADX DI Kesişim [MACD + RSI ONAYLI]");
+assert.ok(adxIndicatorResult.inputDefs.length >= 15, "ADX indicator inputs should be exposed");
+assert.ok(adxIndicatorResult.plots.length >= 3, "ADX indicator should emit DI/ADX plots");
+assert.ok(adxIndicatorResult.tables.length > 0, "ADX indicator dashboard table should render");
+
+
+// Indicator compatibility pass 2: Fibonacci trade levels and chart annotations.
+const fiboIndicatorSource = fs.readFileSync(path.join(__dirname, "fixtures", "MONEY_TRADER_FIBO_TRADE_ARCHIVE.pine"), "utf8");
+const fiboIndicatorAst = compile(fiboIndicatorSource);
+const fiboIndicatorResult = runPine(fiboIndicatorAst, supportBars, {
+  timeframe: "5m", symbol: "TEST-USDT", mintick: 0.01, maxSteps: 5000000
+});
+assert.equal(fiboIndicatorResult.metadata.title, "MONEY TRADER - FIBO TRADE");
+assert.ok(fiboIndicatorResult.inputDefs.length >= 5, "Fibonacci indicator inputs should be exposed");
+assert.ok(fiboIndicatorResult.lines.length > 0, "Fibonacci indicator should create level lines");
+assert.ok(fiboIndicatorResult.labels.length > 0, "Fibonacci indicator should create level labels");

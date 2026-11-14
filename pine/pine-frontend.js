@@ -57,8 +57,12 @@
         i++; column++;
         while (i < text.length) {
           const c = text[i];
-          if (c === "\n") break;
           if (c === quote) { i++; column++; closed = true; break; }
+          if (c === "\n") {
+            value += "\n";
+            i++; line++; column = 1;
+            continue;
+          }
           if (c === "\\") {
             const next = text[i + 1];
             if (next === undefined || next === "\n") break;
@@ -99,10 +103,15 @@
         push("NUMBER", text.slice(start, i), startLine, startColumn);
         continue;
       }
-      if (/[A-Za-z_]/.test(ch)) {
+      if (/[A-Za-z_\p{L}]/u.test(ch)) {
         const startLine = line, startColumn = column, start = i;
-        i++; column++;
-        while (/[A-Za-z0-9_]/.test(text[i] || "")) { i++; column++; }
+        const first = text.codePointAt(i);
+        const firstWidth = first > 0xFFFF ? 2 : 1;
+        i += firstWidth; column += firstWidth;
+        while (i < text.length && /[A-Za-z0-9_\p{L}\p{M}\p{N}]/u.test(String.fromCodePoint(text.codePointAt(i)))) {
+          const cp = text.codePointAt(i), width = cp > 0xFFFF ? 2 : 1;
+          i += width; column += width;
+        }
         const word = text.slice(start, i);
         push(word === "true" || word === "false" ? "LITERAL" : (word === "and" || word === "or" || word === "not") ? "OPERATOR" : "IDENTIFIER",
           word, startLine, startColumn);
@@ -112,6 +121,12 @@
       if (op) {
         push("OPERATOR", op, line, column);
         i += op.length; column += op.length; continue;
+      }
+      // Decorative Unicode symbols are common in Pine titles and section separators.
+      // Ignore symbol/emoji code points while retaining diagnostics for unsupported syntax.
+      if (/^[\p{S}\p{P}\p{M}\p{Cf}]+$/u.test(String.fromCodePoint(text.codePointAt(i)))) {
+        const cp = text.codePointAt(i), width = cp > 0xFFFF ? 2 : 1;
+        i += width; column += width; continue;
       }
       diagnostics.push({
         code: "PINE_LEX_UNKNOWN_CHARACTER",

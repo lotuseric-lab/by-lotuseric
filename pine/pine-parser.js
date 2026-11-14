@@ -63,19 +63,28 @@
   }
 
   function logicalLines(tokens) {
-    const lines=[];let current=[],depth=0,first=null,last=null;
-    const flush=()=>{if(current.length){lines.push({tokens:current,indent:current[0].column,line:current[0].line});current=[];first=null;last=null;}};
-    for(const t of tokens){
+    const lines=[];let current=[],depth=0,physicalIndent=1,commaIndent=null,afterComma=false;
+    const flush=()=>{if(current.length){lines.push({tokens:current,indent:physicalIndent,line:current[0].line});current=[];}};
+    for(let index=0;index<tokens.length;index++){
+      const t=tokens[index];
       if(t.type==="EOF"){flush();break;}
       if(t.type==="DIRECTIVE")continue;
       if(t.type==="NEWLINE"){
-        if(depth>0)continue;
         const prev=current[current.length-1];
-        if(prev&&prev.type==="OPERATOR"&&[",","+","-","*","/","%","=",":=","?","and","or"].includes(prev.value))continue;
-        flush();continue;
+        const next=tokens[index+1];
+        const continuationOps=[",","+","-","*","/","%","=" ,":=","?",":","and","or",">=","<=",">","<","==","!="];
+        if(afterComma){afterComma=false;continue;}
+        if(depth>0||(prev&&prev.type==="OPERATOR"&&continuationOps.includes(prev.value))||
+          (next&&next.type==="OPERATOR"&&continuationOps.includes(next.value)))continue;
+        flush();physicalIndent=1;commaIndent=null;continue;
       }
-      if(!first)first=t;
-      current.push(t);last=t;
+      if(!current.length){physicalIndent=commaIndent==null?t.column:commaIndent;commaIndent=null;afterComma=false;}
+      if(t.value===","&&depth===0){
+        commaIndent=physicalIndent;afterComma=true;
+        flush();
+        continue;
+      }
+      current.push(t);
       if(["(","[","{"].includes(t.value))depth++;
       if([")","]","}"].includes(t.value))depth=Math.max(0,depth-1);
     }
@@ -164,7 +173,9 @@
     }
     function attachElseChain(node,indent){
       const next=lines[cursor];
-      if(!next||next.indent!==indent||next.tokens[0].value!=="else")return;
+      // Recover a one-column else mismatch only when it immediately follows this if body.
+      // General block indentation remains strict.
+      if(!next||Math.abs(next.indent-indent)>1||next.tokens[0].value!=="else")return;
       const line=lines[cursor++];
       if(line.tokens[1]&&line.tokens[1].value==="if"){
         const nested={type:"IfStatement",test:expression(line.tokens,2),body:[],alternate:[],loc:loc(line.tokens[0]),indent};
@@ -227,7 +238,7 @@
             if(node.type==="IfStatement")attachElseChain(node,line.indent);
           }
           body.push(node);
-        }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.line||line.line,column:error.column||line.indent});}
+        }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.message==="İfade bekleniyordu."?line.line:(error.line||line.line),column:error.message==="İfade bekleniyordu."?line.indent:(error.column||line.indent)});}
       }
       return body;
     }
@@ -246,7 +257,7 @@
           if(node.type==="IfStatement")attachElseChain(node,line.indent);
         }
         body.push(node);
-      }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.line||line.line,column:error.column||line.indent});}
+      }catch(error){diagnostics.push({code:error.code||"PINE_PARSE_ERROR",message:error.message,line:error.message==="İfade bekleniyordu."?line.line:(error.line||line.line),column:error.message==="İfade bekleniyordu."?line.indent:(error.column||line.indent)});}
     }
     return {type:"Program",body,diagnostics};
   }
