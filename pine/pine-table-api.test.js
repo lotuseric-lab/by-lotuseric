@@ -36,7 +36,7 @@ assert.equal(t.position,"bottom_right");
 assert.equal(t.bgcolor,"#000000");
 assert.equal(t.frame_color,"#f23645");
 assert.equal(t.frame_width,3);
-assert.equal(t.border_color,"#0000ff");
+assert.equal(t.border_color,"#2962ff");
 assert.equal(t.border_width,2);
 assert.equal(t.cells["0:0"].text,"LOTUSERIC");
 assert.equal(t.cells["0:0"].text_color,"#fdd835");
