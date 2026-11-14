@@ -139,4 +139,19 @@ for (let i = 0; i < bars.length; i++) {
   assert.ok(Math.abs(supertrend.plots[0].values[i] - expected.values[i]) < 1e-10, "Supertrend value at " + i);
   assert.equal(supertrend.plots[1].values[i], expected.directions[i], "Supertrend direction at " + i);
 }
+
+const alwaysReset = execute(
+  '//@version=6\\nindicator("VWAP constant true")\\nv=ta.vwap(hlc3,true)\\nplot(v,"VWAP")',
+  bars
+).plots[0].values;
+const neverReset = execute(
+  '//@version=6\\nindicator("VWAP constant false")\\nv=ta.vwap(hlc3,false)\\nplot(v,"VWAP")',
+  bars
+).plots[0].values;
+for (let i = 0; i < bars.length; i++) {
+  const hlc3 = (bars[i].high + bars[i].low + bars[i].close) / 3;
+  assert.ok(Math.abs(alwaysReset[i] - hlc3) < 1e-10, "constant true anchor at " + i);
+  assert.ok(Math.abs(neverReset[i] - refVwap(bars, i, 0)) < 1e-10, "constant false anchor at " + i);
+}
+
 console.log("VWAP daily + anchored: " + bars.length + " bars matched; Supertrend 3x10: " + valid + " bars matched.");
