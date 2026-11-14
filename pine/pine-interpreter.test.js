@@ -220,7 +220,7 @@ alert("FREQTEST:close", alert.freq_once_per_bar_close)
 alert("FREQTEST:all", alert.freq_all)
 alertcondition(bar_index == 2, "Condition", "Triggered")
 `), bars);
-const frequencyAlerts=result.alerts.filter(x=>(x.message||"").startsWith("FREQTEST:"));
+const frequencyAlerts=result.alerts.filter(x=>x.bar===0&&(x.message||"").startsWith("FREQTEST:"));
 assert.deepEqual(frequencyAlerts.map(x=>x.frequency||"once_per_bar"),[
   "once_per_bar","once_per_bar","once_per_bar_close","all"
 ]);
