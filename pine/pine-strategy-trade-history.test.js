@@ -38,7 +38,7 @@ assert.deepEqual(out.plots[5].values,[null,null,null,1]);
 assert.deepEqual(out.plots[6].values,[null,null,null,3]);
 assert.deepEqual(out.plots[7].values,[0,0,0,1]);
 assert.deepEqual(out.plots[8].values,[null,null,null,3]);
-assert.deepEqual(out.plots[9].values,[null,null,null,0]);
+assert.deepEqual(out.plots[9].values,[null,null,null,1]);
 assert.ok(Math.abs(out.plots[10].values[3]-(1.5/11*100))<1e-9);
 assert.equal(out.strategy.closedTrades[0].id,"Long-A");
 assert.equal(out.strategy.closedTrades[0].commission,0);
