@@ -1,0 +1,547 @@
+//@version=6
+indicator("Smart Money Concepts Engine [Quantum Algo]", overlay = true, max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500, max_bars_back = 500)
+
+// ════════════════════════════════════════════════════════════════
+//  Concept credits: smart money terminology (order blocks, fair
+//  value gaps, liquidity sweeps, premium and discount) popularized
+//  by the Inner Circle Trader methodology (Michael J. Huddleston),
+//  with roots in the market logic of Richard D. Wyckoff.
+//  The confluence scoring model, narrative engine, zone life cycle
+//  system and all code in this script are original work.
+// ════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════
+//  INPUTS
+// ════════════════════════════════════════════════════════════════
+grpS = "Market Structure"
+sLen       = input.int(15, "Swing Structure Length", minval = 5, maxval = 60, group = grpS)
+iLen       = input.int(5, "Internal Structure Length", minval = 2, maxval = 20, group = grpS)
+showSwing  = input.bool(true, "Show Swing Events", group = grpS)
+showInt    = input.bool(true, "Show Internal Events", group = grpS)
+keepStruct = input.int(8, "Structure Events To Keep", minval = 2, maxval = 30, group = grpS, tooltip = "Older structure lines and labels beyond this count are deleted so the chart stays clean and the auto-scale stays anchored to current price.")
+
+grpO = "Order Blocks"
+showOB     = input.bool(true, "Show Order Blocks", group = grpO)
+obLookback = input.int(30, "Origin Candle Lookback", minval = 5, maxval = 100, group = grpO)
+keepOB     = input.int(6, "Order Blocks To Keep", minval = 2, maxval = 20, group = grpO)
+
+grpG = "Fair Value Gaps"
+showFvg   = input.bool(false, "Show Fair Value Gaps", group = grpG)
+showInv   = input.bool(true, "Track Inversions", group = grpG)
+fvgMinAtr = input.float(0.15, "Minimum Gap Size (Average True Range Ratio)", step = 0.05, minval = 0.0, group = grpG)
+keepFvg   = input.int(8, "Fair Value Gaps To Keep", minval = 2, maxval = 30, group = grpG)
+
+grpL = "Liquidity"
+showLiq  = input.bool(true, "Show Equal Highs / Equal Lows", group = grpL)
+eqTol    = input.float(0.25, "Equal Level Tolerance (Average True Range Ratio)", step = 0.05, minval = 0.05, group = grpL)
+keepLiq  = input.int(6, "Liquidity Levels To Keep", minval = 2, maxval = 20, group = grpL)
+
+grpPD = "Premium & Discount"
+showPd = input.bool(true, "Show Premium / Discount Map", group = grpPD)
+pdExt  = input.int(12, "Map Extension (Bars)", minval = 4, maxval = 60, group = grpPD)
+
+grpX = "Signals"
+showSigs = input.bool(true, "Show Zone Tap Signals", group = grpX)
+keepSigs = input.int(6, "Signals To Keep", minval = 2, maxval = 20, group = grpX)
+
+grpV = "Chart Visuals"
+bullCol = input.color(#00a89d, "Bullish Color", group = grpV)
+bearCol = input.color(#e8365f, "Bearish Color", group = grpV)
+goldCol = input.color(#d99b1e, "Accent Color", group = grpV)
+silvCol = input.color(#5c6b80, "Neutral Color", group = grpV)
+
+grpT = "Dashboard"
+showDash    = input.bool(true, "Show Dashboard", group = grpT)
+showNarr    = input.bool(true, "Show Narrative Row", group = grpT)
+dashPos     = input.string("Top Right", "Position", options = ["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group = grpT)
+dashSize    = input.string("Small", "Text Size", options = ["Tiny", "Small", "Normal", "Large"], group = grpT)
+dashTitleBg = input.color(color.new(#231a08, 0), "Title Band", group = grpT)
+dashBg      = input.color(color.new(#171207, 8), "Background", group = grpT)
+dashFrame   = input.color(color.new(#d99b1e, 15), "Frame", group = grpT)
+dashGrid    = input.color(color.new(#d99b1e, 80), "Grid", group = grpT)
+dashHeadTxt = input.color(color.new(#f0c05a, 0), "Header Text", group = grpT)
+dashBodyTxt = input.color(color.new(#eef2f7, 5), "Body Text", group = grpT)
+dashMuteTxt = input.color(color.new(#cdb87e, 15), "Muted Text", group = grpT)
+
+// ════════════════════════════════════════════════════════════════
+//  SHARED SERIES + HELPERS
+// ════════════════════════════════════════════════════════════════
+atr    = ta.atr(14)
+volSma = ta.sma(volume, 20)
+
+f_rep(string s, int n) =>
+    out = ""
+    if n > 0
+        for i = 1 to n
+            out += s
+    out
+
+// ════════════════════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════════════════════
+// swing structure
+var float swingHigh = na
+var int   swingHighBar = na
+var bool  swingHighBroken = false
+var float swingLow = na
+var int   swingLowBar = na
+var bool  swingLowBroken = false
+var int   sDir = 0
+// internal structure
+var float intHigh = na
+var bool  intHighBroken = false
+var float intLow = na
+var bool  intLowBroken = false
+var int   iDir = 0
+// liquidity sweep memory
+var int lastBuySweepBar  = -10000
+var int lastSellSweepBar = -10000
+var bool swingHighSwept  = false
+var bool swingLowSwept   = false
+var int  lastSweepLabBar = -10000
+var string lastEvent = "—"
+var string liqStatus = "Resting"
+
+// drawing memory
+var array<line>  stLines  = array.new<line>()
+var array<label> stLabels = array.new<label>()
+var array<label> inLabels = array.new<label>()
+var array<box>   obBoxes  = array.new<box>()
+var array<int>   obDir    = array.new<int>()
+var array<int>   obState  = array.new<int>()   // 0 fresh · 1 tested · 2 mitigated
+var array<box>   fvgBoxes = array.new<box>()
+var array<int>   fvgDir   = array.new<int>()
+var array<int>   fvgState = array.new<int>()   // 0 fresh · 1 inverted · 2 dead
+var array<line>  lqLines  = array.new<line>()
+var array<label> lqLabels = array.new<label>()
+var array<float> lqPrice  = array.new<float>()
+var array<int>   lqDir    = array.new<int>()
+var array<int>   lqActive = array.new<int>()
+var array<label> sgLabels = array.new<label>()
+var array<box>   pdB = array.new<box>()
+var array<line>  pdL = array.new<line>()
+var array<label> pdT = array.new<label>()
+
+// event flags (reset every bar)
+bool evBosBull   = false
+bool evBosBear   = false
+bool evChochBull = false
+bool evChochBear = false
+bool evSweepBuy  = false
+bool evSweepSell = false
+bool evTapBull   = false
+bool evTapBear   = false
+bool evInvFvg    = false
+
+// ════════════════════════════════════════════════════════════════
+//  ORDER BLOCK ORIGIN FINDER
+// ════════════════════════════════════════════════════════════════
+f_findOrigin(bool bull_) =>
+    int idx = na
+    for b = 1 to math.min(obLookback, bar_index)
+        if bull_ ? close[b] < open[b] : close[b] > open[b]
+            idx := b
+            break
+    idx
+
+f_makeOB(bool bull_) =>
+    idx = f_findOrigin(bull_)
+    if showOB and not na(idx)
+        obT = high[idx]
+        obB = low[idx]
+        rv  = na(volume[idx]) or na(volSma[idx]) or volSma[idx] == 0 ? na : volume[idx] / volSma[idx]
+        txt = (bull_ ? "Demand" : "Supply") + (na(rv) ? "" : " · " + str.tostring(rv, "#.0") + "× Volume")
+        c   = bull_ ? bullCol : bearCol
+        obBoxes.push(box.new(bar_index - idx, obT, bar_index + 2, obB, border_color = color.new(c, 0), bgcolor = color.new(c, 70), text = txt, text_size = size.small, text_color = color.new(c, 0), text_halign = text.align_right, text_valign = bull_ ? text.align_top : text.align_bottom))
+        obDir.push(bull_ ? 1 : -1)
+        obState.push(0)
+
+// ════════════════════════════════════════════════════════════════
+//  SWING PIVOTS + EQUAL HIGHS / LOWS
+// ════════════════════════════════════════════════════════════════
+sph = ta.pivothigh(high, sLen, sLen)
+spl = ta.pivotlow(low, sLen, sLen)
+iph = ta.pivothigh(high, iLen, iLen)
+ipl = ta.pivotlow(low, iLen, iLen)
+
+if not na(sph)
+    // equal highs = resting buy-side liquidity
+    if showLiq and not na(swingHigh) and math.abs(sph - swingHigh) <= atr * eqTol
+        lvl = math.max(sph, swingHigh)
+        lqLines.push(line.new(swingHighBar, lvl, bar_index - sLen, lvl, color = color.new(bearCol, 5), style = line.style_dotted, width = 2))
+        lqLabels.push(label.new(bar_index - sLen, lvl, "EQH", style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.new(bearCol, 0), size = size.small))
+        lqPrice.push(lvl)
+        lqDir.push(1)
+        lqActive.push(1)
+    swingHigh := sph
+    swingHighBar := bar_index - sLen
+    swingHighBroken := false
+    swingHighSwept := false
+if not na(spl)
+    // equal lows = resting sell-side liquidity
+    if showLiq and not na(swingLow) and math.abs(spl - swingLow) <= atr * eqTol
+        lvl = math.min(spl, swingLow)
+        lqLines.push(line.new(swingLowBar, lvl, bar_index - sLen, lvl, color = color.new(bullCol, 5), style = line.style_dotted, width = 2))
+        lqLabels.push(label.new(bar_index - sLen, lvl, "EQL", style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.new(bullCol, 0), size = size.small))
+        lqPrice.push(lvl)
+        lqDir.push(-1)
+        lqActive.push(1)
+    swingLow := spl
+    swingLowBar := bar_index - sLen
+    swingLowBroken := false
+    swingLowSwept := false
+if not na(iph)
+    intHigh := iph
+    intHighBroken := false
+if not na(ipl)
+    intLow := ipl
+    intLowBroken := false
+
+// ════════════════════════════════════════════════════════════════
+//  STRUCTURE EVENTS (confirmed bars only — non repainting)
+// ════════════════════════════════════════════════════════════════
+if barstate.isconfirmed
+    // swing bullish break
+    if not na(swingHigh) and not swingHighBroken and close > swingHigh
+        isCh = sDir == -1
+        if isCh
+            evChochBull := true
+            lastEvent := "CHoCH ↑"
+        else
+            evBosBull := true
+            lastEvent := "BoS ↑"
+        if showSwing
+            stLines.push(line.new(swingHighBar, swingHigh, bar_index, swingHigh, color = color.new(bullCol, 0), width = 2, style = isCh ? line.style_dashed : line.style_solid))
+            stLabels.push(label.new(int(math.avg(swingHighBar, bar_index)), swingHigh, isCh ? "CHoCH" : "BoS", style = label.style_label_down, color = color.new(color.black, 100), textcolor = color.new(bullCol, 0), size = size.small))
+        f_makeOB(true)
+        sDir := 1
+        swingHighBroken := true
+    // swing bearish break
+    if not na(swingLow) and not swingLowBroken and close < swingLow
+        isCh = sDir == 1
+        if isCh
+            evChochBear := true
+            lastEvent := "CHoCH ↓"
+        else
+            evBosBear := true
+            lastEvent := "BoS ↓"
+        if showSwing
+            stLines.push(line.new(swingLowBar, swingLow, bar_index, swingLow, color = color.new(bearCol, 0), width = 2, style = isCh ? line.style_dashed : line.style_solid))
+            stLabels.push(label.new(int(math.avg(swingLowBar, bar_index)), swingLow, isCh ? "CHoCH" : "BoS", style = label.style_label_up, color = color.new(color.black, 100), textcolor = color.new(bearCol, 0), size = size.small))
+        f_makeOB(false)
+        sDir := -1
+        swingLowBroken := true
+    // internal breaks (context tier)
+    if not na(intHigh) and not intHighBroken and close > intHigh
+        if showInt
+            inLabels.push(label.new(bar_index, intHigh, iDir == -1 ? "choch" : "bos", style = label.style_label_down, color = color.new(color.black, 100), textcolor = color.new(bullCol, 20), size = size.tiny))
+        iDir := 1
+        intHighBroken := true
+    if not na(intLow) and not intLowBroken and close < intLow
+        if showInt
+            inLabels.push(label.new(bar_index, intLow, iDir == 1 ? "choch" : "bos", style = label.style_label_up, color = color.new(color.black, 100), textcolor = color.new(bearCol, 20), size = size.tiny))
+        iDir := -1
+        intLowBroken := true
+    // single swing sweeps (stop hunts without a body break)
+    if not na(swingHigh) and not swingHighBroken and not swingHighSwept and high > swingHigh and close < swingHigh and bar_index - lastSweepLabBar >= 5
+        evSweepBuy := true
+        swingHighSwept := true
+        lastSweepLabBar := bar_index
+        lastBuySweepBar := bar_index
+        liqStatus := "Buy swept"
+        if showLiq
+            sgLabels.push(label.new(bar_index, high, "Liquidity Sweep ✕", style = label.style_label_down, color = color.new(bearCol, 5), textcolor = color.new(#ffffff, 0), size = size.small))
+    if not na(swingLow) and not swingLowBroken and not swingLowSwept and low < swingLow and close > swingLow and bar_index - lastSweepLabBar >= 5
+        evSweepSell := true
+        swingLowSwept := true
+        lastSweepLabBar := bar_index
+        lastSellSweepBar := bar_index
+        liqStatus := "Sell swept"
+        if showLiq
+            sgLabels.push(label.new(bar_index, low, "Liquidity Sweep ✕", style = label.style_label_up, color = color.new(bullCol, 5), textcolor = color.new(#ffffff, 0), size = size.small))
+
+// ════════════════════════════════════════════════════════════════
+//  EQUAL LEVEL LIFE CYCLE
+// ════════════════════════════════════════════════════════════════
+if lqLines.size() > 0
+    for i = 0 to lqLines.size() - 1
+        if lqActive.get(i) == 1
+            ln = lqLines.get(i)
+            lb = lqLabels.get(i)
+            pr = lqPrice.get(i)
+            line.set_x2(ln, bar_index + 2)
+            label.set_x(lb, bar_index + 2)
+            if barstate.isconfirmed
+                if lqDir.get(i) == 1
+                    if high > pr and close < pr
+                        line.set_color(ln, color.new(silvCol, 60))
+                        line.set_style(ln, line.style_dashed)
+                        label.set_text(lb, "EQH Swept ✕")
+                        label.set_textcolor(lb, color.new(silvCol, 35))
+                        lqActive.set(i, 0)
+                        evSweepBuy := true
+                        lastBuySweepBar := bar_index
+                        liqStatus := "Buy swept"
+                    else if close > pr
+                        line.set_color(ln, color.new(silvCol, 70))
+                        label.set_textcolor(lb, color.new(silvCol, 55))
+                        lqActive.set(i, 0)
+                else
+                    if low < pr and close > pr
+                        line.set_color(ln, color.new(silvCol, 60))
+                        line.set_style(ln, line.style_dashed)
+                        label.set_text(lb, "EQL Swept ✕")
+                        label.set_textcolor(lb, color.new(silvCol, 35))
+                        lqActive.set(i, 0)
+                        evSweepSell := true
+                        lastSellSweepBar := bar_index
+                        liqStatus := "Sell swept"
+                    else if close < pr
+                        line.set_color(ln, color.new(silvCol, 70))
+                        label.set_textcolor(lb, color.new(silvCol, 55))
+                        lqActive.set(i, 0)
+
+// ════════════════════════════════════════════════════════════════
+//  FAIR VALUE GAPS + INVERSIONS
+// ════════════════════════════════════════════════════════════════
+rawBullG = low > high[2] and (low - high[2]) >= atr * fvgMinAtr
+rawBearG = high < low[2] and (low[2] - high) >= atr * fvgMinAtr
+if barstate.isconfirmed and showFvg and (rawBullG or rawBearG)
+    gT = rawBullG ? low : low[2]
+    gB = rawBullG ? high[2] : high
+    gC = rawBullG ? bullCol : bearCol
+    fvgBoxes.push(box.new(bar_index - 2, gT, bar_index + 2, gB, border_color = color.new(gC, 25), bgcolor = color.new(gC, 76), text = "Imbalance", text_size = size.small, text_color = color.new(gC, 5), text_halign = text.align_right))
+    fvgDir.push(rawBullG ? 1 : -1)
+    fvgState.push(0)
+
+if fvgBoxes.size() > 0
+    for i = fvgBoxes.size() - 1 to 0
+        st = fvgState.get(i)
+        fb = fvgBoxes.get(i)
+        fd = fvgDir.get(i)
+        box.set_right(fb, bar_index + 2)
+        bool killed = false
+        if barstate.isconfirmed
+            if st == 0 and fd == 1 and close < box.get_bottom(fb)
+                if showInv
+                    box.set_bgcolor(fb, color.new(bearCol, 76))
+                    box.set_border_color(fb, color.new(bearCol, 25))
+                    box.set_text(fb, "Inversion")
+                    box.set_text_color(fb, color.new(bearCol, 5))
+                    fvgDir.set(i, -1)
+                    fvgState.set(i, 1)
+                    evInvFvg := true
+                else
+                    killed := true
+            else if st == 0 and fd == -1 and close > box.get_top(fb)
+                if showInv
+                    box.set_bgcolor(fb, color.new(bullCol, 76))
+                    box.set_border_color(fb, color.new(bullCol, 25))
+                    box.set_text(fb, "Inversion")
+                    box.set_text_color(fb, color.new(bullCol, 5))
+                    fvgDir.set(i, 1)
+                    fvgState.set(i, 1)
+                    evInvFvg := true
+                else
+                    killed := true
+            else if st == 1 and fd == -1 and close > box.get_top(fb)
+                killed := true
+            else if st == 1 and fd == 1 and close < box.get_bottom(fb)
+                killed := true
+        if killed
+            box.delete(fb)
+            fvgBoxes.remove(i)
+            fvgDir.remove(i)
+            fvgState.remove(i)
+
+// ════════════════════════════════════════════════════════════════
+//  PREMIUM / DISCOUNT MAP
+// ════════════════════════════════════════════════════════════════
+float pdPos = na
+if not na(swingHigh) and not na(swingLow) and swingHigh > swingLow
+    pdPos := (close - swingLow) / (swingHigh - swingLow)
+
+while pdB.size() > 0
+    box.delete(pdB.shift())
+while pdL.size() > 0
+    line.delete(pdL.shift())
+while pdT.size() > 0
+    label.delete(pdT.shift())
+
+if showPd and not na(pdPos)
+    eq = math.avg(swingHigh, swingLow)
+    q  = (swingHigh - swingLow) * 0.25
+    x2 = bar_index + pdExt
+    pdB.push(box.new(bar_index, swingHigh, x2, eq, border_color = na, bgcolor = color.new(bearCol, 86)))
+    pdB.push(box.new(bar_index, swingHigh, x2, swingHigh - q, border_color = na, bgcolor = color.new(bearCol, 78)))
+    pdB.push(box.new(bar_index, eq, x2, swingLow, border_color = na, bgcolor = color.new(bullCol, 86)))
+    pdB.push(box.new(bar_index, swingLow + q, x2, swingLow, border_color = na, bgcolor = color.new(bullCol, 78)))
+    pdL.push(line.new(bar_index, eq, x2, eq, color = color.new(silvCol, 15), style = line.style_dashed))
+    pdT.push(label.new(x2, swingHigh, "Premium", style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.new(bearCol, 0), size = size.small))
+    pdT.push(label.new(x2, eq, "Equilibrium", style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.new(silvCol, 0), size = size.small))
+    pdT.push(label.new(x2, swingLow, "Discount", style = label.style_label_left, color = color.new(color.black, 100), textcolor = color.new(bullCol, 0), size = size.small))
+
+// ════════════════════════════════════════════════════════════════
+//  CONFLUENCE SCORE (computed before zone maintenance)
+// ════════════════════════════════════════════════════════════════
+bool demandFreshNear = false
+bool supplyFreshNear = false
+if obBoxes.size() > 0
+    for i = 0 to obBoxes.size() - 1
+        if obState.get(i) != 2
+            if obDir.get(i) == 1 and box.get_top(obBoxes.get(i)) >= close - atr * 4
+                demandFreshNear := true
+            if obDir.get(i) == -1 and box.get_bottom(obBoxes.get(i)) <= close + atr * 4
+                supplyFreshNear := true
+bool bullFvgFresh = false
+bool bearFvgFresh = false
+if fvgBoxes.size() > 0
+    for i = 0 to fvgBoxes.size() - 1
+        if fvgState.get(i) != 2
+            if fvgDir.get(i) == 1
+                bullFvgFresh := true
+            else
+                bearFvgFresh := true
+
+int score = 0
+if sDir != 0 and not na(pdPos)
+    score += sDir == iDir ? 25 : 0
+    score += (sDir == 1 and pdPos < 0.5) or (sDir == -1 and pdPos > 0.5) ? 25 : 0
+    score += (sDir == 1 ? demandFreshNear : supplyFreshNear) ? 20 : 0
+    score += (sDir == 1 ? bullFvgFresh : bearFvgFresh) ? 15 : 0
+    score += (sDir == 1 ? bar_index - lastSellSweepBar <= 30 : bar_index - lastBuySweepBar <= 30) ? 15 : 0
+
+// ════════════════════════════════════════════════════════════════
+//  ORDER BLOCK LIFE CYCLE + ZONE TAP SIGNALS
+// ════════════════════════════════════════════════════════════════
+if obBoxes.size() > 0
+    for i = obBoxes.size() - 1 to 0
+        st = obState.get(i)
+        ob = obBoxes.get(i)
+        od = obDir.get(i)
+        box.set_right(ob, bar_index + 2)
+        bool killed = false
+        if barstate.isconfirmed
+            if od == 1
+                if close < box.get_bottom(ob)
+                    killed := true
+                else if st == 0 and low <= box.get_top(ob)
+                    box.set_bgcolor(ob, color.new(bullCol, 62))
+                    obState.set(i, 1)
+                    if showSigs and sDir == 1 and iDir == 1 and pdPos < 0.5
+                        evTapBull := true
+                        sgLabels.push(label.new(bar_index, low, "▲ Demand Tap · Score " + str.tostring(score), style = label.style_label_up, color = color.new(score >= 80 ? goldCol : bullCol, 10), textcolor = #06222b, size = size.small))
+            else
+                if close > box.get_top(ob)
+                    killed := true
+                else if st == 0 and high >= box.get_bottom(ob)
+                    box.set_bgcolor(ob, color.new(bearCol, 62))
+                    obState.set(i, 1)
+                    if showSigs and sDir == -1 and iDir == -1 and pdPos > 0.5
+                        evTapBear := true
+                        sgLabels.push(label.new(bar_index, high, "▼ Supply Tap · Score " + str.tostring(score), style = label.style_label_down, color = color.new(score >= 80 ? goldCol : bearCol, 10), textcolor = #2b0612, size = size.small))
+        if killed
+            box.delete(ob)
+            obBoxes.remove(i)
+            obDir.remove(i)
+            obState.remove(i)
+
+// ════════════════════════════════════════════════════════════════
+//  DRAWING MEMORY CAPS
+// ════════════════════════════════════════════════════════════════
+while stLines.size() > keepStruct
+    line.delete(stLines.shift())
+while stLabels.size() > keepStruct
+    label.delete(stLabels.shift())
+while inLabels.size() > keepStruct
+    label.delete(inLabels.shift())
+while obBoxes.size() > keepOB
+    box.delete(obBoxes.shift())
+    obDir.shift()
+    obState.shift()
+while fvgBoxes.size() > keepFvg
+    box.delete(fvgBoxes.shift())
+    fvgDir.shift()
+    fvgState.shift()
+while lqLines.size() > keepLiq
+    line.delete(lqLines.shift())
+    label.delete(lqLabels.shift())
+    lqPrice.shift()
+    lqDir.shift()
+    lqActive.shift()
+while sgLabels.size() > keepSigs
+    label.delete(sgLabels.shift())
+
+// ════════════════════════════════════════════════════════════════
+//  NARRATIVE
+// ════════════════════════════════════════════════════════════════
+string narr = "Ranging\nawaiting structure"
+if sDir == 1
+    narr := "Bullish structure"
+    narr += bar_index - lastSellSweepBar <= 30 ? "\nsell-side taken" : ""
+    narr += not na(pdPos) ? (pdPos < 0.5 ? "\nprice in discount" : "\nin premium, patience") : ""
+    narr += demandFreshNear ? "\ndemand below" : ""
+else if sDir == -1
+    narr := "Bearish structure"
+    narr += bar_index - lastBuySweepBar <= 30 ? "\nbuy-side taken" : ""
+    narr += not na(pdPos) ? (pdPos > 0.5 ? "\nprice in premium" : "\nin discount, patience") : ""
+    narr += supplyFreshNear ? "\nsupply above" : ""
+
+// ════════════════════════════════════════════════════════════════
+//  PREMIUM DASHBOARD
+// ════════════════════════════════════════════════════════════════
+dPos = dashPos == "Top Left" ? position.top_left : dashPos == "Bottom Right" ? position.bottom_right : dashPos == "Bottom Left" ? position.bottom_left : position.top_right
+bodySize = dashSize == "Tiny" ? size.tiny : dashSize == "Normal" ? size.normal : dashSize == "Large" ? size.large : size.small
+headSize = dashSize == "Tiny" ? size.small : dashSize == "Large" ? size.large : dashSize == "Normal" ? size.normal : size.small
+narrSize = dashSize == "Large" ? size.normal : dashSize == "Normal" ? size.small : size.tiny
+
+var table tb = table.new(dPos, 2, 10, bgcolor = dashBg, frame_color = dashFrame, frame_width = 1, border_color = dashGrid, border_width = 1)
+
+if showDash and barstate.islast
+    int freshD = 0
+    int freshS = 0
+    if obBoxes.size() > 0
+        for i = 0 to obBoxes.size() - 1
+            if obState.get(i) != 2
+                if obDir.get(i) == 1
+                    freshD += 1
+                else
+                    freshS += 1
+    int freshG = 0
+    if fvgBoxes.size() > 0
+        for i = 0 to fvgBoxes.size() - 1
+            if fvgState.get(i) != 2
+                freshG += 1
+    table.cell(tb, 0, 0, "◈ SMART MONEY", bgcolor = dashTitleBg, text_color = dashHeadTxt, text_size = headSize, text_halign = text.align_left)
+    table.cell(tb, 1, 0, f_rep("◆", math.min(5, score / 20)), bgcolor = dashTitleBg, text_color = dashHeadTxt, text_size = bodySize)
+    table.cell(tb, 0, 1, "Swing", text_color = dashMuteTxt, text_size = headSize, text_halign = text.align_left)
+    table.cell(tb, 1, 1, sDir == 1 ? "Bullish" : sDir == -1 ? "Bearish" : "Forming", text_color = sDir == 1 ? bullCol : sDir == -1 ? bearCol : dashBodyTxt, text_size = bodySize)
+    table.cell(tb, 0, 2, "Internal", text_color = dashMuteTxt, text_size = headSize, text_halign = text.align_left)
+    table.cell(tb, 1, 2, iDir == 1 ? "Bullish" : iDir == -1 ? "Bearish" : "Forming", text_color = iDir == 1 ? bullCol : iDir == -1 ? bearCol : dashBodyTxt, text_size = bodySize)
+    table.cell(tb, 0, 3, "Event", text_color = dashMuteTxt, text_size = headSize, text_halign = text.align_left)
+    table.cell(tb, 1, 3, lastEvent, text_color = dashBodyTxt, text_size = bodySize)
+    table.cell(tb, 0, 4, "Range", text_color = dashMuteTxt, text_size = headSize, text_halign = text.align_left)
+    table.cell(tb, 1, 4, na(pdPos) ? "—" : (pdPos < 0.5 ? "Discount · " : "Premium · ") + str.tostring(pdPos * 100, "#") + " %", text_color = na(pdPos) ? dashBodyTxt : pdPos < 0.5 ? bullCol : bearCol, text_size = bodySize)
+    table.cell(tb, 0, 5, "Liquidity", text_color = dashMuteTxt, text_size = headSize, text_halign = text.align_left)
+    table.cell(tb, 1, 5, liqStatus, text_color = liqStatus == "Resting" ? dashBodyTxt : goldCol, text_size = bodySize)
+    table.cell(tb, 0, 6, "Zones", text_color = dashMuteTxt, text_size = headSize, text_halign = text.align_left)
+    table.cell(tb, 1, 6, str.tostring(freshD) + " / " + str.tostring(freshS), text_color = dashBodyTxt, text_size = bodySize)
+    table.cell(tb, 0, 7, "Imbalances", text_color = dashMuteTxt, text_size = headSize, text_halign = text.align_left)
+    table.cell(tb, 1, 7, str.tostring(freshG), text_color = dashBodyTxt, text_size = bodySize)
+    table.cell(tb, 0, 8, "Score", text_color = dashMuteTxt, text_size = headSize, text_halign = text.align_left)
+    table.cell(tb, 1, 8, str.tostring(score) + "  " + f_rep("▮", math.min(5, score / 20)), text_color = score >= 80 ? goldCol : score >= 50 ? dashBodyTxt : dashMuteTxt, text_size = bodySize)
+    table.cell(tb, 0, 9, showNarr ? "Narrative" : "", text_color = dashMuteTxt, text_size = headSize, text_halign = text.align_left)
+    table.cell(tb, 1, 9, showNarr ? narr : "", text_color = dashBodyTxt, text_size = narrSize, text_halign = text.align_left)
+
+// ════════════════════════════════════════════════════════════════
+//  ALERTS
+// ════════════════════════════════════════════════════════════════
+alertcondition(evBosBull, "Bullish Break of Structure", "Price closed above the swing high — bullish break of structure.")
+alertcondition(evBosBear, "Bearish Break of Structure", "Price closed below the swing low — bearish break of structure.")
+alertcondition(evChochBull, "Bullish Change of Character", "Structure shifted from bearish to bullish.")
+alertcondition(evChochBear, "Bearish Change of Character", "Structure shifted from bullish to bearish.")
+alertcondition(evSweepBuy, "Buy-Side Liquidity Sweep", "Buy-side liquidity was swept and rejected.")
+alertcondition(evSweepSell, "Sell-Side Liquidity Sweep", "Sell-side liquidity was swept and rejected.")
+alertcondition(evTapBull, "Demand Zone Tap", "Price tapped a fresh demand zone with aligned structure in discount.")
+alertcondition(evTapBear, "Supply Zone Tap", "Price tapped a fresh supply zone with aligned structure in premium.")
+alertcondition(evInvFvg, "Fair Value Gap Inversion", "A fair value gap was violated and flipped into an inversion zone.")

@@ -1,0 +1,188 @@
+// Source: https://github.com/mervinj3546/volume-profile
+// Author: mervinj3546
+// License: MIT (as declared in the upstream repository README).
+// Imported unmodified for BY LOTUSERIC Pine v6 compatibility testing.
+//@version=6
+// Volume Profile — free, open implementation
+// Builds a horizontal volume-at-price profile over a configurable lookback,
+// with Point of Control (POC), Value Area (default 70%), VAH/VAL lines,
+// and optional up/down volume split.
+indicator("Volume Profile (Free)", "VP", overlay = true, max_boxes_count = 500, max_lines_count = 500)
+
+// ---------- Inputs ----------
+lookback     = input.int(200, "Lookback bars", minval = 20, maxval = 2000)
+numRows      = input.int(50, "Profile rows", minval = 10, maxval = 200)
+vaPercent    = input.float(70, "Value Area %", minval = 50, maxval = 95) / 100
+profWidth    = input.int(60, "Profile width (bars)", minval = 10, maxval = 200)
+showSplit    = input.bool(false, "Split buy/sell volume")
+extendLines  = input.bool(true, "Extend POC/VAH/VAL left across lookback")
+useIntrabar  = input.bool(false, "Accurate mode (intrabar data)", tooltip = "Distributes volume using lower-timeframe candles inside each bar instead of spreading each bar's volume evenly across its range. Slower but more accurate. Bars older than TradingView's intrabar history limit fall back to the fast method.")
+
+// pick an intrabar timeframe: fine enough to matter, coarse enough to stay
+// within TradingView's ~100k intrabar budget
+tfSec = timeframe.in_seconds()
+string ibTf = tfSec >= 86400 ? "60" : tfSec >= 14400 ? "15" : tfSec >= 3600 ? "5" : "1"
+
+colProfile   = input.color(color.new(color.blue, 70), "Profile", group = "Colors")
+colVA        = input.color(color.new(color.orange, 55), "Value Area", group = "Colors")
+colBuy       = input.color(color.new(color.teal, 60), "Buy volume", group = "Colors")
+colSell      = input.color(color.new(color.red, 60), "Sell volume", group = "Colors")
+colPOC       = input.color(color.red, "POC line", group = "Colors")
+colVAline    = input.color(color.orange, "VAH/VAL lines", group = "Colors")
+
+// ---------- State ----------
+var array<box>  boxes = array.new<box>()
+var array<line> lines = array.new<line>()
+
+// intrabar storage: flat arrays of lower-TF candles, oldest bar first,
+// plus a per-bar count so we can map bars to their intrabars
+var array<int>   ibCount = array.new<int>()
+var array<float> ibHi    = array.new<float>()
+var array<float> ibLo    = array.new<float>()
+var array<float> ibVol   = array.new<float>()
+var array<float> ibUpFlg = array.new<float>()
+
+// fetch this bar's intrabar candles (arrays are empty beyond history limit)
+[aH, aL, aV, aU] = request.security_lower_tf(syminfo.tickerid, ibTf, [high, low, volume, close >= open ? 1.0 : 0.0])
+
+if useIntrabar
+    int cnt = aH.size()
+    for k = 0 to cnt > 0 ? cnt - 1 : na
+        ibHi.push(aH.get(k))
+        ibLo.push(aL.get(k))
+        ibVol.push(nz(aV.get(k)))
+        ibUpFlg.push(aU.get(k))
+    ibCount.push(cnt)
+    // trim storage to the lookback window
+    while ibCount.size() > lookback
+        int drop = ibCount.shift()
+        for k = 1 to drop >= 1 ? drop : na
+            ibHi.shift()
+            ibLo.shift()
+            ibVol.shift()
+            ibUpFlg.shift()
+
+// ---------- Build profile on last bar ----------
+if barstate.islast
+    // clear previous drawings
+    while boxes.size() > 0
+        box.delete(boxes.pop())
+    while lines.size() > 0
+        line.delete(lines.pop())
+
+    int n = math.min(lookback, bar_index + 1)
+
+    // price range over lookback
+    float hi = high
+    float lo = low
+    for i = 0 to n - 1
+        hi := math.max(hi, high[i])
+        lo := math.min(lo, low[i])
+    float rowH = (hi - lo) / numRows
+
+    if rowH > 0
+        volRows  = array.new<float>(numRows, 0.0)
+        buyRows  = array.new<float>(numRows, 0.0)
+
+        // helper-less distribution: add volume bv across rows spanned by [bl, bh]
+        // (inlined twice below because Pine functions can't capture the arrays cleanly)
+
+        if useIntrabar and ibCount.size() == n
+            // accurate mode: walk stored bars oldest-first; use their intrabar
+            // candles when present, else fall back to the whole-bar smear
+            int off = 0
+            for j = 0 to n - 1
+                int cnt = ibCount.get(j)
+                int i = n - 1 - j  // chart-bar offset for fallback
+                if cnt > 0
+                    for k = off to off + cnt - 1
+                        float bh = ibHi.get(k)
+                        float bl = ibLo.get(k)
+                        float bv = ibVol.get(k)
+                        bool  up = ibUpFlg.get(k) > 0.5
+                        int r1 = math.max(0, math.min(numRows - 1, int((bl - lo) / rowH)))
+                        int r2 = math.max(0, math.min(numRows - 1, int((bh - lo) / rowH)))
+                        float per = bv / (r2 - r1 + 1)
+                        for r = r1 to r2
+                            volRows.set(r, volRows.get(r) + per)
+                            if up
+                                buyRows.set(r, buyRows.get(r) + per)
+                else
+                    float bh = high[i]
+                    float bl = low[i]
+                    float bv = volume[i]
+                    bool  up = close[i] >= open[i]
+                    int r1 = math.max(0, math.min(numRows - 1, int((bl - lo) / rowH)))
+                    int r2 = math.max(0, math.min(numRows - 1, int((bh - lo) / rowH)))
+                    float per = bv / (r2 - r1 + 1)
+                    for r = r1 to r2
+                        volRows.set(r, volRows.get(r) + per)
+                        if up
+                            buyRows.set(r, buyRows.get(r) + per)
+                off := off + cnt
+        else
+            // fast mode: spread each bar's volume evenly across the rows it covers
+            for i = 0 to n - 1
+                float bh = high[i]
+                float bl = low[i]
+                float bv = volume[i]
+                bool  up = close[i] >= open[i]
+                int r1 = math.max(0, math.min(numRows - 1, int((bl - lo) / rowH)))
+                int r2 = math.max(0, math.min(numRows - 1, int((bh - lo) / rowH)))
+                float per = bv / (r2 - r1 + 1)
+                for r = r1 to r2
+                    volRows.set(r, volRows.get(r) + per)
+                    if up
+                        buyRows.set(r, buyRows.get(r) + per)
+
+        // POC = row with max volume
+        int   pocRow = 0
+        float maxVol = 0.0
+        float totVol = 0.0
+        for r = 0 to numRows - 1
+            float v = volRows.get(r)
+            totVol := totVol + v
+            if v > maxVol
+                maxVol := v
+                pocRow := r
+
+        // Value Area: expand from POC until vaPercent of volume covered
+        float vaVol = volRows.get(pocRow)
+        int upR = pocRow
+        int dnR = pocRow
+        while vaVol < totVol * vaPercent and (upR < numRows - 1 or dnR > 0)
+            float vUp = upR < numRows - 1 ? volRows.get(upR + 1) : -1.0
+            float vDn = dnR > 0 ? volRows.get(dnR - 1) : -1.0
+            if vUp >= vDn
+                upR := upR + 1
+                vaVol := vaVol + vUp
+            else
+                dnR := dnR - 1
+                vaVol := vaVol + vDn
+
+        // draw rows anchored to the right of the last bar
+        int xRight = bar_index + profWidth
+        for r = 0 to numRows - 1
+            float v = volRows.get(r)
+            if v > 0
+                int w = int(v / maxVol * profWidth)
+                float y1 = lo + r * rowH
+                float y2 = y1 + rowH
+                bool inVA = r >= dnR and r <= upR
+                if showSplit
+                    int wBuy = int(buyRows.get(r) / maxVol * profWidth)
+                    if wBuy > 0
+                        boxes.push(box.new(xRight - w, y2, xRight - w + wBuy, y1, border_width = 0, bgcolor = colBuy))
+                    if w - wBuy > 0
+                        boxes.push(box.new(xRight - w + wBuy, y2, xRight, y1, border_width = 0, bgcolor = colSell))
+                else
+                    boxes.push(box.new(xRight - w, y2, xRight, y1, border_width = 0, bgcolor = inVA ? colVA : colProfile))
+
+        // POC / VAH / VAL lines
+        float pocPrice = lo + (pocRow + 0.5) * rowH
+        float vahPrice = lo + (upR + 1) * rowH
+        float valPrice = lo + dnR * rowH
+        int xLeft = extendLines ? bar_index - n + 1 : bar_index
+        lines.push(line.new(xLeft, pocPrice, xRight, pocPrice, color = colPOC, width = 2))
+        lines.push(line.new(xLeft, vahPrice, xRight, vahPrice, color = colVAline, style = line.style_dashed))
+        lines.push(line.new(xLeft, valPrice, xRight, valPrice, color = colVAline, style = line.style_dashed))

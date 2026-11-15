@@ -1,0 +1,55 @@
+//@version=5
+indicator("BY LOTUSERIC — S/R + Fibonacci + DI integration", overlay=true, max_lines_count=100, max_labels_count=100)
+
+// Fibonacci text parsing and numeric conversion
+fibText = "0.236, 0.382, 0.5, 0.618, 0.786"
+fibParts = str.split(fibText, ", ")
+fib236 = str.tonumber(array.get(fibParts, 0))
+fib500 = str.tonumber(array.get(fibParts, 2))
+fib786 = str.tonumber(array.get(fibParts, 4))
+
+// Confirmed swing points and sorted support/resistance levels
+pivotHigh = ta.pivothigh(high, 3, 3)
+pivotLow = ta.pivotlow(low, 3, 3)
+var float[] resistanceLevels = array.new_float()
+var float[] supportLevels = array.new_float()
+if not na(pivotHigh)
+    array.push(resistanceLevels, pivotHigh)
+if not na(pivotLow)
+    array.push(supportLevels, pivotLow)
+if barstate.islast
+    array.sort(resistanceLevels, order.ascending)
+    array.sort(supportLevels, order.descending)
+
+// Trend confirmation stack
+[plusDI, minusDI, adx] = ta.dmi(14, 14)
+[macdLine, macdSignal, macdHist] = ta.macd(close, 12, 26, 9)
+rsiValue = ta.rsi(close, 14)
+longSignal = ta.crossover(plusDI, minusDI) and macdHist > 0 and rsiValue > 50 and adx > 15
+shortSignal = ta.crossunder(plusDI, minusDI) and macdHist < 0 and rsiValue < 50 and adx > 15
+
+plot(plusDI, "DI+", color=color.lime)
+plot(minusDI, "DI-", color=color.red)
+plot(adx, "ADX", color=color.orange)
+plotshape(longSignal, title="LONG", style=shape.triangleup, location=location.belowbar, color=color.green)
+plotshape(shortSignal, title="SHORT", style=shape.triangledown, location=location.abovebar, color=color.red)
+
+// Last-bar Fibonacci guides and diagnostics table
+var line fibLine236 = na
+var line fibLine500 = na
+var line fibLine786 = na
+var table dashboard = table.new(position.top_right, 2, 3)
+if barstate.islast
+    line.delete(fibLine236)
+    line.delete(fibLine500)
+    line.delete(fibLine786)
+    swingRange = ta.highest(high, 50) - ta.lowest(low, 50)
+    fibLine236 := line.new(bar_index - 20, close - swingRange * fib236, bar_index, close - swingRange * fib236, color=color.aqua, width=1)
+    fibLine500 := line.new(bar_index - 20, close - swingRange * fib500, bar_index, close - swingRange * fib500, color=color.yellow, width=1)
+    fibLine786 := line.new(bar_index - 20, close - swingRange * fib786, bar_index, close - swingRange * fib786, color=color.fuchsia, width=1)
+    table.cell(dashboard, 0, 0, "BY LOTUSERIC")
+    table.cell(dashboard, 1, 0, "DI / MACD")
+    table.cell(dashboard, 0, 1, "ADX")
+    table.cell(dashboard, 1, 1, str.tostring(adx))
+    table.cell(dashboard, 0, 2, "RSI")
+    table.cell(dashboard, 1, 2, str.tostring(rsiValue))

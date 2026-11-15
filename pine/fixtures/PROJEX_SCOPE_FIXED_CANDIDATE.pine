@@ -1,0 +1,523 @@
+//@version=6
+indicator("MONEY TRADER - TAVAN ADAYI + PROJE-X", overlay=true, max_lines_count=500,
+max_labels_count=500, max_boxes_count=500)
+
+//
+
+//    SİNYAL AÇMA/KAPAMA
+//
+
+grp_signals = "   Sinyal Açma/Kapama"
+show_tavan_signal = input.bool(true, "Tavan Adayı / Super Sinyal (AL)", group=grp_signals,
+tooltip="Önceki günün yüksek seviyesi kırıldığında sinyal üretir.")
+show_sat_signal     = input.bool(true, "Sat Sinyali / Super Sat (SAT)", group=grp_signals,
+tooltip="Önceki günün düşük seviyesi kırıldığında sinyal üretir.")
+show_vol_mom_up         = input.bool(true, "Hacim + Momentum Yükselişi (AL)",
+group=grp_signals, tooltip="Hacim artışı ve RSI 50 üstü geçiş sinyali.")
+show_vol_mom_down = input.bool(true, "Hacim Düşüş + Momentum Kaybı (SAT)",
+group=grp_signals, tooltip="Hacim düşüşü ve RSI 50 altı geçiş sinyali.")
+show_quantum_al        = input.bool(true, "Quantum Golden Güçlü AL", group=grp_signals,
+tooltip="Heikin Ashi tabanlı güçlü AL sinyali.")
+show_projex_al      = input.bool(true, "Proje-X AL Sinyali ve Hedefler", group=grp_signals,
+tooltip="ProjeX + TMO onaylı AL sinyali ve ATR hedef çizgileri.")
+
+//
+// GIRDILER
+//
+grp_tavan = "TAVAN AYARLARI (ALIS)"
+tavan_breakout_pct = input.float(0.5, "Min Kirilim %", minval=0.0, maxval=5.0, step=0.1,
+group=grp_tavan)
+tavan_min_vol_ratio = input.float(1.2, "Min Hacim Carpan", minval=0.5, maxval=5.0, step=0.1,
+group=grp_tavan)
+
+grp_sat = "SAT AYARLARI"
+sat_breakout_pct = input.float(0.5, "Min Kirilim % (Asagi)", minval=0.0, maxval=5.0, step=0.1,
+group=grp_sat)
+sat_min_vol_ratio = input.float(1.2, "Min Hacim Carpan", minval=0.5, maxval=5.0, step=0.1,
+group=grp_sat)
+
+grp_zones = "BOLGELER (Hesaplama)"
+zone_lookback = input.int(500, "Geriye Donuk Mum", minval=50, maxval=2000,
+group=grp_zones)
+auto_zone_days = input.int(50, "Bolge Periyodu", minval=10, maxval=200, group=grp_zones)
+auto_peak_pct = input.float(3.0, "Tepe Genisligi %", minval=1.0, maxval=10.0, step=0.5,
+group=grp_zones)
+
+auto_dip_pct  = input.float(3.0, "Dip Genisligi %", minval=1.0, maxval=10.0, step=0.5,
+group=grp_zones)
+auto_major_bins = input.int(10, "Major Bin Sayisi", minval=5, maxval=20, group=grp_zones)
+
+grp_manual = "MANUEL BOLGE AYARLARI"
+manual_enable_peak = input.bool(false, "Manuel Tepe Kullan", group=grp_manual)
+manual_peak_top = input.float(0.0, "Manuel Tepe Ust", step=0.01, group=grp_manual)
+manual_peak_bot = input.float(0.0, "Manuel Tepe Alt", step=0.01, group=grp_manual)
+manual_enable_dip = input.bool(false, "Manuel Dip Kullan", group=grp_manual)
+manual_dip_top = input.float(0.0, "Manuel Dip Ust", step=0.01, group=grp_manual)
+manual_dip_bot = input.float(0.0, "Manuel Dip Alt", step=0.01, group=grp_manual)
+manual_enable_acc = input.bool(false, "Manuel Major Kullan", group=grp_manual)
+manual_acc_top = input.float(0.0, "Manuel Major Ust", step=0.01, group=grp_manual)
+manual_acc_bot = input.float(0.0, "Manuel Major Alt", step=0.01, group=grp_manual)
+
+//   PROJE-X AYARLARI
+grp_projex = "🚀   Proje-X AL Sinyali Ayarlari"
+px_volLen      = input.int(20, "Hacim SMA", group=grp_projex)
+px_momLen         = input.int(10, "Momentum Periyodu", group=grp_projex)
+px_decayFactor = input.float(0.7, "Hedef Kaybı (Decay)", step=0.1, group=grp_projex)
+px_rsiPeriod = input.int(14, "RSI Periyodu", group=grp_projex)
+px_emaPeriod = input.int(10, "RSI EMA Periyodu", group=grp_projex)
+px_fibLookback = input.int(100, "RSI Fib Geriye Bakış", group=grp_projex)
+px_maxSignalAge = input.int(2, "Maksimum Kesişim Yaşı (Mum)", group=grp_projex)
+px_tmoLength = input.int(14, "TMO Length", group=grp_projex)
+px_tmoCalcLength = input.int(5, "TMO Calculation Length", group=grp_projex)
+px_tmoSmoothLen = input.int(3, "TMO Smooth Length", group=grp_projex)
+px_cooldownBars = input.int(5, "Sinyal Sonrası Bekleme (Mum)", minval=1, group=grp_projex)
+
+//
+// HESAPLAMALAR
+//
+volSma20 = ta.sma(volume, 20)
+volRatio = volSma20 > 0 ? volume / volSma20 : 1.0
+
+//
+// BOLGELER (Sadece Hesaplama, Kutular Silindi)
+//
+auto_highest = ta.highest(high, auto_zone_days)
+auto_lowest = ta.lowest(low, auto_zone_days)
+
+auto_peak_top = auto_highest
+auto_peak_bot = auto_highest * (1 - auto_peak_pct / 100)
+
+auto_dip_top = auto_lowest * (1 + auto_dip_pct / 100)
+auto_dip_bot = auto_lowest
+
+var float auto_major_top = na
+var float auto_major_bot = na
+
+price_range = auto_highest - auto_lowest
+step = price_range / auto_major_bins
+
+if step > 0
+   array_major_bins = array.new_int(auto_major_bins, 0)
+   limit = math.min(auto_zone_days - 1, bar_index)
+   for i = 0 to limit
+      float p = close[i]
+      int idx = math.min(auto_major_bins - 1, math.max(0, math.floor((p - auto_lowest) / step)))
+      array.set(array_major_bins, idx, array.get(array_major_bins, idx) + 1)
+
+
+
+
+  int max_bin = 0
+  int max_val = array.get(array_major_bins, 0)
+  for j = 1 to auto_major_bins - 1
+    if array.get(array_major_bins, j) > max_val
+       max_val := array.get(array_major_bins, j)
+       max_bin := j
+
+
+
+
+  auto_major_top := auto_lowest + step * (max_bin + 1)
+  auto_major_bot := auto_lowest + step * max_bin
+
+final_peak_top = manual_enable_peak and manual_peak_top > 0 ? manual_peak_top :
+auto_peak_top
+final_peak_bot = manual_enable_peak and manual_peak_bot > 0 ? manual_peak_bot :
+auto_peak_bot
+final_dip_top = manual_enable_dip and manual_dip_top > 0 ? manual_dip_top : auto_dip_top
+final_dip_bot = manual_enable_dip and manual_dip_bot > 0 ? manual_dip_bot : auto_dip_bot
+final_acc_top = manual_enable_acc and manual_acc_top > 0 ? manual_acc_top :
+auto_major_top
+final_acc_bot = manual_enable_acc and manual_acc_bot > 0 ? manual_acc_bot :
+auto_major_bot
+
+//
+// ONCEKI GUN YUKSEK/DUSUK (DIRENC/DESTEK)
+//
+pdh = high[1]
+pdl = low[1]
+
+var line pdh_line = na
+var line pdl_line = na
+var label pdh_lbl = na
+var label pdl_lbl = na
+
+if barstate.islast and not na(pdh)
+   line.delete(pdh_line)
+   line.delete(pdl_line)
+   label.delete(pdh_lbl)
+   label.delete(pdl_lbl)
+
+
+
+
+  pdh_line := line.new(bar_index - 50, pdh, bar_index + 10, pdh, color=color.orange, width=2)
+  pdh_lbl := label.new(bar_index + 12, pdh, text="DIRENC\n" + str.tostring(pdh,
+format.mintick),
+    style=label.style_label_left, color=color.orange, textcolor=color.white, size=size.small)
+
+
+
+
+  pdl_line := line.new(bar_index - 50, pdl, bar_index + 10, pdl, color=color.teal, width=2)
+  pdl_lbl := label.new(bar_index + 12, pdl, text="DESTEK\n" + str.tostring(pdl, format.mintick),
+    style=label.style_label_left, color=color.teal, textcolor=color.white, size=size.small)
+
+//
+// ALIS SINYAL MANTIGI (TAVAN ADAYI)
+//
+breakout = not na(pdh) and ta.crossover(close, pdh) and barstate.isconfirmed
+threshold = pdh * (1 + tavan_breakout_pct / 100)
+confirmed = close > threshold
+vol_ok = volRatio >= tavan_min_vol_ratio
+
+pdh_in_peak = not na(final_peak_bot) and pdh >= final_peak_bot and pdh <= final_peak_top
+pdh_in_major = not na(final_acc_bot) and pdh >= final_acc_bot and pdh <= final_acc_top
+pdh_in_dip = not na(final_dip_bot) and pdh >= final_dip_bot and pdh <= final_dip_top
+
+signal = breakout and confirmed and vol_ok and not pdh_in_peak
+is_super = pdh_in_major or pdh_in_dip
+
+if signal and show_tavan_signal
+   if is_super
+      label.new(bar_index, low, text="SUPER SINYAL\nFIYAT: " + str.tostring(close,
+format.mintick) + "\nVol: " + str.tostring(volRatio, "0.00") + "x", yloc=yloc.belowbar,
+color=color.lime, textcolor=color.black, style=label.style_label_up, size=size.normal)
+   else
+
+    label.new(bar_index, low, text="TAVAN ADAYI\nFIYAT: " + str.tostring(close,
+format.mintick) + "\nVol: " + str.tostring(volRatio, "0.00") + "x", yloc=yloc.belowbar,
+color=color.yellow, textcolor=color.black, style=label.style_label_up, size=size.normal)
+
+//
+// SATIS SINYAL MANTIGI (DESTEK KIRILIMI)
+//
+breakdown = not na(pdl) and ta.crossunder(close, pdl) and barstate.isconfirmed
+threshold_sat = pdl * (1 - sat_breakout_pct / 100)
+confirmed_sat = close < threshold_sat
+vol_ok_sat = volRatio >= sat_min_vol_ratio
+
+pdl_in_peak = not na(final_peak_bot) and pdl >= final_peak_bot and pdl <= final_peak_top
+pdl_in_major = not na(final_acc_bot) and pdl >= final_acc_bot and pdl <= final_acc_top
+pdl_in_dip = not na(final_dip_bot) and pdl >= final_dip_bot and pdl <= final_dip_top
+
+signal_sat = breakdown and confirmed_sat and vol_ok_sat and not pdl_in_dip
+is_super_sat = pdl_in_major or pdl_in_peak
+
+if signal_sat and show_sat_signal
+   if is_super_sat
+      label.new(bar_index, high, text="SUPER SAT\nFIYAT: " + str.tostring(close, format.mintick)
++ "\nVol: " + str.tostring(volRatio, "0.00") + "x", yloc=yloc.abovebar, color=color.red,
+textcolor=color.white, style=label.style_label_down, size=size.normal)
+   else
+      label.new(bar_index, high, text="SAT SINYALI\nFIYAT: " + str.tostring(close,
+format.mintick) + "\nVol: " + str.tostring(volRatio, "0.00") + "x", yloc=yloc.abovebar,
+color=color.maroon, textcolor=color.white, style=label.style_label_down, size=size.normal)
+
+//
+// HACIM VE MOMENTUM SINYALLERI
+//
+
+            📊
+grp_basic = "  Temel Ayarlar"
+vol_mult_up = input.float(1.5, "Hacim Çarpanı (Yükseliş)", step=0.1, group=grp_basic)
+vol_mult_down = input.float(0.7, "Hacim Çarpanı (Düşüş)", step=0.1, group=grp_basic)
+rsi_len   = input.int(14, "RSI Periyodu", group=grp_basic)
+rsi_level = input.int(50, "RSI Seviyesi (Momentum)", group=grp_basic)
+
+rsiVal = ta.rsi(close, rsi_len)
+VolSma20 = ta.sma(volume, 20)
+VolRatio = VolSma20 > 0 ? volume / VolSma20 : 1.0
+
+volConfirmSignal = volume > VolSma20 * vol_mult_up
+
+momConfirmSignal = ta.crossover(rsiVal, rsi_level)
+triggerSignal = volConfirmSignal and momConfirmSignal
+
+var label son_hm_label = na
+if triggerSignal and barstate.isconfirmed and show_vol_mom_up
+   if not na(son_hm_label)
+      label.delete(son_hm_label)
+   son_hm_label := label.new(x=bar_index, y=low, text="  📈   Hacim + Momentum\n     💰  "+
+str.tostring(close, format.mintick), yloc=yloc.belowbar, color=color.teal, textcolor=color.white,
+style=label.style_label_up, size=size.normal)
+
+volDropSignal = volume < VolSma20 * vol_mult_down
+momLossSignal = ta.crossunder(rsiVal, rsi_level)
+bearTriggerSignal = volDropSignal and momLossSignal
+
+var label son_bear_hm_label = na
+if bearTriggerSignal and barstate.isconfirmed and show_vol_mom_down
+   if not na(son_bear_hm_label)
+      label.delete(son_bear_hm_label)
+   son_bear_hm_label := label.new(x=bar_index, y=high, text="   🔻    Hacim Düşüş + Mom
+Kaybı\n 💰    " + str.tostring(close, format.mintick), yloc=yloc.abovebar, color=color.maroon,
+textcolor=color.white, style=label.style_label_down, size=size.normal)
+
+//
+// QUANTUM GOLDEN
+//
+hassasiyet = input.float(0.1, "Minimum Momentum Esigi (%)", step=0.1, group="Quantum")
+atrPeriod = input.int(14, "Hedef ATR Periyodu", group="Quantum")
+
+var float haOpen = na, var float haHigh = na, var float haLow = na, var float haClose = na
+haClose := (open + high + low + close) / 4
+haOpen := na(haOpen[1]) ? (open + close) / 2 : (haOpen[1] + haClose[1]) / 2
+haHigh := math.max(high, math.max(haOpen, haClose))
+haLow := math.min(low, math.min(haOpen, haClose))
+
+govdeDegisim = ((haClose - haOpen) / haOpen) * 100
+mutlakDegisim = math.abs(govdeDegisim)
+atr_q = ta.atr(atrPeriod)
+avgBody = ta.sma(mutlakDegisim, 10)
+sinyalGucu = math.min(100, (mutlakDegisim / (avgBody > 0 ? avgBody : 1)) * 50)
+olasilik = 65 + (sinyalGucu / 4) + (mutlakDegisim > hassasiyet * 2.5 ? 12 : 0)
+olasilikSon = math.min(98, olasilik)
+
+ha_isUp = haClose > haOpen
+ha_isDown = haClose < haOpen
+sertYukselis = haClose > haHigh[1]
+
+var int sonSinyal = 0
+
+
+
+var label sonEtiket = na
+var line h_line = na
+var label h_label = na
+
+if ha_isDown
+   sonSinyal := 0
+
+signalAL = (sonSinyal != 1) and ha_isUp and (ha_isDown[1] or sertYukselis) and mutlakDegisim
+>= hassasiyet and barstate.isconfirmed
+isStrong = olasilikSon >= 85 and olasilikSon <= 90
+boxColorAL = isStrong ? color.rgb(53, 12, 236) : color.rgb(27, 154, 13)
+labelTxtAL = isStrong ? "GÜÇLÜ AL" : "AL"
+
+if signalAL and show_quantum_al
+   sonSinyal := 1
+   tPrice = close + (atr_q * 2)
+   beklentiYuzde = ((tPrice - close) / close) * 100
+   label.delete(sonEtiket), label.delete(h_label), line.delete(h_line)
+   h_line := line.new(bar_index, tPrice, bar_index + 10, tPrice, color=color.white, width=1,
+style=line.style_solid)
+   h_label := label.new(bar_index + 12, tPrice, "HEDEF: " + str.tostring(tPrice, "#.######"),
+color=color.white, textcolor=color.black, style=label.style_label_left)
+   sonEtiket := label.new(bar_index, low, text=labelTxtAL + "\nGÜÇ: %" +
+str.tostring(sinyalGucu, "0") + "\nOLAS: %" + str.tostring(olasilikSon, "0"), color=boxColorAL,
+textcolor=color.white, style=label.style_label_up)
+
+if barstate.islast
+   if not na(h_line)
+      line.set_x2(h_line, bar_index + 8)
+   if not na(h_label)
+      label.set_x(h_label, bar_index + 10)
+
+barcolor(ha_isUp ? color.lime : color.red)
+
+//
+
+//   PROJE-X AL SİNYALİ, HEDEFLER, İZLEME VE STOP-LOSS (SAT) DÖNGÜSÜ
+//
+px_volSma = ta.sma(volume, px_volLen)
+px_momentum = ta.roc(close, px_momLen)
+px_atr = ta.atr(14)
+px_isHighVol = volume > px_volSma
+
+px_rsiVal = ta.rsi(close, px_rsiPeriod)
+px_rsiEma = ta.ema(px_rsiVal, px_emaPeriod)
+
+px_rsiTop = ta.highest(px_rsiVal, px_fibLookback)
+px_rsiBot = ta.lowest(px_rsiVal, px_fibLookback)
+px_rsiRange = px_rsiTop - px_rsiBot
+px_fib500 = px_rsiTop - (px_rsiRange * 0.500)
+
+px_rsiCrossUp = ta.crossover(px_rsiVal, px_rsiEma)
+px_rsiFibUp = px_rsiVal > px_fib500[1] and px_rsiVal[1] <= px_fib500[1]
+px_rawRsiBuy = px_rsiCrossUp or px_rsiFibUp
+
+checkRecentSignal_px(bool rawSignal, int ageLimit) =>
+  var int barsSinceSignal = 999
+  if rawSignal
+     barsSinceSignal := 0
+  else if barsSinceSignal < ageLimit
+     barsSinceSignal := barsSinceSignal + 1
+  else
+     barsSinceSignal := 999
+  barsSinceSignal <= ageLimit
+
+px_subBuyConfirmed = checkRecentSignal_px(px_rawRsiBuy, px_maxSignalAge) and
+px_isHighVol and px_momentum > 0
+
+// TMO Hesaplama
+px_data = 0.0
+for i = 0 to px_tmoLength
+   priceChange = close > open[i] ? 1 : close < open[i] ? -1 : 0
+   px_data := px_data + priceChange
+
+px_ema5 = ta.ema(px_data, px_tmoCalcLength)
+px_tmoMain = ta.ema(px_ema5, px_tmoSmoothLen)
+px_tmoSignal = ta.ema(px_tmoMain, px_tmoSmoothLen)
+px_tmoBullish = px_tmoMain > px_tmoSignal
+
+px_projexComboBuy = px_subBuyConfirmed and px_tmoBullish
+
+// Cooldown ve Sinyal Üretimi
+var int px_lastSignalBar = 0
+px_inCooldown = (bar_index - px_lastSignalBar) < px_cooldownBars
+bool px_isNewBuy = false
+
+if barstate.isconfirmed and not px_inCooldown and px_projexComboBuy
+   px_isNewBuy := true
+   px_lastSignalBar := bar_index
+
+// Proje-X Görselleri ve Döngü Takip Değişkenleri
+var line px_targetLine1 = na, var line px_targetLine2 = na, var line px_targetLine3 = na
+var label px_targetLabel1 = na, var label px_targetLabel2 = na, var label px_targetLabel3 = na
+var label px_signalLabel = na
+var int px_signalBarIndex = na
+
+// Döngü Takip Değişkenleri
+var bool px_active = false
+var bool px_reached_h3 = false
+var float px_h1 = na
+var float px_h2 = na
+var float px_h3 = na
+
+if px_isNewBuy and show_projex_al
+    line.delete(px_targetLine1), line.delete(px_targetLine2), line.delete(px_targetLine3)
+    label.delete(px_targetLabel1), label.delete(px_targetLabel2), label.delete(px_targetLabel3)
+    label.delete(px_signalLabel)
+
+    float px_baseMove = px_atr * 1.5
+    px_h1 := close + px_baseMove
+    px_h2 := px_h1 + (px_baseMove * px_decayFactor)
+    px_h3 := px_h2 + (px_baseMove * math.pow(px_decayFactor, 2))
+
+    px_active := true
+    px_reached_h3 := false
+
+    color px_color = color.lime
+
+    px_targetLine1 := line.new(
+      bar_index, px_h1, bar_index + 10, px_h1,
+      color=color.new(px_color, 30), style=line.style_solid, width=2, extend=extend.right)
+    px_targetLine2 := line.new(
+      bar_index, px_h2, bar_index + 10, px_h2,
+      color=color.new(px_color, 50), style=line.style_solid, width=2, extend=extend.right)
+    px_targetLine3 := line.new(
+      bar_index, px_h3, bar_index + 10, px_h3,
+      color=color.new(px_color, 70), style=line.style_solid, width=2, extend=extend.right)
+
+    px_targetLabel1 := label.new(
+      bar_index + 12, px_h1,
+      text="HEDEF1: " + str.tostring(px_h1, format.mintick),
+      style=label.style_label_left, color=color.new(px_color, 100), textcolor=px_color,
+      size=size.normal)
+    px_targetLabel2 := label.new(
+      bar_index + 12, px_h2,
+      text="HEDEF2: " + str.tostring(px_h2, format.mintick),
+      style=label.style_label_left, color=color.new(px_color, 100), textcolor=px_color,
+      size=size.normal)
+    px_targetLabel3 := label.new(
+      bar_index + 12, px_h3,
+      text="HEDEF3: " + str.tostring(px_h3, format.mintick),
+      style=label.style_label_left, color=color.new(px_color, 100), textcolor=px_color,
+      size=size.normal)
+
+    px_signalBarIndex := bar_index
+    px_signalLabel := label.new(
+      bar_index, close, text=" PROJE-X AL\\n" + str.tostring(close, format.mintick),
+      style=label.style_label_up, color=color.new(#00E676, 20),
+      textcolor=color.white, size=size.normal)
+
+// HEDEF3 -> HEDEF1 Geri Çekilme, Stop (SAT) ve İzleme Takibi
+if px_active and show_projex_al and barstate.isconfirmed
+    // 1. Aşama: Fiyat HEDEF3'e ulaştı mı?
+    if not px_reached_h3 and high >= px_h3
+        px_reached_h3 := true
+
+    // 2. Aşama: HEDEF3 sonrası geri çekilme ve stop kontrolü
+    if px_reached_h3
+        float stop_level = px_h1 * 0.99
+        // Hedef 1'in %1 altına kapanış: SAT ve döngüyü kapat
+        if close <= stop_level
+            label.new(bar_index, high, text=" 🔴   PROJE-X SAT (STOP)\nFIYAT: " + str.tostring(close, format.mintick), style=label.style_label_down, color=color.red, textcolor=color.white, size=size.normal)
+            alert("Proje-X STOP / SAT Sinyali! Fiyat Hedef1'in %1 altına indi: " + str.tostring(close, format.mintick), alert.freq_once_per_bar_close)
+            line.delete(px_targetLine1)
+            line.delete(px_targetLine2)
+            line.delete(px_targetLine3)
+            label.delete(px_targetLabel1)
+            label.delete(px_targetLabel2)
+            label.delete(px_targetLabel3)
+            label.delete(px_signalLabel)
+            px_active := false
+            px_signalBarIndex := na
+        // Fiyat HEDEF1 bölgesine temas etti: izleme bildirimi ve yeni hedef döngüsü
+        else if low <= px_h1
+            float critical_h2 = px_h2
+            bool price_above_h2 = close > critical_h2
+            color watch_color = price_above_h2 ? color.green : color.orange
+            color watch_text_color = price_above_h2 ? color.white : color.black
+            string watch_text = price_above_h2 ?
+                 "🟢  YÜKSELİŞ DEVAM\n" +
+                 "✅  HEDEF-2 ARTIK DESTEK\n" +
+                 "DESTEK: " + str.tostring(critical_h2, format.mintick) +
+                 "\nFİYAT: " + str.tostring(close, format.mintick) :
+                 "⚠️ İZLEMEYE AL DİKKAT!\n" +
+                 "🔍  HEDEF-2 KIRILMASI İZLENMELİ!\n" +
+                 "DİRENÇ: " + str.tostring(critical_h2, format.mintick) +
+                 "\nFİYAT: " + str.tostring(close, format.mintick)
+
+            label.new(x=bar_index, y=low, text=watch_text, yloc=yloc.belowbar,
+                 style=label.style_label_up, color=watch_color,
+                 textcolor=watch_text_color, size=size.normal)
+
+            if price_above_h2
+                alert("🟢     YÜKSELİŞ DEVAM! Fiyat HEDEF-2 üzerinde kapandı. " +
+                     "HEDEF-2 artık DESTEK: " + str.tostring(critical_h2, format.mintick) +
+                     " | Fiyat: " + str.tostring(close, format.mintick),
+                     alert.freq_once_per_bar_close)
+            else
+                alert("⚠️     İZLEMEYE AL! HEDEF-2 direncinin kırılması bekleniyor. " +
+                     "HEDEF-2: " + str.tostring(critical_h2, format.mintick) +
+                     " | Fiyat: " + str.tostring(close, format.mintick),
+                     alert.freq_once_per_bar_close)
+
+            // Temas mumunun kapanışından sonraki hedefleri yeniden hesapla
+            float new_baseMove = px_atr * 1.5
+            px_h1 := close + new_baseMove
+            px_h2 := px_h1 + (new_baseMove * px_decayFactor)
+            px_h3 := px_h2 + (new_baseMove * math.pow(px_decayFactor, 2))
+
+            line.delete(px_targetLine1)
+            line.delete(px_targetLine2)
+            line.delete(px_targetLine3)
+            label.delete(px_targetLabel1)
+            label.delete(px_targetLabel2)
+            label.delete(px_targetLabel3)
+
+            color px_color = color.lime
+            px_targetLine1 := line.new(bar_index, px_h1, bar_index + 10, px_h1,
+                 color=color.new(px_color, 30), style=line.style_solid, width=2, extend=extend.right)
+            px_targetLine2 := line.new(bar_index, px_h2, bar_index + 10, px_h2,
+                 color=color.new(px_color, 50), style=line.style_solid, width=2, extend=extend.right)
+            px_targetLine3 := line.new(bar_index, px_h3, bar_index + 10, px_h3,
+                 color=color.new(px_color, 70), style=line.style_solid, width=2, extend=extend.right)
+
+            px_targetLabel1 := label.new(bar_index + 12, px_h1,
+                 text="HEDEF1: " + str.tostring(px_h1, format.mintick),
+                 style=label.style_label_left, color=color.new(px_color, 100),
+                 textcolor=px_color, size=size.normal)
+            px_targetLabel2 := label.new(bar_index + 12, px_h2,
+                 text="HEDEF2: " + str.tostring(px_h2, format.mintick),
+                 style=label.style_label_left, color=color.new(px_color, 100),
+                 textcolor=px_color, size=size.normal)
+            px_targetLabel3 := label.new(bar_index + 12, px_h3,
+                 text="HEDEF3: " + str.tostring(px_h3, format.mintick),
+                 style=label.style_label_left, color=color.new(px_color, 100),
+                 textcolor=px_color, size=size.normal)
+
+            px_signalBarIndex := bar_index
+            px_reached_h3 := false

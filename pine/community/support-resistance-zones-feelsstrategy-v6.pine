@@ -1,0 +1,645 @@
+// © FeelsStrategy
+//@version=6
+indicator("Support and Resistance Zones [FEELS]", "S&R Zones [FEELS]", overlay = true, max_lines_count = 500, max_boxes_count = 500, max_labels_count = 500)
+
+// =====================================================================
+//                              INPUTS
+// =====================================================================
+
+grpStrength = "Zone Strength"
+preset      = input.string("Swing", "Strength preset", options = ["Local", "Swing", "Major", "Custom"], group = grpStrength, tooltip = "Local: tight zones from recent pivots. Swing: balanced. Major: wide zones from significant pivots. Custom: use values below.")
+
+grpPivot     = "Custom Parameters"
+pivLeftIn    = input.int(15, "Left bars",  minval = 2, maxval = 100, group = grpPivot, tooltip = "Used when preset is Custom.")
+pivRightIn   = input.int(8,  "Right bars", minval = 2, maxval = 50, group = grpPivot)
+clusterTolIn = input.float(0.9, "Cluster tolerance (× ATR)", minval = 0.2, maxval = 3.0, step = 0.1, group = grpPivot)
+minSpacingIn = input.int(20, "Minimum bars between touches", minval = 0, maxval = 200, group = grpPivot)
+pivBuffer    = input.int(80, "Pivot memory", minval = 20, maxval = 200, group = grpPivot)
+
+grpCluster = "Zones"
+zoneCount  = input.int(6, "Active zones per side", minval = 1, maxval = 8, group = grpCluster)
+minTouches = input.int(2, "Minimum touches", minval = 2, maxval = 10, group = grpCluster)
+fadeAge    = input.int(120, "Fade after (bars)", minval = 0, maxval = 500, group = grpCluster, tooltip = "Zones not tested within this many bars become more transparent. Set to 0 to disable.")
+hideFar    = input.float(60.0, "Hide zones farther than (%)", minval = 0.0, maxval = 200.0, step = 5.0, group = grpCluster, tooltip = "Hide zones whose center is further than this percentage from current price. Set to 0 to disable.")
+
+grpHistory   = "Broken Zones"
+showBroken   = input.bool(false, "Show confirmed broken zones", group = grpHistory)
+showDropped  = input.bool(false, "Show dropped zones",          group = grpHistory, tooltip = "Zones that disappeared because newer pivots reorganized the cluster set.")
+brokenBull   = input.color(color.rgb(105, 140, 125),  "Broken support color",    group = grpHistory)
+brokenBear   = input.color(color.rgb(165, 105, 110),  "Broken resistance color", group = grpHistory)
+brokenOp     = input.int(85, "Broken zone opacity", minval = 30, maxval = 95, group = grpHistory)
+
+grpSignals    = "Signals (optional)"
+showTest      = input.bool(false, "Show successful test markers",  group = grpSignals)
+showRetest    = input.bool(false, "Show retest markers",           group = grpSignals)
+showReaction  = input.bool(false, "Show zone reaction marks",      group = grpSignals, tooltip = "Diamond marks when price touches a zone but does not close beyond it. Break label when a zone is broken on close.")
+useRsi        = input.bool(false, "Filter signals with RSI",       group = grpSignals)
+rsiLen        = input.int(14, "RSI length",       minval = 2, maxval = 50, group = grpSignals)
+rsiOversold   = input.int(35, "RSI oversold",     minval = 10, maxval = 49, group = grpSignals)
+rsiOverbought = input.int(65, "RSI overbought",   minval = 51, maxval = 90, group = grpSignals)
+sigCooldown   = input.int(20, "Cooldown bars",    minval = 0, maxval = 100, group = grpSignals)
+retestWindow  = input.int(50, "Retest window (bars)", minval = 5, maxval = 200, group = grpSignals)
+
+grpStyle    = "Style"
+resColor    = input.color(color.rgb(244, 67, 79),  "Resistance", group = grpStyle)
+supColor    = input.color(color.rgb(38, 166, 154), "Support",    group = grpStyle)
+useVolColor = input.bool(true,  "Color zones by volume",  group = grpStyle, tooltip = "Zones with higher cumulative volume become more vivid.")
+showLabels  = input.bool(true,  "Show zone strength label", group = grpStyle)
+showVolText = input.bool(true,  "Show volume score",        group = grpStyle)
+volFormat   = input.string("Absolute", "Volume format", options = ["Absolute", "Percentage"], group = grpStyle)
+zoneOpacity = input.int(82, "Zone opacity (low volume)", minval = 60, maxval = 95, group = grpStyle)
+
+// preset resolution
+pivLeft    = preset == "Local" ?  6  : preset == "Swing" ? 15  : preset == "Major" ? 35  : pivLeftIn
+pivRight   = preset == "Local" ?  4  : preset == "Swing" ?  8  : preset == "Major" ? 15  : pivRightIn
+clusterTol = preset == "Local" ? 0.5 : preset == "Swing" ? 0.9 : preset == "Major" ? 1.4 : clusterTolIn
+minSpacing = preset == "Local" ?  8  : preset == "Swing" ? 20  : preset == "Major" ? 50  : minSpacingIn
+
+// =====================================================================
+//                               TYPES
+// =====================================================================
+
+type Pivot
+    float price
+    int   bar
+    float vol
+    float wick
+
+type Zone
+    float top
+    float bot
+    float center
+    float strength
+    float volSum
+    int   touches
+    int   firstBar
+    int   lastTouch
+    int   diedBar
+    bool  isResistance
+    bool  wasBroken
+
+// =====================================================================
+//                         SOURCES & PIVOTS
+// =====================================================================
+
+atr   = ta.atr(50)
+volMa = ta.sma(volume, 50)
+rsi   = ta.rsi(close, rsiLen)
+
+phPx = ta.pivothigh(high, pivLeft, pivRight)
+plPx = ta.pivotlow(low,   pivLeft, pivRight)
+
+upperWick(int idx) =>
+    high[idx] - math.max(open[idx], close[idx])
+
+lowerWick(int idx) =>
+    math.min(open[idx], close[idx]) - low[idx]
+
+safeVolume(int idx) =>
+    v = volume[idx]
+    na(v) or v <= 0 ? 1.0 : v
+
+var array<Pivot> highPivots = array.new<Pivot>()
+var array<Pivot> lowPivots  = array.new<Pivot>()
+
+dataReady = not na(atr) and atr > 0
+
+newHighPivot = false
+newLowPivot  = false
+
+if not na(phPx) and phPx > 0 and dataReady
+    highPivots.push(Pivot.new(phPx, bar_index - pivRight, safeVolume(pivRight), upperWick(pivRight)))
+    if highPivots.size() > pivBuffer
+        highPivots.shift()
+    newHighPivot := true
+
+if not na(plPx) and plPx > 0 and dataReady
+    lowPivots.push(Pivot.new(plPx, bar_index - pivRight, safeVolume(pivRight), lowerWick(pivRight)))
+    if lowPivots.size() > pivBuffer
+        lowPivots.shift()
+    newLowPivot := true
+
+// =====================================================================
+//                            CLUSTERING
+// =====================================================================
+
+pivotWeight(Pivot p, float a, float vAvg) =>
+    safeVol  = na(p.vol)  or p.vol  <= 0 ? 0.0 : p.vol
+    safeWick = na(p.wick) or p.wick <  0 ? 0.0 : p.wick
+    age      = math.max(1, bar_index - p.bar)
+    decay    = 1.0 / (1.0 + age / 200.0)
+    volNorm  = vAvg > 0 ? safeVol / vAvg : 1.0
+    wickNorm = a > 0 ? safeWick / a : 0.0
+    (1.0 + volNorm * 0.5 + wickNorm * 0.5) * decay
+
+buildZones(array<Pivot> src, bool resistance, float a, float vAvg) =>
+    out = array.new<Zone>()
+    if src.size() >= minTouches and a > 0
+        used = array.new<bool>()
+        for i = 0 to src.size() - 1
+            used.push(false)
+
+        tol = a * clusterTol
+
+        for i = 0 to src.size() - 1
+            if not used.get(i)
+                seed    = src.get(i)
+                members = array.new<Pivot>()
+                members.push(seed)
+                used.set(i, true)
+
+                if i + 1 <= src.size() - 1
+                    for j = i + 1 to src.size() - 1
+                        if not used.get(j)
+                            cand = src.get(j)
+                            if math.abs(cand.price - seed.price) <= tol
+                                farEnough = true
+                                if minSpacing > 0
+                                    for k = 0 to members.size() - 1
+                                        if math.abs(cand.bar - members.get(k).bar) < minSpacing
+                                            farEnough := false
+                                            break
+                                if farEnough
+                                    members.push(cand)
+                                    used.set(j, true)
+
+                if members.size() >= minTouches
+                    priceSum  = 0.0
+                    weightSum = 0.0
+                    volSum    = 0.0
+                    earliest  = members.get(0).bar
+                    latest    = members.get(0).bar
+
+                    for k = 0 to members.size() - 1
+                        m = members.get(k)
+                        w = pivotWeight(m, a, vAvg)
+                        priceSum  += m.price * w
+                        weightSum += w
+                        volSum    += na(m.vol) ? 0.0 : m.vol
+                        earliest  := math.min(earliest, m.bar)
+                        latest    := math.max(latest,   m.bar)
+
+                    if weightSum > 0
+                        center = priceSum / weightSum
+                        pad    = a * 0.25
+                        out.push(Zone.new(center + pad, center - pad, center, weightSum, volSum, members.size(), earliest, latest, na, resistance, false))
+    out
+
+trimToTopN(array<Zone> zones, int keep) =>
+    result = array.new<Zone>()
+    if zones.size() > 0
+        copy = zones.copy()
+        limit = math.min(keep, copy.size())
+        for i = 0 to limit - 1
+            if copy.size() == 0
+                break
+            bestIdx = 0
+            bestVal = copy.get(0).strength
+            if copy.size() > 1
+                for j = 1 to copy.size() - 1
+                    if copy.get(j).strength > bestVal
+                        bestVal := copy.get(j).strength
+                        bestIdx := j
+            result.push(copy.get(bestIdx))
+            copy.remove(bestIdx)
+    result
+
+// =====================================================================
+//                       ZONE STATE & ARCHIVING
+// =====================================================================
+
+var array<Zone> resZones    = array.new<Zone>()
+var array<Zone> supZones    = array.new<Zone>()
+var array<Zone> brokenZones = array.new<Zone>()
+
+archiveIfNew(Zone z, float a) =>
+    duplicate = false
+    if brokenZones.size() > 0
+        tol = a * clusterTol * 0.7
+        for i = 0 to brokenZones.size() - 1
+            existing = brokenZones.get(i)
+            if existing.isResistance == z.isResistance and math.abs(existing.center - z.center) <= tol
+                duplicate := true
+                if z.wasBroken and not existing.wasBroken
+                    existing.wasBroken := true
+                    existing.diedBar   := z.diedBar
+                    brokenZones.set(i, existing)
+                break
+    if not duplicate
+        brokenZones.push(z)
+        if brokenZones.size() > 60
+            brokenZones.shift()
+    duplicate
+
+if resZones.size() > 0
+    for i = 0 to resZones.size() - 1
+        z = resZones.get(i)
+        if na(z.diedBar) and close > z.top + atr * 0.3
+            z.diedBar   := bar_index
+            z.wasBroken := true
+            resZones.set(i, z)
+            archiveIfNew(z, atr)
+
+if supZones.size() > 0
+    for i = 0 to supZones.size() - 1
+        z = supZones.get(i)
+        if na(z.diedBar) and close < z.bot - atr * 0.3
+            z.diedBar   := bar_index
+            z.wasBroken := true
+            supZones.set(i, z)
+            archiveIfNew(z, atr)
+
+if resZones.size() > 0
+    for i = 0 to resZones.size() - 1
+        z = resZones.get(i)
+        if na(z.diedBar) and high >= z.bot and low <= z.top
+            z.lastTouch := bar_index
+            resZones.set(i, z)
+
+if supZones.size() > 0
+    for i = 0 to supZones.size() - 1
+        z = supZones.get(i)
+        if na(z.diedBar) and high >= z.bot and low <= z.top
+            z.lastTouch := bar_index
+            supZones.set(i, z)
+
+zoneSurvives(Zone old, array<Zone> newSet, float a) =>
+    survived = false
+    if newSet.size() > 0
+        tol = a * clusterTol
+        for i = 0 to newSet.size() - 1
+            nz = newSet.get(i)
+            if math.abs(nz.center - old.center) <= tol
+                survived := true
+                break
+    survived
+
+isAlreadyBroken(Zone z, float a) =>
+    broken = false
+    if brokenZones.size() > 0
+        tol = a * clusterTol * 0.7
+        for i = 0 to brokenZones.size() - 1
+            bz = brokenZones.get(i)
+            if bz.isResistance == z.isResistance and bz.wasBroken and math.abs(bz.center - z.center) <= tol
+                broken := true
+                break
+    broken
+
+inheritState(Zone newZ, array<Zone> oldZones, float a) =>
+    inherited = newZ
+    if oldZones.size() > 0
+        tol = a * clusterTol
+        for i = 0 to oldZones.size() - 1
+            oldZ = oldZones.get(i)
+            if math.abs(oldZ.center - newZ.center) <= tol
+                inherited.lastTouch := oldZ.lastTouch
+                break
+    inherited
+
+if newHighPivot or newLowPivot
+    newRes = trimToTopN(buildZones(highPivots, true,  atr, volMa), zoneCount)
+    newSup = trimToTopN(buildZones(lowPivots,  false, atr, volMa), zoneCount)
+
+    if resZones.size() > 0
+        for i = 0 to resZones.size() - 1
+            old = resZones.get(i)
+            if na(old.diedBar) and old.touches >= minTouches and not zoneSurvives(old, newRes, atr)
+                old.diedBar   := bar_index
+                old.wasBroken := false
+                archiveIfNew(old, atr)
+
+    if supZones.size() > 0
+        for i = 0 to supZones.size() - 1
+            old = supZones.get(i)
+            if na(old.diedBar) and old.touches >= minTouches and not zoneSurvives(old, newSup, atr)
+                old.diedBar   := bar_index
+                old.wasBroken := false
+                archiveIfNew(old, atr)
+
+    oldResCopy = resZones.copy()
+    oldSupCopy = supZones.copy()
+
+    resZones.clear()
+    if newRes.size() > 0
+        for i = 0 to newRes.size() - 1
+            nz = newRes.get(i)
+            if not isAlreadyBroken(nz, atr)
+                inh = inheritState(nz, oldResCopy, atr)
+                resZones.push(inh)
+
+    supZones.clear()
+    if newSup.size() > 0
+        for i = 0 to newSup.size() - 1
+            nz = newSup.get(i)
+            if not isAlreadyBroken(nz, atr)
+                inh = inheritState(nz, oldSupCopy, atr)
+                supZones.push(inh)
+
+// =====================================================================
+//                              SIGNALS
+// =====================================================================
+
+var array<float> sigZoneCenters = array.new<float>()
+var array<int>   sigZoneBars    = array.new<int>()
+
+cooldownOk(float center) =>
+    ok = true
+    if sigZoneCenters.size() > 0
+        for i = 0 to sigZoneCenters.size() - 1
+            if math.abs(sigZoneCenters.get(i) - center) <= atr * clusterTol
+                if bar_index - sigZoneBars.get(i) < sigCooldown
+                    ok := false
+                    break
+    ok
+
+recordSignal(float center) =>
+    sigZoneCenters.push(center)
+    sigZoneBars.push(bar_index)
+    if sigZoneCenters.size() > 50
+        sigZoneCenters.shift()
+        sigZoneBars.shift()
+    center
+
+zoneRenderable(Zone z) =>
+    na(z.diedBar) and z.touches >= minTouches and not na(z.top) and not na(z.bot) and z.top > 0 and z.bot > 0 and z.bot < z.top
+
+checkSupBounce() =>
+    fired = false
+    if supZones.size() > 0
+        for i = 0 to supZones.size() - 1
+            z = supZones.get(i)
+            if zoneRenderable(z)
+                pierced = low <= z.top and low >= z.bot - atr * 0.5
+                heldUp  = close > z.bot and close > open
+                rsiOk   = not useRsi or rsi <= rsiOversold
+                if pierced and heldUp and rsiOk and cooldownOk(z.center)
+                    recordSignal(z.center)
+                    fired := true
+                    break
+    fired
+
+checkResReject() =>
+    fired = false
+    if resZones.size() > 0
+        for i = 0 to resZones.size() - 1
+            z = resZones.get(i)
+            if zoneRenderable(z)
+                pierced = high >= z.bot and high <= z.top + atr * 0.5
+                heldDn  = close < z.top and close < open
+                rsiOk   = not useRsi or rsi >= rsiOverbought
+                if pierced and heldDn and rsiOk and cooldownOk(z.center)
+                    recordSignal(z.center)
+                    fired := true
+                    break
+    fired
+
+checkRetestBull() =>
+    fired = false
+    if brokenZones.size() > 0
+        for i = 0 to brokenZones.size() - 1
+            z = brokenZones.get(i)
+            if z.isResistance and z.wasBroken and not na(z.diedBar)
+                age = bar_index - z.diedBar
+                if age > 0 and age <= retestWindow
+                    if low <= z.top and low >= z.bot - atr * 0.3 and close > z.top and close > open
+                        rsiOk = not useRsi or rsi <= rsiOversold
+                        if rsiOk
+                            fired := true
+                            break
+    fired
+
+checkRetestBear() =>
+    fired = false
+    if brokenZones.size() > 0
+        for i = 0 to brokenZones.size() - 1
+            z = brokenZones.get(i)
+            if not z.isResistance and z.wasBroken and not na(z.diedBar)
+                age = bar_index - z.diedBar
+                if age > 0 and age <= retestWindow
+                    if high >= z.bot and high <= z.top + atr * 0.3 and close < z.bot and close < open
+                        rsiOk = not useRsi or rsi >= rsiOverbought
+                        if rsiOk
+                            fired := true
+                            break
+    fired
+
+bounceUp   = checkSupBounce()
+bounceDown = checkResReject()
+retestUp   = checkRetestBull()
+retestDown = checkRetestBear()
+
+plotshape(showTest   and bounceUp,   "Successful test up",   shape.circle,  location.belowbar, color.new(supColor, 0), size = size.tiny)
+plotshape(showTest   and bounceDown, "Successful test down", shape.circle,  location.abovebar, color.new(resColor, 0), size = size.tiny)
+plotshape(showRetest and retestUp,   "Retest support",       shape.diamond, location.belowbar, color.new(supColor, 0), size = size.tiny)
+plotshape(showRetest and retestDown, "Retest resistance",    shape.diamond, location.abovebar, color.new(resColor, 0), size = size.tiny)
+
+// reaction holds
+resHold = false
+supHold = false
+if resZones.size() > 0
+    for i = 0 to resZones.size() - 1
+        z = resZones.get(i)
+        if zoneRenderable(z)
+            if high >= z.bot and high <= z.top + atr * 0.3 and close < z.top
+                resHold := true
+                break
+
+if supZones.size() > 0
+    for i = 0 to supZones.size() - 1
+        z = supZones.get(i)
+        if zoneRenderable(z)
+            if low <= z.top and low >= z.bot - atr * 0.3 and close > z.bot
+                supHold := true
+                break
+
+plotshape(showReaction and supHold, "Support hold",    shape.diamond, location.belowbar, color.new(supColor, 30), size = size.tiny)
+plotshape(showReaction and resHold, "Resistance hold", shape.diamond, location.abovebar, color.new(resColor, 30), size = size.tiny)
+
+// =====================================================================
+//                              DRAWING
+// =====================================================================
+
+var array<box>   bxBuf = array.new<box>()
+var array<line>  lnBuf = array.new<line>()
+var array<label> lbBuf = array.new<label>()
+
+clearBuffers() =>
+    if bxBuf.size() > 0
+        for i = 0 to bxBuf.size() - 1
+            box.delete(bxBuf.get(i))
+    if lnBuf.size() > 0
+        for i = 0 to lnBuf.size() - 1
+            line.delete(lnBuf.get(i))
+    if lbBuf.size() > 0
+        for i = 0 to lbBuf.size() - 1
+            label.delete(lbBuf.get(i))
+    bxBuf.clear()
+    lnBuf.clear()
+    lbBuf.clear()
+    bxBuf.size()
+
+strengthStars(float s, float maxS) =>
+    ratio = maxS > 0 ? s / maxS : 0.0
+    ratio >= 0.85 ? "★★★" : ratio >= 0.55 ? "★★" : "★"
+
+ageFade(int lastTouch) =>
+    if fadeAge <= 0
+        0
+    else
+        age = bar_index - lastTouch
+        age <= 0 ? 0 : math.min(15, int(age * 15.0 / fadeAge))
+
+isFar(float zoneCenter) =>
+    if hideFar <= 0 or close <= 0
+        false
+    else
+        distPct = math.abs(zoneCenter - close) / close * 100.0
+        distPct > hideFar
+
+formatVolume(float v) =>
+    if v >= 1000000000
+        str.tostring(v / 1000000000, "#.##") + "B"
+    else if v >= 1000000
+        str.tostring(v / 1000000, "#.##") + "M"
+    else if v >= 1000
+        str.tostring(v / 1000, "#.##") + "K"
+    else
+        str.tostring(v, "#.##")
+
+drawAlive(Zone z, color baseCol, float maxS, float maxVol) =>
+    if not na(z.top) and not na(z.bot) and not na(z.center) and z.top > 0 and z.bot > 0 and z.bot < z.top and not isFar(z.center)
+        rightX = bar_index + 25
+        extra  = ageFade(z.lastTouch)
+
+        volBoost = 0
+        if useVolColor and maxVol > 0
+            volRatio = math.min(1.0, z.volSum / maxVol)
+            volBoost := int(volRatio * 35)
+
+        fillOp = math.max(40, math.min(95, zoneOpacity + extra - volBoost))
+        fill   = color.new(baseCol, fillOp)
+        edge   = color.new(baseCol, math.min(95, 35 + extra - volBoost / 2))
+
+        bxBuf.push(box.new(z.firstBar, z.top, rightX, z.bot, border_color = na, bgcolor = fill))
+        lnBuf.push(line.new(z.firstBar, z.center, rightX, z.center, color = edge, style = line.style_dashed, width = 1))
+
+        if showLabels
+            stars = strengthStars(z.strength, maxS)
+            volTxt = ""
+            if showVolText and maxVol > 0
+                if volFormat == "Percentage"
+                    volPct = int((z.volSum / maxVol) * 100)
+                    volTxt := "  •  " + str.tostring(volPct) + "%"
+                else
+                    volTxt := "  •  " + formatVolume(z.volSum)
+            txt = stars + " " + str.tostring(z.touches) + "×" + volTxt
+            lbBuf.push(label.new(rightX, z.center, txt, style = label.style_label_left, color = color.new(baseCol, 75), textcolor = chart.fg_color, size = size.small))
+    z.center
+
+drawBroken(Zone z) =>
+    if not na(z.top) and not na(z.bot) and z.top > 0 and z.bot > 0 and z.bot < z.top and not isFar(z.center)
+        useCol = z.isResistance ? brokenBear : brokenBull
+        fill   = color.new(useCol, brokenOp)
+        edge   = color.new(useCol, math.min(90, brokenOp + 10))
+        endBar = na(z.diedBar) ? bar_index : z.diedBar
+
+        bxBuf.push(box.new(z.firstBar, z.top, endBar, z.bot, border_color = na, bgcolor = fill))
+        lnBuf.push(line.new(z.firstBar, z.center, endBar, z.center, color = edge, style = line.style_dashed, width = 1))
+    z.center
+
+maxStrengthAcross() =>
+    m = 0.0
+    if resZones.size() > 0
+        for i = 0 to resZones.size() - 1
+            z = resZones.get(i)
+            if na(z.diedBar)
+                m := math.max(m, z.strength)
+    if supZones.size() > 0
+        for i = 0 to supZones.size() - 1
+            z = supZones.get(i)
+            if na(z.diedBar)
+                m := math.max(m, z.strength)
+    m
+
+maxVolAcross() =>
+    m = 0.0
+    if resZones.size() > 0
+        for i = 0 to resZones.size() - 1
+            z = resZones.get(i)
+            if na(z.diedBar)
+                m := math.max(m, z.volSum)
+    if supZones.size() > 0
+        for i = 0 to supZones.size() - 1
+            z = supZones.get(i)
+            if na(z.diedBar)
+                m := math.max(m, z.volSum)
+    m
+
+if barstate.islast
+    clearBuffers()
+    mx = maxStrengthAcross()
+    mv = maxVolAcross()
+
+    if resZones.size() > 0
+        for i = 0 to resZones.size() - 1
+            z = resZones.get(i)
+            if na(z.diedBar)
+                drawAlive(z, resColor, mx, mv)
+
+    if supZones.size() > 0
+        for i = 0 to supZones.size() - 1
+            z = supZones.get(i)
+            if na(z.diedBar)
+                drawAlive(z, supColor, mx, mv)
+
+    if (showBroken or showDropped) and brokenZones.size() > 0
+        for i = 0 to brokenZones.size() - 1
+            z = brokenZones.get(i)
+            shouldShow = (z.wasBroken and showBroken) or (not z.wasBroken and showDropped)
+            if shouldShow
+                drawBroken(z)
+
+// =====================================================================
+//                              ALERTS
+// =====================================================================
+
+priceTouchesAlive(array<Zone> zs) =>
+    hit = false
+    if zs.size() > 0
+        for i = 0 to zs.size() - 1
+            z = zs.get(i)
+            if na(z.diedBar) and z.touches >= minTouches and high >= z.bot and low <= z.top
+                hit := true
+                break
+    hit
+
+touchedRes = priceTouchesAlive(resZones)
+touchedSup = priceTouchesAlive(supZones)
+
+brokeRes = false
+brokeSup = false
+if resZones.size() > 0
+    for i = 0 to resZones.size() - 1
+        z = resZones.get(i)
+        if not na(z.diedBar) and z.diedBar == bar_index and z.touches >= minTouches
+            brokeRes := true
+if supZones.size() > 0
+    for i = 0 to supZones.size() - 1
+        z = supZones.get(i)
+        if not na(z.diedBar) and z.diedBar == bar_index and z.touches >= minTouches
+            brokeSup := true
+
+alertcondition(touchedRes, "Resistance touched", "Price reached an active resistance zone")
+alertcondition(touchedSup, "Support touched",    "Price reached an active support zone")
+alertcondition(brokeRes,   "Resistance broken",  "Price closed above a resistance zone")
+alertcondition(brokeSup,   "Support broken",     "Price closed below a support zone")
+alertcondition(bounceUp,   "Successful support test",    "Bullish reaction at support zone")
+alertcondition(bounceDown, "Successful resistance test", "Bearish reaction at resistance zone")
+alertcondition(retestUp,   "Bullish retest",    "Price retested a broken resistance from above")
+alertcondition(retestDown, "Bearish retest",    "Price retested a broken support from below")
+alertcondition(newHighPivot or newLowPivot, "New pivot", "A new pivot was confirmed and zones updated")
+
+if showReaction and brokeRes
+    label.new(bar_index, high, "Break R", style = label.style_label_down, color = color.new(resColor, 25), textcolor = chart.fg_color, size = size.small)
+if showReaction and brokeSup
+    label.new(bar_index, low, "Break S", style = label.style_label_up, color = color.new(supColor, 25), textcolor = chart.fg_color, size = size.small)

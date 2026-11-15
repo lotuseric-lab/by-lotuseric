@@ -1,0 +1,402 @@
+// © FeelsStrategy — original upstream source; attribution header added by By LOTUSERIC compatibility corpus.
+//@version=6
+indicator("Power of Three [FEELS]", "PO3 [FEELS]", overlay = true,
+     max_boxes_count = 500, max_lines_count = 500, max_labels_count = 500)
+
+//--- inputs engine
+grpE = "Engine"
+periodTf      = input.timeframe("D", "Cycle Period", group = grpE, tooltip = "Higher timeframe that defines one full accumulation, manipulation and distribution cycle")
+accFraction   = input.float(0.25, "Accumulation Window", minval = 0.10, maxval = 0.50, step = 0.05, group = grpE, tooltip = "Share of the cycle used to build the accumulation range before a breakout can register as a sweep")
+sweepBuffer   = input.float(0.0, "Sweep Buffer %", minval = 0.0, maxval = 1.0, step = 0.05, group = grpE, tooltip = "Extra distance beyond the range boundary required to register a sweep, in percent of the range")
+reqPrevSweep  = input.bool(false, "Require Prev Cycle H/L Sweep", group = grpE, tooltip = "Manipulation registers only when the sweep also takes the previous cycle high or low")
+confirmMode   = input.string("Close Inside Range", "Confirmation", options = ["Close Inside Range", "50% Sweep Retrace"], group = grpE, tooltip = "Close Inside Range confirms a trap on a close back inside the accumulation range, 50% Sweep Retrace confirms earlier and is less sensitive to the chart timeframe")
+statsLookback = input.int(60, "Stats Lookback", minval = 10, maxval = 300, group = grpE, tooltip = "Number of resolved cycles used for statistics")
+
+//--- inputs display
+grpD = "Display"
+labelStyle = input.string("Descriptive", "Label Style", options = ["Descriptive", "Compact"], group = grpD, tooltip = "Descriptive shows plain-language markers like BULL TRAP and DIST, Compact shows classic M and D notation")
+histDetail = input.string("Results Only", "History Detail", options = ["Results Only", "Full"], group = grpD, tooltip = "Results Only fades completed cycles and keeps only their outcome markers")
+showPath   = input.bool(true, "PO3 Path & Target", group = grpD, tooltip = "Projected path from the sweep extreme to the cycle open and then to the opposite range edge, labeled with historical frequencies")
+maxCycles  = input.int(15, "Cycles On Chart", minval = 1, maxval = 60, group = grpD, tooltip = "Completed cycles kept on the chart")
+showAcc    = input.bool(true, "Accumulation Range", group = grpD, tooltip = "Box around the accumulation range")
+showManip  = input.bool(true, "Manipulation Zone", group = grpD, tooltip = "Zone between the swept boundary and the sweep extreme")
+showOpen   = input.bool(true, "Cycle Open Line", group = grpD, tooltip = "Line at the cycle open price")
+showMarks  = input.bool(true, "Phase Markers", group = grpD, tooltip = "Sweep, trap and distribution markers")
+showResult = input.bool(true, "Cycle Result", group = grpD, tooltip = "Outcome stamp at the end of each completed cycle")
+markSizeIn = input.string("Normal", "Marker Size", options = ["Tiny", "Small", "Normal"], group = grpD, tooltip = "Size of phase and result markers")
+
+//--- inputs style
+grpS = "Style"
+colAccFill   = input.color(color.new(#64748b, 70), "Accumulation Fill", group = grpS)
+colAccLine   = input.color(color.new(#94a3b8, 0), "Accumulation Border", group = grpS)
+colManipFill = input.color(color.new(#f59e0b, 62), "Manipulation Fill", group = grpS)
+colManipLine = input.color(color.new(#f59e0b, 0), "Manipulation Border", group = grpS)
+colUp        = input.color(#22c55e, "Distribution Up", group = grpS)
+colDn        = input.color(#ef4444, "Distribution Down", group = grpS)
+colOpen      = input.color(color.new(#94a3b8, 0), "Open Line", group = grpS)
+boxBorderW   = input.int(2, "Box Border Width", minval = 1, maxval = 3, group = grpS)
+openWidth    = input.int(2, "Open Line Width", minval = 1, maxval = 3, group = grpS)
+openStyleIn  = input.string("Solid", "Open Line Style", options = ["Dotted", "Dashed", "Solid"], group = grpS)
+pathWidth    = input.int(2, "Path Width", minval = 1, maxval = 4, group = grpS)
+pathStyleIn  = input.string("Dashed", "Path Style", options = ["Dashed", "Dotted", "Solid"], group = grpS)
+tgtSizeIn    = input.string("Normal", "Target Label Size", options = ["Tiny", "Small", "Normal", "Large"], group = grpS)
+
+//--- inputs dashboard
+grpT = "Dashboard"
+showDash   = input.bool(true, "Show Dashboard", group = grpT, tooltip = "Live phase, expected direction and cycle statistics")
+showLegend = input.bool(true, "Show Legend", group = grpT, tooltip = "One-line marker legend at the bottom of the dashboard")
+dashPos    = input.string("Top Right", "Position", options = ["Top Right", "Top Left", "Bottom Right", "Bottom Left"], group = grpT)
+dashSize   = input.string("Normal", "Size", options = ["Small", "Normal", "Large"], group = grpT)
+
+//--- helpers
+trim(arr, cap) =>
+    while array.size(arr) > cap
+        array.shift(arr)
+
+pct(arr) =>
+    n = array.size(arr)
+    n > 0 ? array.sum(arr) / n * 100 : na
+
+fmtPct(v) =>
+    na(v) ? "—" : str.tostring(v, "#.#") + "%"
+
+lstyle(s) =>
+    s == "Dotted" ? line.style_dotted : s == "Dashed" ? line.style_dashed : line.style_solid
+
+//--- cycle timing
+cycT     = time(periodTf)
+newCycle = not na(cycT[1]) and cycT != cycT[1]
+tfOk     = timeframe.in_seconds(timeframe.period) < timeframe.in_seconds(periodTf)
+expBars  = math.max(4, math.round(timeframe.in_seconds(periodTf) / timeframe.in_seconds(timeframe.period)))
+markSize = markSizeIn == "Tiny" ? size.tiny : markSizeIn == "Small" ? size.small : size.normal
+tgtSize  = tgtSizeIn == "Tiny" ? size.tiny : tgtSizeIn == "Small" ? size.small : tgtSizeIn == "Large" ? size.large : size.normal
+descMode = labelStyle == "Descriptive"
+histMin  = histDetail == "Results Only"
+
+//--- state
+var float cycOpen      = na
+var int   cycStart     = na
+var float cycHigh      = na
+var float cycLow       = na
+var float prevCycHigh  = na
+var float prevCycLow   = na
+var int   prevCycBars  = na
+var bool  cycPartial   = false
+var float accHigh      = na
+var float accLow       = na
+var bool  locked       = false
+var int   phase        = 0
+var int   manipDir     = 0
+var float manipExt     = na
+var int   manipExtBar  = na
+var int   distDir      = 0
+var bool  wasConfirmed = false
+var bool  reachedDist  = false
+var bool  touchedOpp   = false
+
+var box   accBox   = na
+var box   manipBox = na
+var line  openLn   = na
+var line  pathLn   = na
+var label manipLbl = na
+var label distLbl  = na
+var label tgtLbl   = na
+
+var doneB  = array.new<box>()
+var doneL  = array.new<line>()
+var doneT  = array.new<label>()
+var conv     = array.new<int>()
+var ftAll    = array.new<int>()
+var ftUp     = array.new<int>()
+var ftDn     = array.new<int>()
+var tgtArr   = array.new<int>()
+var depths   = array.new<float>()
+var trendArr = array.new<int>()
+
+bool sweepEvt   = false
+bool confirmEvt = false
+bool distEvt    = false
+bool invEvt     = false
+
+//--- cycle close-out
+if newCycle and tfOk and not na(cycOpen)
+    accRange = accHigh - accLow
+    string res   = ""
+    color resCol = color.new(#94a3b8, 0)
+    if wasConfirmed
+        array.push(conv, reachedDist ? 1 : 0)
+        trim(conv, statsLookback)
+        if accRange > 0
+            array.push(depths, math.abs(manipExt - (manipDir == 1 ? accHigh : accLow)) / accRange * 100)
+            trim(depths, statsLookback)
+    if reachedDist
+        win = distDir == 1 ? close[1] > cycOpen : close[1] < cycOpen
+        array.push(ftAll, win ? 1 : 0)
+        trim(ftAll, statsLookback)
+        if distDir == 1
+            array.push(ftUp, win ? 1 : 0)
+            trim(ftUp, statsLookback)
+        else
+            array.push(ftDn, win ? 1 : 0)
+            trim(ftDn, statsLookback)
+        array.push(tgtArr, touchedOpp ? 1 : 0)
+        trim(tgtArr, statsLookback)
+        res    := win ? "✓" : "✗"
+        resCol := win ? colUp : colDn
+    else if phase == 4
+        res := "INV"
+    else if phase == 1
+        res := "EXP"
+    array.push(trendArr, phase == 4 or phase == 1 ? 1 : 0)
+    trim(trendArr, statsLookback)
+    if showResult and res != ""
+        lr = label.new(bar_index - 1, high[1], res, style = label.style_label_down, color = color.new(color.black, 100), textcolor = resCol, size = markSize)
+        array.push(doneT, lr)
+    prevCycHigh := cycHigh
+    prevCycLow  := cycLow
+    if not cycPartial
+        prevCycBars := bar_index - cycStart
+    if not na(pathLn)
+        line.delete(pathLn)
+        pathLn := na
+    if not na(tgtLbl)
+        label.delete(tgtLbl)
+        tgtLbl := na
+    if not na(manipLbl)
+        if histMin
+            label.delete(manipLbl)
+        else
+            array.push(doneT, manipLbl)
+    if not na(distLbl)
+        if histMin
+            label.delete(distLbl)
+        else
+            array.push(doneT, distLbl)
+    if histMin
+        if not na(accBox)
+            box.set_bgcolor(accBox, color.new(colAccFill, 87))
+            box.set_border_color(accBox, color.new(colAccLine, 60))
+        if not na(manipBox) and phase != 4
+            box.set_bgcolor(manipBox, color.new(colManipFill, 86))
+            box.set_border_color(manipBox, color.new(colManipLine, 55))
+        if not na(openLn)
+            line.set_color(openLn, color.new(colOpen, 70))
+    if not na(accBox)
+        array.push(doneB, accBox)
+    if not na(manipBox)
+        array.push(doneB, manipBox)
+    if not na(openLn)
+        array.push(doneL, openLn)
+    accBox   := na
+    manipBox := na
+    openLn   := na
+    manipLbl := na
+    distLbl  := na
+    while array.size(doneB) > maxCycles * 2
+        box.delete(array.shift(doneB))
+    while array.size(doneL) > maxCycles
+        line.delete(array.shift(doneL))
+    while array.size(doneT) > maxCycles * 3
+        label.delete(array.shift(doneT))
+
+//--- cycle start
+if tfOk and (newCycle or na(cycOpen))
+    cycPartial   := not newCycle
+    cycOpen      := open
+    cycStart     := bar_index
+    cycHigh      := high
+    cycLow       := low
+    accHigh      := high
+    accLow       := low
+    locked       := false
+    phase        := 0
+    manipDir     := 0
+    manipExt     := na
+    manipExtBar  := na
+    distDir      := 0
+    wasConfirmed := false
+    reachedDist  := false
+    touchedOpp   := false
+    if showAcc
+        accBox := box.new(bar_index, high, bar_index, low, border_color = colAccLine, border_width = boxBorderW, bgcolor = colAccFill)
+    if showOpen
+        openLn := line.new(bar_index, open, bar_index, open, color = colOpen, style = lstyle(openStyleIn), width = openWidth)
+
+//--- engine
+if tfOk and not na(cycOpen)
+    cycHigh := math.max(cycHigh, high)
+    cycLow  := math.min(cycLow, low)
+    baseBars = na(prevCycBars) ? expBars : math.min(expBars, prevCycBars)
+    accBars  = math.max(3, math.round(baseBars * accFraction))
+    barsIn = bar_index - cycStart
+    if not locked
+        if phase == 0 and barsIn < accBars
+            accHigh := math.max(accHigh, high)
+            accLow  := math.min(accLow, low)
+        if barsIn >= accBars
+            locked := true
+    accRange = accHigh - accLow
+    buf = accRange * sweepBuffer / 100
+
+    if locked and phase == 0
+        needHigh = reqPrevSweep and not na(prevCycHigh) ? math.max(accHigh + buf, prevCycHigh) : accHigh + buf
+        needLow  = reqPrevSweep and not na(prevCycLow)  ? math.min(accLow - buf, prevCycLow)  : accLow - buf
+        if high > needHigh
+            phase       := 1
+            manipDir    := 1
+            manipExt    := high
+            manipExtBar := bar_index
+            sweepEvt    := true
+        else if low < needLow
+            phase       := 1
+            manipDir    := -1
+            manipExt    := low
+            manipExtBar := bar_index
+            sweepEvt    := true
+        if sweepEvt
+            if showManip
+                topY = manipDir == 1 ? manipExt : accLow
+                botY = manipDir == 1 ? accHigh : manipExt
+                manipBox := box.new(bar_index, topY, bar_index, botY, border_color = colManipLine, border_width = boxBorderW, bgcolor = colManipFill)
+            if showMarks
+                pendTxt = descMode ? (manipDir == 1 ? "SWEEP ↑ ?" : "SWEEP ↓ ?") : "M?"
+                manipLbl := label.new(bar_index, manipExt, pendTxt, style = manipDir == 1 ? label.style_label_down : label.style_label_up, color = color.new(#f59e0b, 0), textcolor = color.white, size = markSize)
+    else if phase == 1
+        if manipDir == 1 and high > manipExt
+            manipExt    := high
+            manipExtBar := bar_index
+        if manipDir == -1 and low < manipExt
+            manipExt    := low
+            manipExtBar := bar_index
+        sweepDepth = manipDir == 1 ? manipExt - accHigh : accLow - manipExt
+        confirmHit = confirmMode == "Close Inside Range" ?
+             (manipDir == 1 ? close < accHigh : close > accLow) :
+             (manipDir == 1 ? close < manipExt - sweepDepth * 0.5 : close > manipExt + sweepDepth * 0.5)
+        if not na(manipBox)
+            box.set_right(manipBox, bar_index)
+            if manipDir == 1
+                box.set_top(manipBox, manipExt)
+            else
+                box.set_bottom(manipBox, manipExt)
+        if not na(manipLbl)
+            label.set_x(manipLbl, manipExtBar)
+            label.set_y(manipLbl, manipExt)
+        if confirmHit
+            phase        := 2
+            wasConfirmed := true
+            confirmEvt   := true
+            if not na(manipLbl)
+                label.set_text(manipLbl, descMode ? (manipDir == 1 ? "BULL TRAP" : "BEAR TRAP") : "M ✓")
+            if showPath
+                pathCol = manipDir == 1 ? colDn : colUp
+                pathLn := line.new(manipExtBar, manipExt, bar_index, cycOpen, color = color.new(pathCol, 0), style = lstyle(pathStyleIn), width = pathWidth)
+                tgtLbl := label.new(bar_index, cycOpen, "", style = label.style_label_left, color = color.new(pathCol, 20), textcolor = color.white, size = tgtSize)
+
+    if phase == 2
+        if (manipDir == 1 and close > manipExt) or (manipDir == -1 and close < manipExt)
+            phase  := 4
+            invEvt := true
+            if not na(manipBox)
+                box.set_border_color(manipBox, color.new(#94a3b8, 45))
+                box.set_bgcolor(manipBox, color.new(#94a3b8, 88))
+            if not na(manipLbl)
+                label.set_text(manipLbl, descMode ? "NO TRAP" : "M ✗")
+                label.set_style(manipLbl, label.style_none)
+                label.set_textcolor(manipLbl, color.new(#94a3b8, 10))
+            if not na(pathLn)
+                line.delete(pathLn)
+                pathLn := na
+            if not na(tgtLbl)
+                label.delete(tgtLbl)
+                tgtLbl := na
+        else if (manipDir == 1 and close < cycOpen) or (manipDir == -1 and close > cycOpen)
+            phase       := 3
+            distDir     := -manipDir
+            reachedDist := true
+            distEvt     := true
+            if showMarks
+                distTxt = descMode ? (distDir == 1 ? "DIST ↑" : "DIST ↓") : "D"
+                distLbl := label.new(bar_index, distDir == 1 ? low : high, distTxt, style = distDir == 1 ? label.style_label_up : label.style_label_down, color = color.new(distDir == 1 ? colUp : colDn, 0), textcolor = color.white, size = markSize)
+
+    if phase == 3
+        touchedOpp := touchedOpp or (distDir == 1 ? high >= accHigh : low <= accLow)
+
+    if (phase == 2 or phase == 3) and not na(pathLn)
+        tgtY = phase == 2 ? cycOpen : (distDir == 1 ? accHigh : accLow)
+        line.set_x2(pathLn, bar_index)
+        line.set_y2(pathLn, tgtY)
+        if not na(tgtLbl)
+            label.set_x(tgtLbl, bar_index)
+            label.set_y(tgtLbl, tgtY)
+            oddsV   = phase == 2 ? pct(conv) : pct(tgtArr)
+            oddsTxt = phase == 2 ? (na(oddsV) ? "open" : "open · " + fmtPct(oddsV)) : (na(oddsV) ? "edge" : "edge · " + fmtPct(oddsV))
+            label.set_text(tgtLbl, oddsTxt)
+
+    if not na(accBox)
+        box.set_right(accBox, bar_index)
+        box.set_top(accBox, accHigh)
+        box.set_bottom(accBox, accLow)
+    if not na(openLn)
+        line.set_x2(openLn, bar_index)
+
+//--- dashboard
+posDash = dashPos == "Top Right" ? position.top_right : dashPos == "Top Left" ? position.top_left : dashPos == "Bottom Right" ? position.bottom_right : position.bottom_left
+txtSize = dashSize == "Small" ? size.small : dashSize == "Large" ? size.large : size.normal
+colText = color.new(#e2e8f0, 0)
+colDim  = color.new(#94a3b8, 0)
+colBg   = color.new(#0f172a, 8)
+colCell = color.new(#1e293b, 30)
+trapW   = descMode ? "Trap" : "Manip"
+
+var table dash = na
+if showDash and barstate.islast
+    if na(dash)
+        dash := table.new(posDash, 3, 11, bgcolor = colBg, frame_width = 1, frame_color = color.new(#1e293b, 0), border_width = 1, border_color = color.new(#1e293b, 0))
+        table.merge_cells(dash, 0, 0, 1, 0)
+        table.merge_cells(dash, 0, 2, 2, 2)
+        table.merge_cells(dash, 0, 3, 2, 3)
+        table.merge_cells(dash, 0, 10, 2, 10)
+    table.cell(dash, 0, 0, "POWER OF THREE", text_color = colText, text_size = txtSize, bgcolor = colBg, text_halign = text.align_left)
+    table.cell(dash, 2, 0, "v1.0", text_color = colDim, text_size = txtSize, bgcolor = colBg)
+    if not tfOk
+        table.cell(dash, 0, 2, "Switch chart below " + periodTf + " timeframe", text_color = colDim, text_size = txtSize)
+    else
+        aBg = color.new(#64748b, 40)
+        mBg = phase == 2 or phase == 3 ? color.new(#f59e0b, 25) : phase == 1 ? color.new(#f59e0b, 70) : colCell
+        dBg = phase == 3 ? color.new(distDir == 1 ? colUp : colDn, 25) : colCell
+        table.cell(dash, 0, 1, "A", text_color = colText, text_size = txtSize, bgcolor = aBg)
+        table.cell(dash, 1, 1, "M", text_color = colText, text_size = txtSize, bgcolor = mBg)
+        table.cell(dash, 2, 1, "D", text_color = colText, text_size = txtSize, bgcolor = dBg)
+        phaseTxt = phase == 0 and not locked ? "ACCUMULATION — range building" : phase == 0 ? "RANGE SET — waiting for sweep" : phase == 1 ? (manipDir == 1 ? "SWEEP ↑ — confirmation pending" : "SWEEP ↓ — confirmation pending") : phase == 2 ? (descMode ? (manipDir == 1 ? "BULL TRAP — high swept" : "BEAR TRAP — low swept") : (manipDir == 1 ? "MANIPULATION — high swept" : "MANIPULATION — low swept")) : phase == 3 ? (distDir == 1 ? "DISTRIBUTION ↑" : "DISTRIBUTION ↓") : "NO TRAP — trend continuation"
+        phaseCol = phase == 3 ? (distDir == 1 ? colUp : colDn) : phase == 4 ? colDim : phase >= 1 ? color.new(#f59e0b, 0) : colDim
+        table.cell(dash, 0, 2, phaseTxt, text_color = phaseCol, text_size = txtSize, text_halign = text.align_left)
+        biasTxt = phase == 2 ? (manipDir == 1 ? "Expected: distribution ↓" : "Expected: distribution ↑") : phase == 3 ? (distDir == 1 ? "Running: distribution ↑" : "Running: distribution ↓") : "Expected: —"
+        table.cell(dash, 0, 3, biasTxt, text_color = colDim, text_size = txtSize, text_halign = text.align_left)
+        table.cell(dash, 0, 4, trapW + " → Dist", text_color = colDim, text_size = txtSize, text_halign = text.align_left)
+        table.cell(dash, 1, 4, fmtPct(pct(conv)), text_color = colText, text_size = txtSize)
+        table.cell(dash, 2, 4, "(" + str.tostring(array.size(conv)) + ")", text_color = colDim, text_size = txtSize)
+        table.cell(dash, 0, 5, "Dist held", text_color = colDim, text_size = txtSize, text_halign = text.align_left)
+        table.cell(dash, 1, 5, fmtPct(pct(ftAll)), text_color = colText, text_size = txtSize)
+        table.cell(dash, 2, 5, "(" + str.tostring(array.size(ftAll)) + ")", text_color = colDim, text_size = txtSize)
+        table.cell(dash, 0, 6, "By side", text_color = colDim, text_size = txtSize, text_halign = text.align_left)
+        table.cell(dash, 1, 6, "↑ " + fmtPct(pct(ftUp)), text_color = colUp, text_size = txtSize)
+        table.cell(dash, 2, 6, "↓ " + fmtPct(pct(ftDn)), text_color = colDn, text_size = txtSize)
+        table.cell(dash, 0, 7, "Edge reached", text_color = colDim, text_size = txtSize, text_halign = text.align_left)
+        table.cell(dash, 1, 7, fmtPct(pct(tgtArr)), text_color = colText, text_size = txtSize)
+        table.cell(dash, 2, 7, "(" + str.tostring(array.size(tgtArr)) + ")", text_color = colDim, text_size = txtSize)
+        avgDepth = array.size(depths) > 0 ? array.avg(depths) : na
+        table.cell(dash, 0, 8, "Sweep depth", text_color = colDim, text_size = txtSize, text_halign = text.align_left)
+        table.cell(dash, 1, 8, fmtPct(avgDepth), text_color = colText, text_size = txtSize)
+        table.cell(dash, 2, 8, "of range", text_color = colDim, text_size = txtSize)
+        table.cell(dash, 0, 9, "No-PO3 cycles", text_color = colDim, text_size = txtSize, text_halign = text.align_left)
+        table.cell(dash, 1, 9, fmtPct(pct(trendArr)), text_color = colText, text_size = txtSize)
+        table.cell(dash, 2, 9, "(" + str.tostring(array.size(trendArr)) + ")", text_color = colDim, text_size = txtSize)
+        if showLegend
+            legendTxt = descMode ? "sweep ? → trap → dist → ✓ held / ✗ failed" : "M? sweep · M✓ trap · D dist · ✓ held / ✗ failed"
+            table.cell(dash, 0, 10, legendTxt, text_color = color.new(#64748b, 20), text_size = size.tiny, text_halign = text.align_left)
+
+//--- alerts
+alertcondition(sweepEvt, "Sweep Detected", "PO3: accumulation range swept")
+alertcondition(confirmEvt, "Manipulation Confirmed", "PO3: price closed back inside the range")
+alertcondition(distEvt, "Distribution Started", "PO3: close crossed cycle open, distribution running")
+alertcondition(invEvt, "Manipulation Invalidated", "PO3: price reclaimed the sweep extreme, trend continuation")
