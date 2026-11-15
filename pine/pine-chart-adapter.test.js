@@ -26,6 +26,20 @@ assert.equal(markerConfig.markers[1].position,"aboveBar");
 assert.equal(markerConfig.markers[1].text,"SAT");
 markerState.clear();
 assert.equal(detached,true);
+let strategyMarkerConfig=null,strategyDetached=false;
+global.LightweightCharts={createSeriesMarkers(series,markers){strategyMarkerConfig={series,markers};return {detach(){strategyDetached=true;}};}};
+const strategyPriceSeries={id:"strategy-price"};
+const strategyState=mount({chart,addChartSeries,bars,priceSeries:strategyPriceSeries,output:{metadata:{overlay:true},plots:[],strategy:{fills:[
+ {bar:0,side:"buy",kind:"entry",price:10,qty:2},
+ {bar:2,side:"sell",kind:"exit",price:12,qty:2,profit:4}
+]}}});
+assert.equal(strategyMarkerConfig.series,strategyPriceSeries);
+assert.deepEqual(strategyMarkerConfig.markers,[
+ {time:10,position:"belowBar",color:"#22c58b",shape:"arrowUp",text:"LONG",size:2},
+ {time:30,position:"aboveBar",color:"#ff647c",shape:"arrowDown",text:"EXIT +4.00",size:2}
+]);
+strategyState.clear();
+assert.equal(strategyDetached,true);
 if(previousLwc===undefined)delete global.LightweightCharts;else global.LightweightCharts=previousLwc;
 
 console.log("Pine chart adapter tests: OK");

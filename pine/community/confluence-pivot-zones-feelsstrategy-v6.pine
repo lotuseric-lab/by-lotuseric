@@ -1,0 +1,321 @@
+// © FeelsStrategy
+//@version=6
+indicator("Confluence Pivot Zones [FEELS]", "Confluence Zones [FEELS]", overlay = true, max_lines_count = 500, max_boxes_count = 500, max_labels_count = 500)
+
+// ─── Inputs ─────────────────────────────────────────────────────────
+
+grpPivot   = "Pivot Detection"
+pivLeft    = input.int(10, "Left bars",  minval = 2, maxval = 50, group = grpPivot)
+pivRight   = input.int(6,  "Right bars", minval = 2, maxval = 50, group = grpPivot, tooltip = "Higher values = stricter pivots, fewer signals.")
+pivBuffer  = input.int(80, "Pivot memory", minval = 20, maxval = 200, group = grpPivot, tooltip = "How many recent pivots to keep in memory for clustering.")
+
+grpCluster = "Zone Clustering"
+zoneCount  = input.int(4,    "Active zones per side", minval = 1, maxval = 7, group = grpCluster)
+clusterTol = input.float(0.8, "Cluster tolerance (× ATR)", minval = 0.2, maxval = 3.0, step = 0.1, group = grpCluster, tooltip = "Pivots within this distance form one zone.")
+minTouches = input.int(2,    "Minimum touches", minval = 2, maxval = 10, group = grpCluster)
+showBroken = input.bool(false, "Show broken zones", group = grpCluster, tooltip = "Display zones that price has already invalidated, dimmed.")
+
+grpSignals    = "Signals"
+sigStrictness = input.string("Strong only", "Signal filter", options = ["All zones", "Top half", "Strong only"], group = grpSignals, tooltip = "Strong only = signals fire only on top-strength zones. Reduces noise.")
+sigCooldown   = input.int(20, "Cooldown bars per zone", minval = 0, maxval = 100, group = grpSignals, tooltip = "Minimum bars between signals on the same zone.")
+
+grpStyle    = "Style"
+resColor    = input.color(color.rgb(244, 67, 79),  "Resistance", group = grpStyle)
+supColor    = input.color(color.rgb(38, 166, 154), "Support",    group = grpStyle)
+brokenColor = input.color(color.rgb(120, 124, 130), "Broken zone", group = grpStyle)
+showLabels  = input.bool(true,  "Show zone strength", group = grpStyle)
+showSig     = input.bool(true,  "Show entry markers", group = grpStyle)
+zoneOpacity = input.int(82, "Zone opacity", minval = 60, maxval = 95, group = grpStyle)
+
+// ─── Types ──────────────────────────────────────────────────────────
+
+type Pivot
+    float price
+    int   bar
+    float vol
+    float wick
+
+type Zone
+    float top
+    float bot
+    float center
+    float strength
+    int   touches
+    int   bornBar
+    int   diedBar
+    bool  isResistance
+    bool  alive
+    int   lastSigBar
+
+// ─── State ──────────────────────────────────────────────────────────
+
+var array<Pivot> highPivots = array.new<Pivot>()
+var array<Pivot> lowPivots  = array.new<Pivot>()
+
+var array<Zone> resZones = array.new<Zone>()
+var array<Zone> supZones = array.new<Zone>()
+
+atr   = ta.atr(50)
+volMa = ta.sma(volume, 50)
+phPx  = ta.pivothigh(high, pivLeft, pivRight)
+plPx  = ta.pivotlow(low,   pivLeft, pivRight)
+
+upperWick(int idx) =>
+    high[idx] - math.max(open[idx], close[idx])
+
+lowerWick(int idx) =>
+    math.min(open[idx], close[idx]) - low[idx]
+
+// ─── Pivot collection ───────────────────────────────────────────────
+
+if not na(phPx)
+    highPivots.push(Pivot.new(phPx, bar_index - pivRight, volume[pivRight], upperWick(pivRight)))
+    if highPivots.size() > pivBuffer
+        highPivots.shift()
+
+if not na(plPx)
+    lowPivots.push(Pivot.new(plPx, bar_index - pivRight, volume[pivRight], lowerWick(pivRight)))
+    if lowPivots.size() > pivBuffer
+        lowPivots.shift()
+
+// ─── Pivot weighting ────────────────────────────────────────────────
+
+pivotWeight(Pivot p, float a, float vAvg) =>
+    age      = math.max(1, bar_index - p.bar)
+    decay    = 1.0 / (1.0 + age / 200.0)
+    volNorm  = vAvg > 0 ? p.vol / vAvg : 1.0
+    wickNorm = a > 0 ? p.wick / a : 0.0
+    (1.0 + volNorm * 0.5 + wickNorm * 0.5) * decay
+
+// ─── Zone building ──────────────────────────────────────────────────
+
+buildZones(array<Pivot> src, bool resistance, float a, float vAvg) =>
+    out = array.new<Zone>()
+    if src.size() >= minTouches
+        used = array.new<bool>()
+        for i = 0 to src.size() - 1
+            used.push(false)
+
+        tol = a * clusterTol
+
+        for i = 0 to src.size() - 1
+            if not used.get(i)
+                seed    = src.get(i)
+                members = array.new<Pivot>()
+                members.push(seed)
+                used.set(i, true)
+
+                if i + 1 <= src.size() - 1
+                    for j = i + 1 to src.size() - 1
+                        if not used.get(j)
+                            cand = src.get(j)
+                            if math.abs(cand.price - seed.price) <= tol
+                                members.push(cand)
+                                used.set(j, true)
+
+                if members.size() >= minTouches
+                    priceSum  = 0.0
+                    weightSum = 0.0
+                    earliest  = members.get(0).bar
+
+                    for k = 0 to members.size() - 1
+                        m = members.get(k)
+                        w = pivotWeight(m, a, vAvg)
+                        priceSum  += m.price * w
+                        weightSum += w
+                        earliest := math.min(earliest, m.bar)
+
+                    if weightSum > 0
+                        center = priceSum / weightSum
+                        pad    = a * 0.25
+                        out.push(Zone.new(center + pad, center - pad, center, weightSum, members.size(), earliest, na, resistance, true, na))
+    out
+
+// ─── Sort zones by strength (descending) ───────────────────────────
+
+sortByStrength(array<Zone> zones) =>
+    result = array.new<Zone>()
+    if zones.size() > 0
+        copy = zones.copy()
+        n = copy.size()
+        for i = 0 to n - 1
+            if copy.size() == 0
+                break
+            bestIdx = 0
+            bestVal = copy.get(0).strength
+            if copy.size() > 1
+                for j = 1 to copy.size() - 1
+                    if copy.get(j).strength > bestVal
+                        bestVal := copy.get(j).strength
+                        bestIdx := j
+            result.push(copy.get(bestIdx))
+            copy.remove(bestIdx)
+    result
+
+// ─── Update zone state when new pivot confirmed ─────────────────────
+// Strategy: rebuild from scratch on each new pivot. Cheap because
+// pivot count is capped by pivBuffer. Preserves historical accuracy
+// because pivots are confirmed (no future leakage).
+
+newPivot = not na(phPx) or not na(plPx)
+
+if newPivot
+    fresh = sortByStrength(buildZones(highPivots, true,  atr, volMa))
+    keepRes = math.min(zoneCount, fresh.size())
+    resZones.clear()
+    if keepRes > 0
+        for i = 0 to keepRes - 1
+            resZones.push(fresh.get(i))
+
+    fresh2 = sortByStrength(buildZones(lowPivots, false, atr, volMa))
+    keepSup = math.min(zoneCount, fresh2.size())
+    supZones.clear()
+    if keepSup > 0
+        for i = 0 to keepSup - 1
+            supZones.push(fresh2.get(i))
+
+// ─── Mark broken zones ──────────────────────────────────────────────
+// Resistance is broken when close exceeds top by 1 ATR margin.
+// Support is broken when close drops below bot by 1 ATR margin.
+
+if resZones.size() > 0
+    for i = 0 to resZones.size() - 1
+        z = resZones.get(i)
+        if z.alive and close > z.top + atr * 0.3
+            z.alive   := false
+            z.diedBar := bar_index
+            resZones.set(i, z)
+
+if supZones.size() > 0
+    for i = 0 to supZones.size() - 1
+        z = supZones.get(i)
+        if z.alive and close < z.bot - atr * 0.3
+            z.alive   := false
+            z.diedBar := bar_index
+            supZones.set(i, z)
+
+// ─── Drawing ────────────────────────────────────────────────────────
+
+var array<box>   bxBuf = array.new<box>()
+var array<line>  lnBuf = array.new<line>()
+var array<label> lbBuf = array.new<label>()
+
+clearBuffers() =>
+    if bxBuf.size() > 0
+        for i = 0 to bxBuf.size() - 1
+            box.delete(bxBuf.get(i))
+    if lnBuf.size() > 0
+        for i = 0 to lnBuf.size() - 1
+            line.delete(lnBuf.get(i))
+    if lbBuf.size() > 0
+        for i = 0 to lbBuf.size() - 1
+            label.delete(lbBuf.get(i))
+    bxBuf.clear()
+    lnBuf.clear()
+    lbBuf.clear()
+
+// translate raw strength to star rating relative to other zones
+strengthStars(float s, float maxS) =>
+    ratio = maxS > 0 ? s / maxS : 0.0
+    ratio >= 0.85 ? "★★★" : ratio >= 0.55 ? "★★" : "★"
+
+drawZones(array<Zone> zs, color baseCol, float maxS) =>
+    rightX = bar_index + 20
+    if zs.size() > 0
+        for i = 0 to zs.size() - 1
+            z = zs.get(i)
+
+            if z.alive or showBroken
+                useCol  = z.alive ? baseCol : brokenColor
+                fill    = color.new(useCol, zoneOpacity)
+                edgeOp  = z.alive ? 35 : 70
+                edge    = color.new(useCol, edgeOp)
+                endBar  = z.alive ? rightX : z.diedBar
+
+                bxBuf.push(box.new(z.bornBar, z.top, endBar, z.bot, border_color = na, bgcolor = fill))
+                lnBuf.push(line.new(z.bornBar, z.center, endBar, z.center, color = edge, style = line.style_dashed, width = 1))
+
+                if showLabels and z.alive
+                    stars = strengthStars(z.strength, maxS)
+                    txt   = stars + "  " + str.tostring(z.touches) + "×"
+                    lbBuf.push(label.new(rightX, z.center, txt, style = label.style_label_left, color = color.new(useCol, 75), textcolor = chart.fg_color, size = size.small))
+
+// find max strength across both sides for relative star scaling
+maxStrength() =>
+    m = 0.0
+    if resZones.size() > 0
+        for i = 0 to resZones.size() - 1
+            z = resZones.get(i)
+            m := math.max(m, z.strength)
+    if supZones.size() > 0
+        for i = 0 to supZones.size() - 1
+            z = supZones.get(i)
+            m := math.max(m, z.strength)
+    m
+
+if barstate.islast
+    clearBuffers()
+    mx = maxStrength()
+    drawZones(resZones, resColor, mx)
+    drawZones(supZones, supColor, mx)
+
+// ─── Signal generation ──────────────────────────────────────────────
+
+// strictness threshold: which zones can fire signals
+qualifies(Zone z, float maxS) =>
+    if not z.alive
+        false
+    else
+        ratio = maxS > 0 ? z.strength / maxS : 0.0
+        if sigStrictness == "All zones"
+            true
+        else if sigStrictness == "Top half"
+            ratio >= 0.5
+        else
+            ratio >= 0.75
+
+// bullish reaction at support: low pierces zone, close stays above bot
+checkSupportBounce(array<Zone> zs, float maxS) =>
+    fired = false
+    if zs.size() > 0
+        for i = 0 to zs.size() - 1
+            z = zs.get(i)
+            if qualifies(z, maxS)
+                pierced = low <= z.top and low >= z.bot - atr * 0.5
+                heldUp  = close > z.bot and close > open
+                cooled  = na(z.lastSigBar) or (bar_index - z.lastSigBar) >= sigCooldown
+                if pierced and heldUp and cooled
+                    z.lastSigBar := bar_index
+                    zs.set(i, z)
+                    fired := true
+                    break
+    fired
+
+// bearish reaction at resistance: high pierces zone, close stays below top
+checkResistanceReject(array<Zone> zs, float maxS) =>
+    fired = false
+    if zs.size() > 0
+        for i = 0 to zs.size() - 1
+            z = zs.get(i)
+            if qualifies(z, maxS)
+                pierced = high >= z.bot and high <= z.top + atr * 0.5
+                heldDn  = close < z.top and close < open
+                cooled  = na(z.lastSigBar) or (bar_index - z.lastSigBar) >= sigCooldown
+                if pierced and heldDn and cooled
+                    z.lastSigBar := bar_index
+                    zs.set(i, z)
+                    fired := true
+                    break
+    fired
+
+mxNow   = maxStrength()
+buySig  = showSig and checkSupportBounce(supZones, mxNow)
+sellSig = showSig and checkResistanceReject(resZones, mxNow)
+
+plotshape(buySig,  "Buy",  shape.triangleup,   location.belowbar, color.new(supColor, 0), size = size.tiny)
+plotshape(sellSig, "Sell", shape.triangledown, location.abovebar, color.new(resColor, 0), size = size.tiny)
+
+// ─── Alerts ─────────────────────────────────────────────────────────
+
+alertcondition(buySig,  "Buy signal",  "Confluence Zones — bullish reaction at support")
+alertcondition(sellSig, "Sell signal", "Confluence Zones — bearish reaction at resistance")

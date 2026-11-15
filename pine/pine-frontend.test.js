@@ -22,6 +22,23 @@ assert.deepEqual(exponentTokens, ["1e+3", "2.5e-2", "4", ".75"]);
 
 const report = analyzePineSource(sample);
 assert.equal(report.version, 6);
+
+// Some mobile clipboard paths prepend an invisible UTF-8 BOM.
+const bomReport = analyzePineSource("\uFEFF" + sample);
+assert.equal(bomReport.version, 6);
+assert.equal(bomReport.diagnostics.length, 0);
+
+const mobileClipboardReport = analyzePineSource("\u200B" + sample);
+assert.equal(mobileClipboardReport.version, 6);
+assert.equal(mobileClipboardReport.diagnostics.length, 0);
+
+const spacedDirectiveReport = analyzePineSource("  //@version=6\nindicator('Space', overlay=true)");
+assert.equal(spacedDirectiveReport.version, 6);
+
+const leadingBlankReport = analyzePineSource("\n\n//@version=6\nindicator('Leading blank', overlay=true)");
+assert.equal(leadingBlankReport.version, 6);
+
+
 assert.equal(report.requirements.plots, true);
 assert.equal(report.requirements.labels, true);
 assert.equal(report.requirements.functions, false);

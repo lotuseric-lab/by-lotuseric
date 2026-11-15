@@ -1,0 +1,622 @@
+// © FeelsStrategy — original upstream source; attribution header added by By LOTUSERIC compatibility corpus.
+//@version=6
+indicator("Air Pocket Profile [FEELS]", shorttitle="Air Pocket Profile", overlay=true, max_boxes_count=500, max_lines_count=50, max_labels_count=100, max_bars_back=5000)
+
+//--- inputs
+grpCore    = "Profile"
+lookback   = input.int(400, "Lookback (bars)", minval=80, maxval=1000, group=grpCore, tooltip="Number of historical bars used to build the volume profile. The profile is a range-distributed approximation, each bar spreads its volume across the price rows it spans.")
+rowCount   = input.int(90, "Resolution (rows)", minval=30, maxval=140, group=grpCore, tooltip="Vertical resolution of the profile, more rows means finer detail")
+freshBars  = input.int(100, "Fresh window (bars)", minval=10, maxval=500, group=grpCore, tooltip="Volume traded within this many recent bars counts as fresh")
+projection = input.int(25, "Projection (bars)", minval=0, maxval=200, group=grpCore, tooltip="How far the profile extends past the last bar")
+
+grpPocket  = "Air Pockets"
+pocketThr  = input.float(0.18, "Air pocket threshold", minval=0.02, maxval=0.6, step=0.02, group=grpPocket, tooltip="An air pocket is a price range where very little volume traded. Price tends to move through these ranges fast with little resistance. Rows with volume below this fraction of the peak count as an air pocket.")
+minPocket  = input.int(2, "Min pocket size (rows)", minval=1, maxval=20, group=grpPocket, tooltip="An air pocket must span at least this many rows to be drawn")
+showPocket = input.bool(true, "Show air pockets", group=grpPocket)
+labelZones = input.bool(true, "Label zones", group=grpPocket, tooltip="Prints a text tag on each air pocket so its meaning is clear at a glance")
+
+grpNode    = "Volume Nodes"
+showNodes  = input.bool(true, "Show high volume nodes", group=grpNode, tooltip="A high volume node (HVN) is a price shelf where a lot of volume traded. Price tends to slow down and react around these levels.")
+nodeCount  = input.int(3, "Node count", minval=1, maxval=8, group=grpNode, tooltip="How many high volume nodes to mark, the volume anchor is always shown separately")
+showPoc    = input.bool(true, "Show volume anchor", group=grpNode, tooltip="The volume anchor is the single heaviest price row in the profile, drawn as a glow line. It is the strongest reference level on the chart.")
+
+grpSig     = "Signals"
+showAccRej = input.bool(false, "Acceptance / rejection marks", group=grpSig, tooltip="Off by default. Marks bars where price touched a volume node. Acceptance means price stayed and traded around the node, rejection means price was pushed away from it.")
+arWindow   = input.int(5, "Reaction window (bars)", minval=2, maxval=30, group=grpSig, tooltip="Bars looked at after a node touch to decide acceptance or rejection")
+showTransit= input.bool(true, "Air pocket transit marks", group=grpSig, tooltip="Draws a small check mark on bars that travelled fast through an air pocket, confirming there was little resistance there. Can be turned off.")
+transitSz  = input.string("Small", "Transit mark size", options=["Tiny", "Small", "Normal", "Large"], group=grpSig, tooltip="Size of the air pocket transit check mark")
+transitPos = input.string("Above bar", "Transit mark position", options=["Above bar", "Inside pocket"], group=grpSig, tooltip="Above bar places the check over the price bar, inside pocket places it at the centre of the air pocket it crossed")
+transitGap = input.int(10, "Transit min spacing (bars)", minval=1, maxval=100, group=grpSig, tooltip="Minimum bars between two transit marks on the same air pocket, prevents clusters of marks")
+showShift  = input.bool(true, "Anchor shift arrow", group=grpSig, tooltip="Shows whether the volume anchor has migrated up or down over recent bars")
+shiftMode  = input.string("Direction only", "Anchor shift display", options=["Direction only", "Direction with percent"], group=grpSig, tooltip="Direction only shows a simple rising or falling tag. Direction with percent also shows how far the anchor moved over the shift window.")
+shiftBars  = input.int(60, "Anchor shift window (bars)", minval=10, maxval=400, group=grpSig, tooltip="How far back to compare the anchor position when measuring migration")
+
+grpStyle   = "Style"
+profCol    = input.color(color.rgb(78, 92, 122), "Profile fill", group=grpStyle)
+freshCol   = input.color(color.rgb(38, 222, 130), "Fresh volume", group=grpStyle)
+pocketCol  = input.color(color.rgb(120, 170, 255), "Air pocket", group=grpStyle)
+nodeCol    = input.color(color.rgb(255, 167, 38), "Volume node", group=grpStyle)
+pocCol     = input.color(color.rgb(255, 120, 40), "Volume anchor", group=grpStyle)
+profContr  = input.float(2.2, "Profile contrast", minval=1.0, maxval=4.0, step=0.2, group=grpStyle, tooltip="Higher values fade weak volume rows harder and keep only the strong shelves visible")
+
+grpDash    = "Dashboard"
+showDash   = input.bool(true, "Show dashboard", group=grpDash)
+dashPos    = input.string("Top Right", "Position", options=["Top Right", "Middle Right", "Bottom Right", "Top Left", "Bottom Left"], group=grpDash)
+dashSize   = input.string("Normal", "Text size", options=["Small", "Normal", "Large"], group=grpDash)
+
+//--- window bounds, evaluated every bar
+winHigh = ta.highest(high, lookback)
+winLow  = ta.lowest(low, lookback)
+var bool hasVol = false
+if not na(volume) and volume > 0
+    hasVol := true
+
+//--- lightweight anchor estimate, computed every bar with a coarse 24 bin profile
+//--- this feeds a stable shift history, the on screen anchor uses the full resolution profile
+f_coarseAnchor() =>
+    int cb = 24
+    float ch = (winHigh - winLow) / cb
+    float result = na
+    if ch > 0
+        float[] cv = array.new<float>(cb, 0.0)
+        for i = 0 to lookback - 1
+            float bh = high[i]
+            float bl = low[i]
+            float bv = volume[i]
+            if not na(bh) and not na(bl)
+                float wgt = hasVol ? (na(bv) ? 0.0 : bv) : (bh - bl)
+                int rLo = math.max(int(math.floor((bl - winLow) / ch)), 0)
+                int rHi = math.min(int(math.floor((bh - winLow) / ch)), cb - 1)
+                if rHi >= rLo
+                    float inv = 1.0 / (rHi - rLo + 1)
+                    for r = rLo to rHi
+                        array.set(cv, r, array.get(cv, r) + wgt * inv)
+        int topR = 0
+        float topV = 0.0
+        for r = 0 to cb - 1
+            if array.get(cv, r) > topV
+                topV := array.get(cv, r)
+                topR := r
+        result := winLow + ch * topR + ch * 0.5
+    result
+
+float coarseAnchor = f_coarseAnchor()
+var float[] anchHist = array.new<float>()
+if barstate.isconfirmed and not na(coarseAnchor)
+    array.push(anchHist, coarseAnchor)
+    if array.size(anchHist) > 500
+        array.shift(anchHist)
+
+//--- persistent state
+var float[] rowVol   = array.new<float>()
+var float[] rowFresh = array.new<float>()
+var box[]   rowBox   = array.new<box>()
+var box[]   pocketBx = array.new<box>()
+var label[] pocketLb = array.new<label>()
+var line[]  nodeLn   = array.new<line>()
+var label[] nodeLb   = array.new<label>()
+var line    pocGlowA = na
+var line    pocGlowB = na
+var line    pocLine  = na
+var label   pocLabel = na
+var table   dash     = na
+var string  dashPosPrev = ""
+var float[] hvnLvls  = array.new<float>()
+var float[] pkTops   = array.new<float>()
+var float[] pkBots   = array.new<float>()
+var label[] markBuf  = array.new<label>()
+
+//--- helpers
+f_pos() =>
+    switch dashPos
+        "Top Right"    => position.top_right
+        "Middle Right" => position.middle_right
+        "Bottom Right" => position.bottom_right
+        "Top Left"     => position.top_left
+        "Bottom Left"  => position.bottom_left
+        => position.top_right
+
+f_size() =>
+    switch dashSize
+        "Small" => size.small
+        "Large" => size.large
+        => size.normal
+
+f_tsize() =>
+    switch transitSz
+        "Tiny"   => size.tiny
+        "Small"  => size.small
+        "Large"  => size.large
+        => size.normal
+
+f_vol(float v) =>
+    av = math.abs(v)
+    av >= 1e9 ? str.tostring(v / 1e9, "#.#") + "B" : av >= 1e6 ? str.tostring(v / 1e6, "#.#") + "M" : av >= 1e3 ? str.tostring(v / 1e3, "#.#") + "K" : str.tostring(v, "#")
+
+//--- render on the last bar only
+if barstate.islast
+    //--- size the bin buffers to current resolution
+    if array.size(rowVol) != rowCount
+        array.clear(rowVol)
+        array.clear(rowFresh)
+        for r = 0 to rowCount - 1
+            array.push(rowVol, 0.0)
+            array.push(rowFresh, 0.0)
+    else
+        for r = 0 to rowCount - 1
+            array.set(rowVol, r, 0.0)
+            array.set(rowFresh, r, 0.0)
+
+    //--- profile box pool
+    if array.size(rowBox) != rowCount
+        if array.size(rowBox) > 0
+            for r = 0 to array.size(rowBox) - 1
+                box.delete(array.get(rowBox, r))
+        array.clear(rowBox)
+        for r = 0 to rowCount - 1
+            array.push(rowBox, box.new(na, na, na, na, border_color=na, border_width=0))
+
+    //--- pocket box and label pool, capped to keep within drawing limits
+    int pocketMax = 24
+    if array.size(pocketBx) != pocketMax
+        if array.size(pocketBx) > 0
+            for r = 0 to array.size(pocketBx) - 1
+                box.delete(array.get(pocketBx, r))
+                label.delete(array.get(pocketLb, r))
+        array.clear(pocketBx)
+        array.clear(pocketLb)
+        for r = 0 to pocketMax - 1
+            array.push(pocketBx, box.new(na, na, na, na, border_color=na, border_width=0))
+            array.push(pocketLb, label.new(na, na, "", style=label.style_none))
+
+    //--- node line and label pool
+    if array.size(nodeLn) != nodeCount
+        if array.size(nodeLn) > 0
+            for r = 0 to array.size(nodeLn) - 1
+                line.delete(array.get(nodeLn, r))
+                label.delete(array.get(nodeLb, r))
+        array.clear(nodeLn)
+        array.clear(nodeLb)
+        for r = 0 to nodeCount - 1
+            array.push(nodeLn, line.new(na, na, na, na, width=2))
+            array.push(nodeLb, label.new(na, na, "", style=label.style_none))
+
+    float rowH = (winHigh - winLow) / rowCount
+
+    if rowH > 0
+        //--- range weighted volume distribution
+        //--- each bar spreads its volume across every row it spans, weighted by an impulse factor
+        for i = 0 to lookback - 1
+            float bh = high[i]
+            float bl = low[i]
+            float bo = open[i]
+            float bc = close[i]
+            float bv = volume[i]
+            if not na(bh) and not na(bl) and not na(bc)
+                float rng = bh - bl
+                float wgt = hasVol ? (na(bv) ? 0.0 : bv) : rng
+                float body = rng > 0 ? math.abs(bc - bo) / rng : 0.0
+                float impulse = 0.7 + 0.6 * body
+                float load = wgt * impulse
+                int rLo = int(math.floor((bl - winLow) / rowH))
+                int rHi = int(math.floor((bh - winLow) / rowH))
+                rLo := math.max(rLo, 0)
+                rHi := math.min(rHi, rowCount - 1)
+                if rHi >= rLo
+                    float inv = 1.0 / (rHi - rLo + 1)
+                    bool fresh = i < freshBars
+                    for r = rLo to rHi
+                        array.set(rowVol, r, array.get(rowVol, r) + load * inv)
+                        if fresh
+                            array.set(rowFresh, r, array.get(rowFresh, r) + load * inv)
+
+        //--- profile peak and mean, used to push contrast so strong shelves stand out
+        float peak = 0.0
+        float volSum2 = 0.0
+        for r = 0 to rowCount - 1
+            float vv2 = array.get(rowVol, r)
+            peak := math.max(peak, vv2)
+            volSum2 += vv2
+        float meanVol = rowCount > 0 ? volSum2 / rowCount : 0.0
+
+        //--- draw the profile fill, contrast pushed so heavy shelves read clearly and weak rows fade out
+        int leftX  = math.max(bar_index - lookback + 1, 0)
+        int rightX = bar_index + projection
+        for r = 0 to rowCount - 1
+            box bx     = array.get(rowBox, r)
+            float rBot = winLow + rowH * r
+            float rTop = rBot + rowH
+            float vv   = array.get(rowVol, r)
+            float norm = peak > 0 ? vv / peak : 0.0
+            color cc = na
+            if norm > pocketThr
+                float fr   = vv > 0 ? array.get(rowFresh, r) / vv : 0.0
+                color base = color.from_gradient(fr, 0.0, 1.0, profCol, freshCol)
+                //--- rescale around the mean, rows below average fade hard, rows above stay vivid
+                float rel  = meanVol > 0 ? vv / meanVol : 0.0
+                float emph = math.pow(math.min(rel / 2.0, 1.0), profContr)
+                int tr = int(96 - emph * 70)
+                tr := math.max(26, math.min(97, tr))
+                cc := color.new(base, tr)
+            box.set_left(bx, leftX)
+            box.set_right(bx, rightX)
+            box.set_top(bx, rTop)
+            box.set_bottom(bx, rBot)
+            box.set_bgcolor(bx, cc)
+            box.set_border_color(bx, na)
+
+        //--- detect air pockets, runs of low volume rows
+        int   pocketUsed = 0
+        int   runStart   = -1
+        int   nearPkRow  = -1
+        float nearPkDist = 1e20
+        array.clear(pkTops)
+        array.clear(pkBots)
+        int priceRow = int(math.floor((close - winLow) / rowH))
+        priceRow := math.max(0, math.min(rowCount - 1, priceRow))
+        for r = 0 to rowCount - 1
+            float norm = peak > 0 ? array.get(rowVol, r) / peak : 0.0
+            bool isThin = norm <= pocketThr
+            if isThin and runStart < 0
+                runStart := r
+            if (not isThin or r == rowCount - 1) and runStart >= 0
+                int runEnd = isThin ? r : r - 1
+                int span = runEnd - runStart + 1
+                if span >= minPocket and pocketUsed < pocketMax and showPocket
+                    box pb = array.get(pocketBx, pocketUsed)
+                    label pl = array.get(pocketLb, pocketUsed)
+                    float pBot = winLow + rowH * runStart
+                    float pTop = winLow + rowH * (runEnd + 1)
+                    array.push(pkTops, pTop)
+                    array.push(pkBots, pBot)
+                    box.set_left(pb, leftX)
+                    box.set_right(pb, rightX)
+                    box.set_top(pb, pTop)
+                    box.set_bottom(pb, pBot)
+                    box.set_bgcolor(pb, color.new(pocketCol, 93))
+                    box.set_border_color(pb, color.new(pocketCol, 10))
+                    box.set_border_width(pb, 2)
+                    int midRow = int(math.avg(runStart, runEnd))
+                    float pMid = winLow + rowH * midRow + rowH * 0.5
+                    if labelZones
+                        label.set_xy(pl, leftX + int((rightX - leftX) * 0.5), pMid)
+                        label.set_text(pl, "AIR POCKET")
+                        label.set_style(pl, label.style_label_center)
+                        label.set_color(pl, color.new(pocketCol, 20))
+                        label.set_textcolor(pl, color.rgb(10, 14, 26))
+                        label.set_size(pl, size.small)
+                    else
+                        label.set_text(pl, "")
+                        label.set_style(pl, label.style_none)
+                    pocketUsed += 1
+                    float dist = math.abs(midRow - priceRow)
+                    if dist < nearPkDist
+                        nearPkDist := dist
+                        nearPkRow  := midRow
+                runStart := -1
+        //--- hide unused pocket boxes and labels
+        if pocketUsed < pocketMax
+            for r = pocketUsed to pocketMax - 1
+                box pb = array.get(pocketBx, r)
+                label pl = array.get(pocketLb, r)
+                box.set_bgcolor(pb, na)
+                box.set_border_color(pb, na)
+                label.set_text(pl, "")
+                label.set_style(pl, label.style_none)
+
+        //--- rank high volume nodes with vertical spacing
+        float[] usedY  = array.new<float>()
+        float minGap   = rowH * 6.0
+        int pocRow = 0
+        float pocVal = 0.0
+        for r = 0 to rowCount - 1
+            if array.get(rowVol, r) > pocVal
+                pocVal := array.get(rowVol, r)
+                pocRow := r
+        float pocPx = winLow + rowH * pocRow + rowH * 0.5
+        if showNodes
+            array.push(usedY, pocPx)
+            array.clear(hvnLvls)
+            //--- keep only local peaks, a row heavier than both neighbours, so nodes scale to any timeframe
+            float[] peakVol = array.new<float>(rowCount, 0.0)
+            for r = 1 to rowCount - 2
+                float vc = array.get(rowVol, r)
+                float vu = array.get(rowVol, r + 1)
+                float vd = array.get(rowVol, r - 1)
+                if vc >= vu and vc >= vd and r != pocRow
+                    array.set(peakVol, r, vc)
+            int placed = 0
+            for n = 0 to nodeCount - 1
+                line ln = array.get(nodeLn, n)
+                label lb = array.get(nodeLb, n)
+                float best = 0.0
+                int   bestR = -1
+                for r = 0 to rowCount - 1
+                    if array.get(peakVol, r) > best
+                        best := array.get(peakVol, r)
+                        bestR := r
+                bool shown = false
+                if bestR >= 0 and peak > 0 and best / peak > 0.05
+                    float price = winLow + rowH * bestR + rowH * 0.5
+                    bool clash = false
+                    if array.size(usedY) > 0
+                        for u = 0 to array.size(usedY) - 1
+                            if math.abs(array.get(usedY, u) - price) < minGap
+                                clash := true
+                    if not clash
+                        float fr = best > 0 ? array.get(rowFresh, bestR) / array.get(rowVol, bestR) : 0.0
+                        color lc = fr > 0.5 ? freshCol : nodeCol
+                        line.set_xy1(ln, leftX, price)
+                        line.set_xy2(ln, rightX, price)
+                        line.set_color(ln, lc)
+                        line.set_style(ln, line.style_solid)
+                        label.set_xy(lb, rightX, price)
+                        label.set_text(lb, "HVN  " + f_vol(array.get(rowVol, bestR)))
+                        label.set_style(lb, label.style_label_left)
+                        label.set_color(lb, color.rgb(15, 20, 33))
+                        label.set_textcolor(lb, lc)
+                        label.set_size(lb, size.small)
+                        array.push(usedY, price)
+                        array.push(hvnLvls, price)
+                        shown := true
+                    array.set(peakVol, bestR, 0.0)
+                if not shown
+                    line.set_xy1(ln, na, na)
+                    line.set_xy2(ln, na, na)
+                    label.set_text(lb, "")
+                    label.set_style(lb, label.style_none)
+        else
+            //--- hide all node objects when the toggle is off
+            if array.size(nodeLn) > 0
+                for n = 0 to array.size(nodeLn) - 1
+                    line ln = array.get(nodeLn, n)
+                    label lb = array.get(nodeLb, n)
+                    line.set_xy1(ln, na, na)
+                    line.set_xy2(ln, na, na)
+                    label.set_text(lb, "")
+                    label.set_style(lb, label.style_none)
+
+        //--- anchor shift, compares the current anchor with its recorded position shiftBars ago
+        float shiftPct = na
+        if showShift
+            int hsz = array.size(anchHist)
+            if hsz > shiftBars
+                float pastAnchor = array.get(anchHist, hsz - 1 - shiftBars)
+                float curAnchor  = winLow + rowH * pocRow + rowH * 0.5
+                if not na(pastAnchor) and pastAnchor > 0
+                    shiftPct := (curAnchor - pastAnchor) / pastAnchor * 100.0
+
+        //--- volume anchor, the single heaviest row, drawn with a layered glow
+        float pocPrice = winLow + rowH * pocRow + rowH * 0.5
+        if showPoc
+            if na(pocGlowA)
+                pocGlowA := line.new(na, na, na, na, width=10)
+            if na(pocGlowB)
+                pocGlowB := line.new(na, na, na, na, width=4)
+            if na(pocLine)
+                pocLine := line.new(na, na, na, na, width=1)
+            if na(pocLabel)
+                pocLabel := label.new(na, na, "", style=label.style_label_left)
+            line.set_xy1(pocGlowA, leftX, pocPrice)
+            line.set_xy2(pocGlowA, rightX, pocPrice)
+            line.set_color(pocGlowA, color.new(pocCol, 85))
+            line.set_xy1(pocGlowB, leftX, pocPrice)
+            line.set_xy2(pocGlowB, rightX, pocPrice)
+            line.set_color(pocGlowB, color.new(pocCol, 60))
+            line.set_xy1(pocLine, leftX, pocPrice)
+            line.set_xy2(pocLine, rightX, pocPrice)
+            line.set_color(pocLine, pocCol)
+            string anchorTxt = "Anchor  " + f_vol(array.get(rowVol, pocRow))
+            if not na(shiftPct) and math.abs(shiftPct) >= 1.0
+                bool up = shiftPct > 0
+                if shiftMode == "Direction with percent"
+                    anchorTxt += up ? "   ▲ rising " + str.tostring(shiftPct, "0.0") + "%" : "   ▼ falling " + str.tostring(shiftPct, "0.0") + "%"
+                else
+                    anchorTxt += up ? "   ▲ rising" : "   ▼ falling"
+            label.set_xy(pocLabel, rightX, pocPrice)
+            label.set_text(pocLabel, anchorTxt)
+            label.set_color(pocLabel, pocCol)
+            label.set_textcolor(pocLabel, color.rgb(12, 16, 28))
+            label.set_style(pocLabel, label.style_label_left)
+            label.set_size(pocLabel, size.small)
+        else
+            //--- hide anchor objects when the toggle is off
+            if not na(pocGlowA)
+                line.set_xy1(pocGlowA, na, na)
+                line.set_xy2(pocGlowA, na, na)
+            if not na(pocGlowB)
+                line.set_xy1(pocGlowB, na, na)
+                line.set_xy2(pocGlowB, na, na)
+            if not na(pocLine)
+                line.set_xy1(pocLine, na, na)
+                line.set_xy2(pocLine, na, na)
+            if not na(pocLabel)
+                label.set_text(pocLabel, "")
+                label.set_style(pocLabel, label.style_none)
+
+        //--- dashboard
+        if showDash
+            float nearPkPrice = nearPkRow >= 0 ? winLow + rowH * nearPkRow + rowH * 0.5 : na
+            string pkText = "None"
+            color  pkCol  = color.gray
+            if not na(nearPkPrice)
+                pkText := str.tostring(nearPkPrice, format.mintick) + (nearPkPrice > close ? "  up" : "  down")
+                pkCol  := pocketCol
+
+            float normHere = peak > 0 ? array.get(rowVol, priceRow) / peak : 0.0
+            string locTxt = normHere <= pocketThr ? "Air pocket" : normHere > 0.6 ? "Volume node" : "Profile"
+            color  locCol = normHere <= pocketThr ? pocketCol : normHere > 0.6 ? nodeCol : color.rgb(165, 174, 194)
+
+            float freshHere = 0.0
+            float volAll    = 0.0
+            for r = 0 to rowCount - 1
+                volAll    += array.get(rowVol, r)
+                freshHere += array.get(rowFresh, r)
+            float freshPct = volAll > 0 ? freshHere / volAll * 100.0 : 0.0
+
+            if na(dash) or dashPosPrev != dashPos
+                if not na(dash)
+                    table.delete(dash)
+                dash := table.new(f_pos(), 2, 7, border_width=1, border_color=color.rgb(45, 53, 72), frame_width=1, frame_color=color.rgb(45, 53, 72))
+                dashPosPrev := dashPos
+
+            color hdrBg  = color.rgb(15, 20, 33)
+            color cellBg = color.rgb(22, 28, 44)
+            color txtCol = color.rgb(165, 174, 194)
+            color legCol = color.rgb(120, 130, 150)
+
+            //--- profile balance, share of volume above vs below the anchor
+            float volAbove = 0.0
+            float volBelow = 0.0
+            for r = 0 to rowCount - 1
+                if r > pocRow
+                    volAbove += array.get(rowVol, r)
+                else if r < pocRow
+                    volBelow += array.get(rowVol, r)
+            float balDen = volAbove + volBelow
+            float abovePct = balDen > 0 ? volAbove / balDen * 100.0 : 50.0
+            string balTxt = abovePct > 55.0 ? "Heavy above" : abovePct < 45.0 ? "Heavy below" : "Even"
+            color  balCol = abovePct > 55.0 or abovePct < 45.0 ? nodeCol : color.rgb(165, 174, 194)
+
+            table.cell(dash, 0, 0, "AIR POCKET PROFILE", text_color=color.white, text_size=f_size(), bgcolor=hdrBg)
+            table.cell(dash, 1, 0, "", bgcolor=hdrBg)
+            table.merge_cells(dash, 0, 0, 1, 0)
+
+            table.cell(dash, 0, 1, " Price is in", text_color=txtCol, text_size=f_size(), bgcolor=cellBg, text_halign=text.align_left)
+            table.cell(dash, 1, 1, locTxt + " ", text_color=locCol, text_size=f_size(), bgcolor=cellBg, text_halign=text.align_right)
+
+            table.cell(dash, 0, 2, " Nearest pocket", text_color=txtCol, text_size=f_size(), bgcolor=cellBg, text_halign=text.align_left)
+            table.cell(dash, 1, 2, pkText + " ", text_color=pkCol, text_size=f_size(), bgcolor=cellBg, text_halign=text.align_right)
+
+            table.cell(dash, 0, 3, " Volume anchor", text_color=txtCol, text_size=f_size(), bgcolor=cellBg, text_halign=text.align_left)
+            table.cell(dash, 1, 3, str.tostring(pocPrice, format.mintick) + " ", text_color=pocCol, text_size=f_size(), bgcolor=cellBg, text_halign=text.align_right)
+
+            table.cell(dash, 0, 4, " Profile balance", text_color=txtCol, text_size=f_size(), bgcolor=cellBg, text_halign=text.align_left)
+            table.cell(dash, 1, 4, balTxt + "  " + str.tostring(abovePct, "0") + "% ", text_color=balCol, text_size=f_size(), bgcolor=cellBg, text_halign=text.align_right)
+
+            table.cell(dash, 0, 5, " Fresh volume", text_color=txtCol, text_size=f_size(), bgcolor=cellBg, text_halign=text.align_left)
+            table.cell(dash, 1, 5, str.tostring(freshPct, "0") + "% ", text_color=freshPct > 50.0 ? freshCol : color.white, text_size=f_size(), bgcolor=cellBg, text_halign=text.align_right)
+
+            table.cell(dash, 0, 6, " HVN (heavy shelf)  ·  Anchor (peak volume)  ·  Pocket (thin volume) ", text_color=legCol, text_size=size.tiny, bgcolor=cellBg, text_halign=text.align_left)
+            table.cell(dash, 1, 6, "", bgcolor=cellBg)
+            table.merge_cells(dash, 0, 6, 1, 6)
+        else
+            //--- remove the dashboard when the toggle is off
+            if not na(dash)
+                table.delete(dash)
+                dash := na
+                dashPosPrev := ""
+
+        //--- behaviour marks, based on confirmed bars to avoid intrabar repainting
+        int markMax = 28
+        if array.size(markBuf) != markMax
+            if array.size(markBuf) > 0
+                for r = 0 to array.size(markBuf) - 1
+                    label.delete(array.get(markBuf, r))
+            array.clear(markBuf)
+            for r = 0 to markMax - 1
+                array.push(markBuf, label.new(na, na, "", style=label.style_none))
+        int markUsed = 0
+        float markTol = rowH * 0.6
+        //--- acceptance and rejection at volume nodes
+        if showAccRej and array.size(hvnLvls) > 0
+            for i = arWindow to lookback - 1
+                if markUsed < markMax
+                    float bh = high[i]
+                    float bl = low[i]
+                    if not na(bh) and not na(bl)
+                        bool touch = false
+                        float lvl = na
+                        for h = 0 to array.size(hvnLvls) - 1
+                            float hl = array.get(hvnLvls, h)
+                            if bh >= hl - markTol and bl <= hl + markTol
+                                touch := true
+                                lvl := hl
+                        if touch and not na(lvl)
+                            bool wasTouchPrev = false
+                            float ph = high[i + 1]
+                            float pl2 = low[i + 1]
+                            if not na(ph) and not na(pl2)
+                                wasTouchPrev := ph >= lvl - markTol and pl2 <= lvl + markTol
+                            if not wasTouchPrev
+                                int near = 0
+                                for k = 1 to arWindow
+                                    float kh = high[i - k]
+                                    float kl = low[i - k]
+                                    if not na(kh) and not na(kl)
+                                        if kh >= lvl - markTol and kl <= lvl + markTol
+                                            near += 1
+                                bool accepted = near >= int(math.ceil(arWindow / 2.0))
+                                label lb = array.get(markBuf, markUsed)
+                                label.set_xy(lb, bar_index - i, accepted ? bl : bh)
+                                label.set_text(lb, accepted ? "A" : "R")
+                                label.set_style(lb, accepted ? label.style_label_up : label.style_label_down)
+                                label.set_color(lb, accepted ? color.new(nodeCol, 20) : color.new(pocketCol, 20))
+                                label.set_textcolor(lb, color.rgb(12, 16, 28))
+                                label.set_size(lb, size.tiny)
+                                markUsed += 1
+        //--- air pocket transit, a bar that covered most of a pocket in one move
+        if showTransit and array.size(pkTops) > 0
+            int pkn = array.size(pkTops)
+            int[] lastMarkBar = array.new<int>(pkn, -100000)
+            for i = 0 to lookback - 1
+                if markUsed < markMax
+                    float bh = high[i]
+                    float bl = low[i]
+                    if not na(bh) and not na(bl) and bh > bl
+                        for p = 0 to pkn - 1
+                            float pt = array.get(pkTops, p)
+                            float pb2 = array.get(pkBots, p)
+                            float pkH = pt - pb2
+                            if pkH > 0 and markUsed < markMax
+                                float overlap = math.min(bh, pt) - math.max(bl, pb2)
+                                if overlap > 0 and overlap >= pkH * 0.7
+                                    int thisBar = bar_index - i
+                                    if math.abs(thisBar - array.get(lastMarkBar, p)) >= transitGap
+                                        array.set(lastMarkBar, p, thisBar)
+                                        label lb = array.get(markBuf, markUsed)
+                                        bool above = transitPos == "Above bar"
+                                        label.set_xy(lb, thisBar, above ? high[i] : math.avg(pt, pb2))
+                                        label.set_text(lb, "✓")
+                                        label.set_style(lb, above ? label.style_label_down : label.style_label_center)
+                                        label.set_color(lb, color.new(pocketCol, 0))
+                                        label.set_textcolor(lb, color.rgb(12, 16, 28))
+                                        label.set_size(lb, f_tsize())
+                                        markUsed += 1
+        //--- hide unused marks
+        if markUsed < markMax
+            for r = markUsed to markMax - 1
+                label lb = array.get(markBuf, r)
+                label.set_text(lb, "")
+                label.set_style(lb, label.style_none)
+
+//--- alerts
+var float pocLvl    = na
+var float pocketTop = na
+var float pocketBot = na
+if barstate.islast
+    float rh = (winHigh - winLow) / rowCount
+    if rh > 0 and array.size(rowVol) == rowCount and rowCount > 0
+        float pk = 0.0
+        for r = 0 to rowCount - 1
+            pk := math.max(pk, array.get(rowVol, r))
+        int pr = 0
+        float pv = 0.0
+        for r = 0 to rowCount - 1
+            if array.get(rowVol, r) > pv
+                pv := array.get(rowVol, r)
+                pr := r
+        pocLvl := winLow + rh * pr + rh * 0.5
+        int prow = int(math.floor((close - winLow) / rh))
+        prow := math.max(0, math.min(rowCount - 1, prow))
+        float nh = pk > 0 ? array.get(rowVol, prow) / pk : 1.0
+        if nh <= pocketThr
+            pocketTop := winLow + rh * (prow + 1)
+            pocketBot := winLow + rh * prow
+        else
+            pocketTop := na
+            pocketBot := na
+bool intoPocket = not na(pocketTop) and close <= pocketTop and close >= pocketBot and not (close[1] <= pocketTop and close[1] >= pocketBot)
+bool atPoc = not na(pocLvl) and low <= pocLvl and high >= pocLvl and not (low[1] <= pocLvl and high[1] >= pocLvl)
+alertcondition(intoPocket, "Price entered an air pocket", "Price moved into a low volume air pocket on {{ticker}}")
+alertcondition(atPoc, "Price reached the volume anchor", "Price reached the volume anchor level on {{ticker}}")
