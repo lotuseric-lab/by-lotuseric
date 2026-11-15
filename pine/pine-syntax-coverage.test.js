@@ -16,10 +16,11 @@ else if mode == 0
     total += 2
 else
     total := 0
-switch mode
-    1 => total := total + 3
-    0 => total := total + 4
-    => total := total + 5
+switchValue = switch mode
+    1 => 3
+    0 => 4
+    => 5
+total := total + switchValue
 for i = 0 to 2 by 1
     total := total + i
 items = array.from(1, 2, 3)
