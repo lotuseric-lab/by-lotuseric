@@ -576,7 +576,7 @@
         const title=cfg.title||(typeof rest[0]==="string"?rest[0]:"")||cfg.tooltip||"";
         const key=String(title||("input_"+Object.keys(inputs).length));
         if(!Object.prototype.hasOwnProperty.call(inputs,key))inputs[key]=def;
-        if(!outputs.inputDefs.some(x=>x.key===key))outputs.inputDefs.push({key,title:key,type:kind,def,min:cfg.minval,max:cfg.maxval,step:cfg.step,options:cfg.options});
+        if(!outputs.inputDefs.some(x=>x.key===key))outputs.inputDefs.push({key,title:key,type:kind,def,min:cfg.minval,max:cfg.maxval,step:cfg.step,options:Array.isArray(cfg.options)?cfg.options:null,group:cfg.group||"Genel",inline:cfg.inline||null,tooltip:cfg.tooltip||"",confirm:!!cfg.confirm});
         return inputs[key];
       };
     }
