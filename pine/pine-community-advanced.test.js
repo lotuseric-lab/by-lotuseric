@@ -143,3 +143,32 @@ console.log('Additional community Pine tests: ' + cases.length + ' indicators pa
     JSON.stringify({ chartBars: chartBars.length, lowerBars: lowerBars.length,
       boxes: output.boxes.length, lines: output.lines.length }));
 }
+
+
+// FeelsStrategy MIT support/resistance zones: typed UDTs, array<UDT> state,
+// methods, nested clustering loops and pooled box/line/label drawings.
+{
+  const file = 'support-resistance-zones-feelsstrategy-v6.pine';
+  const name = 'Support and Resistance Zones [FEELS]';
+  const source = fs.readFileSync(path.join(__dirname, 'community', file), 'utf8');
+  assert.ok(source.startsWith('// © FeelsStrategy'), name + ' must retain upstream author header');
+  assert.ok(source.includes('//@version=6'), name + ' must remain Pine v6');
+  const lexed = lexPine(source);
+  assert.deepEqual(lexed.diagnostics, [], name + ' lexer diagnostics');
+  const parsed = parsePine(lexed.tokens);
+  assert.deepEqual(parsed.diagnostics, [], name + ' parser diagnostics');
+  let output;
+  try {
+    output = runPine(parsed, bars, { symbol: 'BTCUSDT', timeframe: '5' });
+  } catch (error) {
+    console.error('UNMODIFIED COMMUNITY INDICATOR FAILED:', name);
+    console.error({ name: error.name, code: error.code, message: error.message,
+      line: error.line, column: error.column });
+    throw error;
+  }
+  assert.ok(output && typeof output === 'object', name + ' must return output');
+  console.log('Unmodified community Pine v6 passed:', name,
+    JSON.stringify({ bars: bars.length, plots: output.plots?.length || 0,
+      lines: output.lines?.length || 0, labels: output.labels?.length || 0,
+      boxes: output.boxes?.length || 0, alerts: output.alerts?.length || 0 }));
+}
