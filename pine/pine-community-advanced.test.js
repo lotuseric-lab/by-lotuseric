@@ -178,7 +178,9 @@ console.log('Additional community Pine tests: ' + cases.length + ' indicators pa
 // timeframe-aware filters, drawing lifecycle, historical labels and dashboard.
 for (const item of [
   { file: 'liquidity-magnet-feelsstrategy-v6.pine', name: 'Liquidity Magnet [FEELS]' },
-  { file: 'air-pocket-profile-feelsstrategy-v6.pine', name: 'Air Pocket Profile [FEELS]' }
+  { file: 'air-pocket-profile-feelsstrategy-v6.pine', name: 'Air Pocket Profile [FEELS]' },
+  { file: 'power-of-three-feelsstrategy-v6.pine', name: 'Power of Three [FEELS]' },
+  { file: 'confluence-pivot-zones-feelsstrategy-v6.pine', name: 'Confluence Pivot Zones [FEELS]' }
 ]) {
   const source = fs.readFileSync(path.join(__dirname, 'community', item.file), 'utf8');
   assert.ok(source.startsWith('// © FeelsStrategy'), item.name + ' must retain upstream author attribution');
