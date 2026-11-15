@@ -16,7 +16,7 @@
   ].sort((a, b) => b.length - a.length);
 
   function lexPine(source) {
-    const text = String(source == null ? "" : source).replace(/\r\n?/g, "\n");
+    const text = String(source == null ? "" : source).replace(/^\uFEFF/, "").replace(/\r\n?/g, "\n");
     const tokens = [];
     const diagnostics = [];
     let i = 0, line = 1, column = 1;
