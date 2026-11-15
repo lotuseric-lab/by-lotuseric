@@ -22,6 +22,11 @@ assert.deepEqual(exponentTokens, ["1e+3", "2.5e-2", "4", ".75"]);
 
 const report = analyzePineSource(sample);
 assert.equal(report.version, 6);
+
+// Some mobile clipboard paths prepend an invisible UTF-8 BOM.
+const bomReport = analyzePineSource("\uFEFF" + sample);
+assert.equal(bomReport.version, 6);
+assert.equal(bomReport.diagnostics.length, 0);
 assert.equal(report.requirements.plots, true);
 assert.equal(report.requirements.labels, true);
 assert.equal(report.requirements.functions, false);
