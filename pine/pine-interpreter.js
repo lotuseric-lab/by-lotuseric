@@ -558,7 +558,7 @@
     const barstate={isrealtime:false,isconfirmed:true,isnew:true,ishistory:true};Object.defineProperties(barstate,{isfirst:{get:()=>ctx.index===0},islast:{get:()=>ctx.index===ctx.bars.length-1},islastconfirmedhistory:{get:()=>ctx.index===ctx.bars.length-1}});
     Object.defineProperty(ta,"obv",{get:()=>{const b=ctx.bars.slice(0,ctx.index+1),out=[];let total=0;for(let i=0;i<b.length;i++){if(i>0)total+=(b[i].close>b[i-1].close?1:b[i].close<b[i-1].close?-1:0)*b[i].volume;out.push(total);}return new SeriesRef(out);}});
     const input = {};
-    for(const kind of ["int","float","bool","string","source","color","timeframe","symbol","session"]){
+    for(const kind of ["int","float","bool","string","source","color","timeframe","symbol","session","time"]){
       input[kind]=(def, ...rest)=>{
         const cfg=rest.reduce((o,x)=>{if(x&&x.__named)o[x.name]=value(x.value);else if(x&&typeof x==="object"&&!Array.isArray(x))Object.assign(o,x);return o;},{});
         const title=cfg.title||(typeof rest[0]==="string"?rest[0]:"")||cfg.tooltip||"";
