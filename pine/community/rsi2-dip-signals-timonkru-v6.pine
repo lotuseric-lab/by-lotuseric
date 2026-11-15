@@ -1,0 +1,176 @@
+// © Timon Krueger — upstream MIT source; attribution header added for By LOTUSERIC compatibility corpus.
+//@version=6
+// RSI(2) Dip Above SMA200 — Signals. Companion of "RSI(2) Dip Above SMA200 — Strategy":
+// one rule, two scripts. The "Rule core" block is identical in both (here indented inside
+// a function, so it runs on daily bars whatever the chart timeframe is).
+//
+// Rule (fixed values on purpose, these are the researched ones):
+//   buy at the daily close when RSI(2, Wilder) < 10 and the close is above its SMA200;
+//   sell at the first later close above SMA5, at the latest after 20 closes;
+//   a rule exit may buy again at the same close; protective stop = entry close - 3 x ATR10
+//   (ATR10 = simple mean of the true range, not Wilder), active from the next bar;
+//   after a stop no new entry on that same bar; long only, weekends are held.
+//
+// Daily values on any chart timeframe up to 1D: everything is computed on the symbol's 1D
+// bars via request.security (lookahead off). On historical intraday bars a day's value
+// appears when that day has closed; on the live day it moves with the price until the close.
+//
+// The rule is defined on the regular cash session of the index (16:00 New York close).
+// On SPY/QQQ/DIA or SPX/NDX/DJI the 1D bar is that session. On CFD or futures charts the
+// 1D bar usually ends at the broker's day end and includes the night: values differ, and
+// the table warns about it.
+//
+// Table results are in basis points of price; costs are a flat spread plus financing per
+// calendar night. Dividend credit is not booked. The stop is checked against the 1D low.
+indicator("RSI(2) Dip Above SMA200 — Signals", shorttitle = "RSI2 Dip", overlay = false)
+
+//---- inputs -----------------------------------------------------------
+grpRule = "Rule"
+startTime = input.time(timestamp("2000-01-01T00:00:00"), "Trades from", group = grpRule,
+     tooltip = "Trades in the table start at this date. The research starts in 2000.")
+stopMult  = input.float(3.0, "Protective stop (x ATR10)", minval = 1.0, maxval = 10.0, step = 0.5, group = grpRule,
+     tooltip = "Used for the trade statistics. Tested value 3, accepted range 1 to 10.")
+
+grpCost   = "Costs (statistics table only)"
+spreadBps = input.float(2.0, "Spread + slippage, round trip (bps)", minval = 0.0, step = 0.5, group = grpCost,
+     tooltip = "Cash index CFD, research assumption 2 bps per round trip.")
+finPct    = input.float(5.0, "Financing per year (%)", minval = 0.0, step = 0.5, group = grpCost,
+     tooltip = "Overnight financing of a long CFD, charged per calendar night. 5 % = 1.4 bps per night, close to the average swap of the research trades 2000-2026.")
+
+grpView   = "Display"
+showSma   = input.bool(true, "Daily SMA200 and SMA5 on the price chart", group = grpView)
+showMark  = input.bool(true, "Entry and exit markers on the price chart", group = grpView)
+showTable = input.bool(true, "Statistics table", group = grpView)
+
+//---- rule constants -----------------------------------------------------
+RSI_LEVEL = 10.0
+SMA_TREND = 200
+SMA_EXIT  = 5
+ATR_LEN   = 10
+MAX_HOLD  = 20
+
+if timeframe.in_seconds() > timeframe.in_seconds("1D")
+    runtime.error("This script shows daily values. Use a chart timeframe of 1D or lower.")
+
+// Runs on the 1D bars of the chart symbol (called through request.security below).
+dailyCore() =>
+    //==== Rule core (identical in the Signals and the Strategy script) ====
+    rsi2   = ta.rsi(close, 2)
+    sma200 = ta.sma(close, SMA_TREND)
+    sma5   = ta.sma(close, SMA_EXIT)
+    atr10  = ta.sma(ta.tr(true), ATR_LEN)
+
+    var bool  inPos    = false
+    var float entryPx  = na
+    var float stopPx   = na
+    var float entryAtr = na
+    var int   entryBar = na
+    var int   entryT   = na
+
+    bool   didEnter = false
+    bool   didExit  = false
+    float  exitPx   = na
+    string exitWhy  = ""
+    int    exitBar0 = na
+    int    exitT0   = na
+    float  exitEnt  = na
+    float  exitAtr  = na
+
+    if barstate.isconfirmed
+        bool stopped = false
+        if inPos and bar_index > entryBar
+            if low <= stopPx
+                exitPx  := math.min(open, stopPx)
+                exitWhy := "stop"
+                stopped := true
+            else if close > sma5 or bar_index - entryBar >= MAX_HOLD
+                exitPx  := close
+                exitWhy := close > sma5 ? "SMA5" : "20 closes"
+            if not na(exitPx)
+                didExit  := true
+                exitBar0 := entryBar
+                exitT0   := entryT
+                exitEnt  := entryPx
+                exitAtr  := entryAtr
+                inPos    := false
+        bool ready = time >= startTime and high > low and not na(rsi2) and not na(sma200) and not na(atr10)
+        if not inPos and not stopped and ready and rsi2 < RSI_LEVEL and close > sma200
+            inPos    := true
+            didEnter := true
+            entryPx  := close
+            entryAtr := atr10
+            stopPx   := close - stopMult * atr10
+            entryBar := bar_index
+            entryT   := time
+    //==== end of rule core ====
+    var int   nTrades  = 0
+    var int   nWins    = 0
+    var int   nStops   = 0
+    var float sumGross = 0.0
+    var float sumNet   = 0.0
+    var float sumR     = 0.0
+    var int   firstT   = time
+    if didExit
+        float gross  = 1e4 * (exitPx / exitEnt - 1.0)
+        int   nights = math.round((time - exitT0) / 86400000.0)
+        float net    = gross - spreadBps - finPct * 100.0 / 360.0 * nights
+        nTrades  += 1
+        nWins    += net > 0 ? 1 : 0
+        nStops   += exitWhy == "stop" ? 1 : 0
+        sumGross += gross
+        sumNet   += net
+        sumR     += net / 1e4 / (stopMult * exitAtr / exitEnt)
+    int   held    = inPos ? bar_index - entryBar : 0
+    float openBps = inPos ? 1e4 * (close / entryPx - 1.0) : na
+    [rsi2, sma200, sma5, close, inPos, entryT, held, openBps, nTrades, nWins, nStops, sumGross, sumNet, sumR, firstT, barstate.isconfirmed, time, didEnter, didExit, exitWhy]
+
+[dRsi, dSma200, dSma5, dClose, dInPos, dEntryT, dHeld, dOpenBps, nTrades, nWins, nStops, sumGross, sumNet, sumR, dFirstT, dConfirmed, dTime, dEnter, dExit, dExitWhy] =
+     request.security(syminfo.tickerid, "1D", dailyCore(), lookahead = barmerge.lookahead_off)
+
+fmtDate(int t) => str.format_time(t, "yyyy-MM-dd", syminfo.timezone)
+
+//---- price chart: the daily averages (force_overlay) ----------------------------
+// One point per day (the bar where the daily value arrives, plus the live bar); plot.style_line
+// joins the points, so on intraday charts the averages are smooth lines instead of daily steps.
+bool newDay   = ta.change(dTime) != 0
+bool dayPoint = timeframe.isdaily or newDay or barstate.islast
+plot(showSma and dayPoint ? dSma200 : na, "SMA200 (daily)", color.new(color.orange, 20), 2, plot.style_line, force_overlay = true)
+plot(showSma and dayPoint ? dSma5 : na, "SMA5 (daily)", color.new(color.blue, 40), 1, plot.style_line, force_overlay = true)
+
+// Entry / exit of the rule at a daily close: marked once, on the bar where that day's value arrives
+// (the day's last bar on intraday charts), never repeated on the bars of the next day.
+bool fresh = timeframe.isdaily or newDay
+plotshape(showMark and fresh and dEnter, "Entry", shape.triangleup, location.belowbar, color.teal, size = size.small, text = "buy", textcolor = color.teal, force_overlay = true)
+plotshape(showMark and fresh and dExit and dExitWhy != "stop", "Exit", shape.triangledown, location.abovebar, color.gray, size = size.small, text = "exit", textcolor = color.gray, force_overlay = true)
+plotshape(showMark and fresh and dExit and dExitWhy == "stop", "Stop exit", shape.xcross, location.abovebar, color.red, size = size.small, text = "stop", textcolor = color.red, force_overlay = true)
+
+//---- RSI(2) pane: the script's own pane below the chart ----------------------------
+bool buyZone = dRsi < RSI_LEVEL and dClose > dSma200
+hline(100, "RSI 100", color.new(color.gray, 70), hline.style_dotted)
+hline(50, "RSI 50", color.new(color.gray, 70), hline.style_dotted)
+hline(RSI_LEVEL, "Entry level 10", color.new(color.teal, 0), hline.style_dashed)
+hline(0, "RSI 0", color.new(color.gray, 70), hline.style_dotted)
+plot(dRsi, "RSI(2) (daily)", buyZone ? color.teal : dRsi < RSI_LEVEL ? color.gray : color.new(color.purple, 0), 2)
+
+//---- table on the price chart ---------------------------------------------------
+var table tb = table.new(position.top_right, 2, 11, bgcolor = color.new(color.black, 15), border_width = 1, force_overlay = true)
+
+row(int i, string k, string v, color c = color.white) =>
+    table.cell(tb, 0, i, k, text_color = color.silver, text_size = size.small, text_halign = text.align_left)
+    table.cell(tb, 1, i, v, text_color = c, text_size = size.small, text_halign = text.align_right)
+
+if showTable and barstate.islast
+    bool cashBars = syminfo.type == "index" or syminfo.type == "fund" or syminfo.type == "stock"
+    row(0, "RSI(2) dip, daily", syminfo.ticker, color.teal)
+    row(1, "Closed trades", str.tostring(nTrades))
+    row(2, "Win rate (net)", nTrades > 0 ? str.tostring(100.0 * nWins / nTrades, "#.0") + " %" : "-")
+    row(3, "Avg gross", nTrades > 0 ? str.tostring(sumGross / nTrades, "#.0") + " bps" : "-")
+    row(4, "Avg net (costs)", nTrades > 0 ? str.tostring(sumNet / nTrades, "#.0") + " bps" : "-", sumNet >= 0 ? color.lime : color.red)
+    row(5, "Avg R (risk = stop)", nTrades > 0 ? str.tostring(sumR / nTrades, "#.00") + " R" : "-")
+    row(6, "Stop exits", str.tostring(nStops))
+    string openTxt = dInPos ? str.format("since {0}, {1} closes, {2} bps", fmtDate(dEntryT), dHeld, str.tostring(dOpenBps, "#.0")) : "flat"
+    row(7, "Open", openTxt, dInPos ? color.yellow : color.white)
+    string nowTxt = str.format("RSI(2) {0} | {1} SMA200", str.tostring(dRsi, "#.0"), dClose > dSma200 ? "above" : "below")
+    row(8, dConfirmed ? "Last daily close" : "Today so far", nowTxt)
+    row(9, "Daily bars from", fmtDate(dFirstT))
+    row(10, "Daily series", cashBars ? "cash session bars" : "not the 16:00 NY cash close", cashBars ? color.white : color.orange)
