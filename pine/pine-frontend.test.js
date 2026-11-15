@@ -27,6 +27,14 @@ assert.equal(report.version, 6);
 const bomReport = analyzePineSource("\uFEFF" + sample);
 assert.equal(bomReport.version, 6);
 assert.equal(bomReport.diagnostics.length, 0);
+
+const mobileClipboardReport = analyzePineSource("\u200B" + sample);
+assert.equal(mobileClipboardReport.version, 6);
+assert.equal(mobileClipboardReport.diagnostics.length, 0);
+
+const spacedDirectiveReport = analyzePineSource("  //@version=6\\nindicator('Space', overlay=true)");
+assert.equal(spacedDirectiveReport.version, 6);
+
 assert.equal(report.requirements.plots, true);
 assert.equal(report.requirements.labels, true);
 assert.equal(report.requirements.functions, false);
