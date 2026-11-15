@@ -174,6 +174,40 @@ console.log('Additional community Pine tests: ' + cases.length + ' indicators pa
 }
 
 
+// FeelsStrategy MIT Liquidity Magnet: UDT pools/history, mutation, scoring,
+// timeframe-aware filters, drawing lifecycle, historical labels and dashboard.
+for (const item of [
+  { file: 'liquidity-magnet-feelsstrategy-v6.pine', name: 'Liquidity Magnet [FEELS]' },
+  { file: 'air-pocket-profile-feelsstrategy-v6.pine', name: 'Air Pocket Profile [FEELS]' }
+]) {
+  const source = fs.readFileSync(path.join(__dirname, 'community', item.file), 'utf8');
+  assert.ok(source.startsWith('// © FeelsStrategy'), item.name + ' must retain upstream author attribution');
+  assert.ok(source.includes('//@version=6'), item.name + ' must remain Pine v6');
+  const lexed = lexPine(source);
+  assert.deepEqual(lexed.diagnostics, [], item.name + ' lexer diagnostics');
+  const parsed = parsePine(lexed.tokens);
+  assert.deepEqual(parsed.diagnostics, [], item.name + ' parser diagnostics');
+  let output;
+  try {
+    output = runPine(parsed, bars, { symbol: 'BTCUSDT', timeframe: '5' });
+  } catch (error) {
+    console.error('UNMODIFIED COMMUNITY INDICATOR FAILED:', item.name);
+    console.error({ name: error.name, code: error.code, message: error.message,
+      line: error.line, column: error.column });
+    throw error;
+  }
+  assert.ok(output && typeof output === 'object', item.name + ' must return output');
+  const visible = ['plots', 'lines', 'labels', 'boxes', 'polylines', 'tables']
+    .reduce((n, key) => n + (output[key]?.length || 0), 0);
+  assert.ok(visible > 0, item.name + ' must produce visible output');
+  console.log('Unmodified community Pine v6 passed:', item.name,
+    JSON.stringify({ bars: bars.length, plots: output.plots?.length || 0,
+      lines: output.lines?.length || 0, labels: output.labels?.length || 0,
+      boxes: output.boxes?.length || 0, tables: output.tables?.length || 0,
+      alerts: output.alerts?.length || 0 }));
+}
+
+
 // timeframe.in_seconds() / timeframe.in_seconds(timeframe) are used by
 // real-world Pine scripts to select appropriate lower-timeframe sources.
 {
