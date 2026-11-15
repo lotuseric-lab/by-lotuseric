@@ -41,3 +41,11 @@ This directory contains unmodified, publicly published Pine sources used as comp
   - License: MIT, as declared in the upstream README; source attribution is retained in the fixture header.
   - Exercises: typed arrays and methods, loops/while, `request.security_lower_tf` tuple arrays, volume-at-price row distribution, POC and value-area expansion, box/line lifecycle.
   - Test context: 5-minute chart bars with supplied 1-minute intrabars; the fast profile mode is used by default, while the lower-timeframe request is still parsed and evaluated.
+
+## Additional MIT Pine v6 compatibility fixture — FeelsStrategy
+- Support and Resistance Zones [FEELS]: `support-resistance-zones-feelsstrategy-v6.pine`
+- Source: https://github.com/VolodymyrFilias/feels-indicators
+- License: MIT; exact upstream notice is preserved in `FEELS-INDICATORS-MIT-LICENSE.txt`.
+- Copyright: © 2026 Volodymyr Filias (FeelsStrategy).
+- Exercises: Pine v6 user-defined types (`Pivot`, `Zone`), typed UDT arrays, UDT methods/field mutation, function parameters with UDT types, nested loops, pivot confirmation, zone clustering, drawing-object lifecycle and alerts.
+- Source file is retained unchanged; test harness asserts lexer/parser success and executes the original source against synthetic OHLCV data.
