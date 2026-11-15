@@ -271,6 +271,17 @@ body>.nav{position:fixed;z-index:50;left:0;right:0;bottom:0;padding:6px 8px calc
 /* Oscillator subcharts */#indicatorPanes{display:grid;gap:7px}.oscPane{height:142px;min-height:112px;max-height:240px;border-top:1px solid var(--line);background:#101a2a;display:flex;flex-direction:column;position:relative}.oscPaneHead{height:30px;min-height:30px;display:flex;align-items:center;justify-content:space-between;padding:3px 9px;font-size:11px;gap:6px}.oscPaneHead small{color:var(--muted)}.oscPaneHead button{padding:3px 7px;font-size:11px;min-width:28px}.oscPaneChart{height:calc(100% - 36px);min-height:76px;width:100%;flex:1}.oscResize{height:7px;min-height:7px;cursor:ns-resize;touch-action:none;background:linear-gradient(transparent 2px,#405875 2px,#405875 4px,transparent 4px);position:absolute;bottom:0;left:0;right:0;z-index:5}.oscPaneHead .oscMode{font-size:10px;padding:3px 6px}
 /* TradingView-style active indicator legend */
 #indicatorLegend{position:absolute;z-index:7;top:8px;left:8px;max-width:min(340px,calc(100% - 16px));display:flex;flex-direction:column;align-items:flex-start;gap:5px;pointer-events:auto;font-size:11px}#indicatorLegend:empty{display:none}.indLegendToggle{display:flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid #344963;border-radius:9px;background:rgba(8,15,27,.94);color:#e5efff;font-size:11px;font-weight:700;backdrop-filter:blur(6px)}.indLegendList{display:none;max-width:100%;max-height:190px;overflow:auto;gap:4px;padding:5px;border:1px solid #344963;border-radius:9px;background:rgba(8,15,27,.94);backdrop-filter:blur(6px)}#indicatorLegend.expanded .indLegendList{display:grid}.indLegendRow{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:4px 6px;border:1px solid #344963;border-radius:7px;background:rgba(8,15,27,.88);backdrop-filter:blur(5px)}.indLegendName{font-weight:700;color:#e5efff;min-width:68px}.indLegendValue{color:#a9bed8;font-variant-numeric:tabular-nums}.indLegendRow button{padding:3px 6px;border:0;background:#1b2c43;border-radius:5px;font-size:12px;line-height:1.2}.indLegendRow button.active{color:#8ce8c7}.indLegendSettings{display:flex;align-items:center;gap:5px;flex-basis:100%;padding-top:5px;border-top:1px solid #344963}.indLegendSettings input{width:62px;padding:5px;font-size:11px}.indLegendSettings input[type=color]{width:30px;height:28px;padding:2px}.indLegendSettings select{width:58px;padding:5px;font-size:11px}
+/* Pine input settings: readable grouped controls on touch screens */
+.pineSettingsGroups{display:grid;gap:10px;margin-top:10px}
+.pineSettingsGroup{border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0}
+.pineSettingsGroup legend{padding:0 7px;font-size:12px;font-weight:800;color:var(--text)}
+.pineSettingsField{display:grid;grid-template-columns:minmax(0,1fr) minmax(110px,42%);align-items:center;gap:10px;padding:8px 2px;border-bottom:1px solid color-mix(in srgb,var(--line) 65%,transparent)}
+.pineSettingsField:last-child{border-bottom:0}
+.pineSettingsField small{display:block;color:var(--muted);font-size:11px;margin-top:3px;line-height:1.35}
+.pineSettingsField input,.pineSettingsField select{width:100%;min-width:0;max-width:none!important;box-sizing:border-box}
+.pineSettingsField input[type=checkbox]{width:22px;height:22px;justify-self:end}
+.pineSettingsField input[type=color]{height:36px;padding:3px}
+@media(max-width:560px){.pineSettingsField{grid-template-columns:minmax(0,1fr) minmax(100px,40%);gap:7px}.pineSettingsGroup{padding:8px}}
 /* Indicator library panel */
 .indicatorLibrary{position:fixed;inset:0;z-index:120;background:rgba(3,8,16,.78);display:flex;align-items:flex-end;justify-content:center;padding:12px}.indicatorLibrary.hidden{display:none}.indicatorLibrarySheet{width:min(980px,100%);max-height:min(88vh,900px);overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:18px 18px 12px 12px;padding:16px;box-shadow:0 18px 60px #0009}.indicatorLibraryHead{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}.indicatorLibraryTabs{display:flex;gap:7px;overflow-x:auto;padding-bottom:10px}.indicatorLibraryTabs button,.indicatorLibrary button{border:1px solid var(--line);border-radius:10px;background:var(--panel2);color:var(--text);padding:9px 12px}.indicatorLibraryTabs button.active{border-color:var(--blue);background:#18314d;color:#c5dcff}.indicatorLibrarySearch{width:100%;margin:5px 0 12px}.indicatorCatalog{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.indicatorItem{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:11px;padding:11px;background:var(--panel2)}.indicatorItem small{display:block;color:var(--muted);margin-top:3px}.indicatorEditor{width:100%;min-height:230px;background:#080f1c;color:#dce8f8;border:1px solid var(--line);border-radius:10px;padding:12px;font:12px/1.5 ui-monospace,monospace;resize:vertical}.indicatorSavedList{display:grid;gap:8px;margin-top:12px}.indicatorSavedItem{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px}@media(max-width:600px){.indicatorLibrary{padding:0}.indicatorLibrarySheet{max-height:92vh;border-radius:18px 18px 0 0;padding:13px}.indicatorCatalog{grid-template-columns:1fr}}
 
@@ -851,10 +862,34 @@ let customPineChartState=null,customPineLastCode='',customPineSettingsCode='';le
 function renderCustomPineSettings(defs){
  const root=$('customPineSettings');root.innerHTML='';
  if(!defs||!defs.length){root.innerHTML='<p class="notice">Bu göstergede kullanıcı ayarı bulunmuyor.</p>';return;}
- for(const d of defs){const row=document.createElement('label');row.className='indicatorItem';const title=document.createElement('span');title.textContent=d.title;const input=document.createElement('input');input.style.maxWidth='150px';input.dataset.pineInput=d.key;const current=Object.prototype.hasOwnProperty.call(customPineInputs,d.key)?customPineInputs[d.key]:d.def;
-  if(d.type==='bool'){input.type='checkbox';input.checked=!!current;}else if(d.type==='color'&&/^#[0-9a-f]{6}$/i.test(String(current))){input.type='color';input.value=current;}else{input.type=d.type==='int'||d.type==='float'?'number':'text';input.value=current==null?'':String(current);if(d.type==='int')input.step=String(d.step||1);else if(d.type==='float')input.step=String(d.step||'any');if(d.min!=null)input.min=d.min;if(d.max!=null)input.max=d.max;}
-  input.addEventListener('change',()=>{let v=input.type==='checkbox'?input.checked:input.type==='number'?(d.type==='int'?parseInt(input.value,10):parseFloat(input.value)):input.value;if(input.type==='number'&&!Number.isFinite(v))return;customPineInputs[d.key]=v;runCustomPine(false)});row.append(title,input);root.append(row);
+ const groups=new Map();
+ for(const d of defs){const name=String(d.group||'Genel');if(!groups.has(name))groups.set(name,[]);groups.get(name).push(d)}
+ const wrap=document.createElement('div');wrap.className='pineSettingsGroups';
+ for(const [group,items] of groups){
+  const fieldset=document.createElement('fieldset');fieldset.className='pineSettingsGroup';
+  const legend=document.createElement('legend');legend.textContent=group;fieldset.append(legend);
+  for(const d of items){
+   const row=document.createElement('label');row.className='pineSettingsField';
+   const caption=document.createElement('span');caption.textContent=d.title;
+   if(d.tooltip){const tip=document.createElement('small');tip.textContent=d.tooltip;caption.append(tip)}
+   let input;
+   if(Array.isArray(d.options)&&d.options.length){input=document.createElement('select');for(const option of d.options){const o=document.createElement('option');o.value=String(option);o.textContent=String(option);input.append(o)}}
+   else{input=document.createElement('input');if(d.type==='bool')input.type='checkbox';else if(d.type==='color')input.type='color';else if(d.type==='int'||d.type==='float')input.type='number';else input.type='text'}
+   input.dataset.pineInput=d.key;
+   const current=Object.prototype.hasOwnProperty.call(customPineInputs,d.key)?customPineInputs[d.key]:d.def;
+   if(input.type==='checkbox')input.checked=!!current;else if(input.type==='color'&&/^#[0-9a-f]{6}$/i.test(String(current)))input.value=current;else input.value=current==null?'':String(current);
+   if(d.min!=null)input.min=d.min;if(d.max!=null)input.max=d.max;
+   if(input.type==='number')input.step=String(d.step||(d.type==='int'?1:'any'));
+   input.addEventListener('change',()=>{
+    let v=input.type==='checkbox'?input.checked:input.type==='number'?(d.type==='int'?parseInt(input.value,10):parseFloat(input.value)):input.value;
+    if(input.type==='number'&&!Number.isFinite(v))return;
+    customPineInputs[d.key]=v;runCustomPine(false);
+   });
+   row.append(caption,input);fieldset.append(row);
+  }
+  wrap.append(fieldset);
  }
+ root.append(wrap);
 }
 function runCustomPine(showMessage=true){
  const code=$('customPineCode').value;
