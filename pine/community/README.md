@@ -79,3 +79,11 @@ This directory contains unmodified, publicly published Pine sources used as comp
 - License: MIT; exact upstream license text is retained in `TIMONKRU-MIT-LICENSE.txt`.
 - Exercises: nested daily-core function with persistent state, tuple-returning `request.security`, daily timeframe handling, `input.time`, timestamps, `str.format_time`, `force_overlay` plots and table output.
 - Source logic is retained; only the leading copyright attribution comment is added.
+
+
+## Additional MIT Pine v6 fixtures — Timon Krueger
+- Futures Volume + Delta: `futures-volume-delta-timonkru-v6.pine`
+  - Source: https://github.com/Timonkru/pine-indicators/blob/main/futures_volume_delta.pine
+  - License: MIT; exact license text in `TIMONKRU-MIT-LICENSE.txt`.
+  - Exercises: `request.security`, `request.security_lower_tf` tuple arrays, `timeframe.multiplier`, persistent volume/range sample arrays, rank loops, volume pane plots and absolute-position shapes.
+- The synthetic test uses BTCUSDT symbol mapping and supplied 1-minute candles for a 5-minute chart; it does not claim a live external futures feed is available.
