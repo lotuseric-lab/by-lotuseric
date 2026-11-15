@@ -1,0 +1,568 @@
+//@version=6
+indicator("QML Pro v3 - QML + FVG + Fibonacci + CRT", shorttitle="QML Pro v3", overlay=true, max_lines_count=500, max_labels_count=500, max_boxes_count=500)
+gS = "1) QML Yapisi"
+len = input.int(5, "Pivot Uzunlugu", minval=2, group=gS)
+tolATR = input.float(0.15, "Retest Toleransi (ATR x)", minval=0.0, step=0.05, group=gS)
+maxAge = input.int(150, "Setup Maksimum Omru (mum)", minval=10, group=gS)
+needClose = input.bool(true, "Retestte onay kapanisi iste", group=gS)
+keyMode = input.string("Yerel veya HTF", "Key Level Modu", options=["Kapali", "Yerel", "HTF", "Yerel veya HTF", "Yerel ve HTF"], group=gS)
+keyLen = input.int(50, "Yerel Key Level Bakis (mum)", minval=10, group=gS)
+htfTf = input.timeframe("240", "Key Level HTF", group=gS, tooltip="Grafik zaman diliminden BUYUK bir periyot sec.")
+htfLen = input.int(20, "HTF Bakis (mum)", minval=5, group=gS)
+gF = "2) Filtreler"
+trendMode = input.string("Trend yonunde", "QML Trend Filtresi", options=["Kapali", "Trend yonunde"], group=gF)
+emaLen = input.int(200, "Trend EMA", minval=5, group=gF)
+useVol = input.bool(false, "Hacim filtresi", group=gF)
+volMult = input.float(1.2, "Hacim Carpani (SMA20 x)", step=0.1, group=gF)
+useSess = input.bool(false, "Seans filtresi", group=gF)
+sess = input.session("0800-1800", "Seans", group=gF)
+minScore = input.int(40, "QML Minimum Skor", minval=0, maxval=100, group=gF)
+gV = "3) FVG"
+showFvg = input.bool(true, "FVG kutularini goster", group=gV)
+fvgMin = input.float(0.1, "Min FVG boyutu (ATR x)", minval=0.0, step=0.05, group=gV)
+fvgImpulse = input.bool(true, "Orta mum yonlu olsun (impulse)", group=gV)
+fvgMax = input.int(12, "Maks aktif FVG", minval=2, maxval=40, group=gV)
+fvgAge = input.int(300, "FVG Omru (mum)", minval=20, group=gV)
+gB = "4) Fibonacci"
+showFib = input.bool(true, "Otomatik Fib (son swing)", group=gB)
+showFibSig = input.bool(true, "Sinyalde QML bacagi fib cizgileri", group=gB)
+oteA = input.float(0.618, "OTE Baslangic", step=0.01, group=gB)
+oteB = input.float(0.786, "OTE Bitis", step=0.01, group=gB)
+gC = "5) CRT (Candle Range Theory)"
+useCrt = input.bool(true, "CRT modulu aktif", group=gC)
+crtTf = input.timeframe("240", "CRT Zaman Dilimi", group=gC, tooltip="Range mumu icin HTF. Grafik periyodundan BUYUK olmali (ornek: grafik M15, CRT H4).")
+crtConfirm = input.bool(true, "Ters yonlu mum kapanisi iste", group=gC)
+crtTarget = input.string("Orta (50%)", "CRT Hedefi", options=["Orta (50%)", "Karsi uc"], group=gC)
+crtTrendFilter = input.bool(false, "CRT icin trend filtresi", group=gC)
+crtMinScore = input.int(40, "CRT Minimum Skor", minval=0, maxval=100, group=gC)
+crtMinR = input.float(1.0, "CRT Minimum R (islem acmak icin)", minval=0.5, step=0.25, group=gC)
+showCrtLvl = input.bool(true, "CRT range seviyelerini ciz", group=gC)
+gM = "6) Mum Bazli Sinyal"
+useCandle = input.bool(true, "Her mum icin AL/SAT skoru sinyali", group=gM)
+candleMin = input.int(70, "Mum Sinyal Esigi", minval=30, maxval=100, group=gM)
+gR = "7) Risk Yonetimi"
+showRR = input.bool(true, "SL/TP kutularini goster", group=gR)
+rr = input.float(2.0, "QML Risk:Odul (R)", minval=0.5, step=0.5, group=gR)
+slBuf = input.float(0.1, "SL Tamponu (ATR x)", minval=0.0, step=0.05, group=gR)
+account = input.float(10000.0, "Hesap Bakiyesi", minval=1.0, group=gR)
+riskPct = input.float(1.0, "Islem Basina Risk %", minval=0.1, step=0.1, group=gR)
+gG = "8) Gorunum"
+bullCol = input.color(#00c853, "Bullish Renk", group=gG)
+bearCol = input.color(#ff1744, "Bearish Renk", group=gG)
+crtCol = input.color(#ff9800, "CRT Renk", group=gG)
+showShift = input.bool(true, "Shift cizgisi", group=gG)
+showZone = input.bool(true, "QML bolgesi (kutu)", group=gG)
+showEma = input.bool(true, "Trend EMA ciz", group=gG)
+showDash = input.bool(true, "Dashboard goster", group=gG)
+dashPos = input.string("Sag Ust", "Dashboard Konumu", options=["Sag Ust", "Sag Alt", "Sol Ust", "Sol Alt"], group=gG)
+atr = ta.atr(14)
+tol = atr * tolATR
+emaV = ta.ema(close, emaLen)
+volMa = ta.sma(volume, 20)
+volHigh = not na(volume) and volume > volMa * volMult
+trendUp = close > emaV
+hiC = ta.highest(close, len)
+loC = ta.lowest(close, len)
+hiH = ta.highest(high, len)
+loL = ta.lowest(low, len)
+keyHi = ta.highest(high, keyLen + len)
+keyLo = ta.lowest(low, keyLen + len)
+[htfHi, htfLo] = request.security(syminfo.tickerid, htfTf, [ta.highest(high, htfLen)[1], ta.lowest(low, htfLen)[1]], lookahead=barmerge.lookahead_off)
+[crtH, crtL] = request.security(syminfo.tickerid, crtTf, [high[1], low[1]], lookahead=barmerge.lookahead_off)
+newHtf = ta.change(time(crtTf)) != 0
+ph = ta.pivothigh(high, len, len)
+pl = ta.pivotlow(low, len, len)
+inSess = not useSess or not na(time(timeframe.period, sess, syminfo.timezone))
+bodyAbs = math.abs(close - open)
+bigBody = bodyAbs > atr * 0.5
+wickBull = (math.min(open, close) - low) > bodyAbs
+wickBear = (high - math.max(open, close)) > bodyAbs
+bullRej = close > open and wickBull
+bearRej = close < open and wickBear
+keyPass(mode, l, h) =>
+    mode == "Kapali" or (mode == "Yerel" and l) or (mode == "HTF" and h) or (mode == "Yerel ve HTF" and l and h) or (mode == "Yerel veya HTF" and (l or h))
+fvgTouch(dirs, tops, bots, d, lo, hi) =>
+    bool hit = false
+    int n = array.size(dirs)
+    if n > 0
+        for i = 0 to n - 1
+            if array.get(dirs, i) == d and array.get(bots, i) <= hi and array.get(tops, i) >= lo
+                hit := true
+    hit
+stateTxt(s) => s == 0 ? "Yok" : s == 1 ? "Shift bekleniyor" : "Retest bekleniyor"
+bearLocal = not na(ph) and ph >= keyHi
+bearHTF = not na(ph) and not na(htfHi) and ph >= htfHi - tol
+bullLocal = not na(pl) and pl <= keyLo
+bullHTF = not na(pl) and not na(htfLo) and pl <= htfLo + tol
+var float prevLow = na
+var int prevLowBar = na
+var float hBetween = na
+var int hBetweenBar = na
+var float prevHigh = na
+var int prevHighBar = na
+var float lBetween = na
+var int lBetweenBar = na
+var int bState = 0
+var float bQml = na
+var float bShift = na
+var float bLL = na
+var float bLegHigh = na
+var int bQmlBar = na
+var int bShiftHBar = na
+var int bLLBar = na
+var int bStart = na
+var int bShiftBar = na
+var float bDisp = 0.0
+var bool bKL = false
+var bool bKH = false
+var line bLine = na
+var box bBox = na
+var int sState = 0
+var float sQml = na
+var float sShift = na
+var float sHH = na
+var float sLegLow = na
+var int sQmlBar = na
+var int sShiftLBar = na
+var int sHHBar = na
+var int sStart = na
+var int sShiftBar = na
+var float sDisp = 0.0
+var bool sKL = false
+var bool sKH = false
+var line sLine = na
+var box sBox = na
+var array<box> fvgBoxes = array.new<box>()
+var array<float> fvgTop = array.new<float>()
+var array<float> fvgBot = array.new<float>()
+var array<int> fvgDir = array.new<int>()
+var array<int> fvgBar = array.new<int>()
+var float swH = na
+var float swL = na
+var int swHB = na
+var int swLB = na
+var int fibDir = 0
+var float fibOrigin = na
+var float fibZoneHi = na
+var float fibZoneLo = na
+var array<line> fibLines = array.new<line>()
+var array<label> fibLbls = array.new<label>()
+var box fibBox = na
+var bool swHi = false
+var bool swLo = false
+var float swHiPx = na
+var float swLoPx = na
+var int crtBias = 0
+var int tDir = 0
+var float tEntry = na
+var float tSL = na
+var float tTP = na
+var float tR = na
+var box tpBox = na
+var box slBox = na
+var int wins = 0
+var int losses = 0
+var float grossW = 0.0
+var float lastSize = na
+var string lastSigTxt = "-"
+bool bNew = false
+bool sNew = false
+bool bullSig = false
+bool bearSig = false
+bool crtBullSig = false
+bool crtBearSig = false
+int newDir = 0
+float newSL = na
+float newTP = na
+if tDir != 0
+    if showRR
+        box.set_right(tpBox, bar_index)
+        box.set_right(slBox, bar_index)
+    bool closedWin = false
+    bool closedLoss = false
+    if tDir == 1
+        if low <= tSL
+            closedLoss := true
+        else if high >= tTP
+            closedWin := true
+    else
+        if high >= tSL
+            closedLoss := true
+        else if low <= tTP
+            closedWin := true
+    if closedLoss
+        losses += 1
+        tDir := 0
+    if closedWin
+        wins += 1
+        grossW += tR
+        tDir := 0
+if array.size(fvgBoxes) > 0
+    for i = array.size(fvgBoxes) - 1 to 0
+        int d = array.get(fvgDir, i)
+        float tp0 = array.get(fvgTop, i)
+        float bt0 = array.get(fvgBot, i)
+        bool dead = (d == 1 and close < bt0) or (d == -1 and close > tp0) or (bar_index - array.get(fvgBar, i) > fvgAge)
+        if dead
+            box fb = array.get(fvgBoxes, i)
+            box.set_extend(fb, extend.none)
+            box.set_right(fb, bar_index)
+            box.set_bgcolor(fb, color.new(color.gray, 92))
+            array.remove(fvgBoxes, i)
+            array.remove(fvgTop, i)
+            array.remove(fvgBot, i)
+            array.remove(fvgDir, i)
+            array.remove(fvgBar, i)
+bullFvg = low > high[2] and (low - high[2]) > atr * fvgMin and (not fvgImpulse or close[1] > open[1])
+bearFvg = high < low[2] and (low[2] - high) > atr * fvgMin and (not fvgImpulse or close[1] < open[1])
+if bullFvg
+    box nb0 = box.new(bar_index - 2, low, bar_index, high[2], border_color=na, bgcolor=showFvg ? color.new(bullCol, 85) : na, extend=extend.right)
+    array.push(fvgBoxes, nb0)
+    array.push(fvgTop, low)
+    array.push(fvgBot, high[2])
+    array.push(fvgDir, 1)
+    array.push(fvgBar, bar_index)
+if bearFvg
+    box nb1 = box.new(bar_index - 2, low[2], bar_index, high, border_color=na, bgcolor=showFvg ? color.new(bearCol, 85) : na, extend=extend.right)
+    array.push(fvgBoxes, nb1)
+    array.push(fvgTop, low[2])
+    array.push(fvgBot, high)
+    array.push(fvgDir, -1)
+    array.push(fvgBar, bar_index)
+if array.size(fvgBoxes) > fvgMax
+    box.delete(array.shift(fvgBoxes))
+    array.shift(fvgTop)
+    array.shift(fvgBot)
+    array.shift(fvgDir)
+    array.shift(fvgBar)
+if not na(ph)
+    phBar = bar_index - len
+    swH := ph
+    swHB := phBar
+    if na(hBetween) or ph >= hBetween
+        hBetween := ph
+        hBetweenBar := phBar
+    if not na(prevHigh) and not na(lBetween) and ph > prevHigh
+        if keyPass(keyMode, bearLocal, bearHTF)
+            if sState != 0 and not na(sLine)
+                line.set_extend(sLine, extend.none)
+                line.set_x2(sLine, bar_index)
+            sNew := true
+            sQml := prevHigh
+            sQmlBar := prevHighBar
+            sShift := lBetween
+            sShiftLBar := lBetweenBar
+            sHH := ph
+            sHHBar := phBar
+            sStart := bar_index
+            sKL := bearLocal
+            sKH := bearHTF
+    prevHigh := ph
+    prevHighBar := phBar
+    lBetween := na
+    lBetweenBar := na
+if not na(pl)
+    plBar = bar_index - len
+    swL := pl
+    swLB := plBar
+    if na(lBetween) or pl <= lBetween
+        lBetween := pl
+        lBetweenBar := plBar
+    if not na(prevLow) and not na(hBetween) and pl < prevLow
+        if keyPass(keyMode, bullLocal, bullHTF)
+            if bState != 0 and not na(bLine)
+                line.set_extend(bLine, extend.none)
+                line.set_x2(bLine, bar_index)
+            bNew := true
+            bQml := prevLow
+            bQmlBar := prevLowBar
+            bShift := hBetween
+            bShiftHBar := hBetweenBar
+            bLL := pl
+            bLLBar := plBar
+            bStart := bar_index
+            bKL := bullLocal
+            bKH := bullHTF
+    prevLow := pl
+    prevLowBar := plBar
+    hBetween := na
+    hBetweenBar := na
+if (not na(ph) or not na(pl)) and not na(swH) and not na(swL) and swH > swL
+    float rng = swH - swL
+    bool legUp = swHB > swLB
+    fibDir := legUp ? 1 : -1
+    fibOrigin := legUp ? swL : swH
+    fibZoneHi := legUp ? swH - rng * oteA : swL + rng * oteB
+    fibZoneLo := legUp ? swH - rng * oteB : swL + rng * oteA
+    if showFib
+        if array.size(fibLines) > 0
+            for k = 0 to array.size(fibLines) - 1
+                line.delete(array.get(fibLines, k))
+                label.delete(array.get(fibLbls, k))
+        array.clear(fibLines)
+        array.clear(fibLbls)
+        if not na(fibBox)
+            box.delete(fibBox)
+        int x0 = math.min(swHB, swLB)
+        array<float> rs = array.from(0.0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0)
+        for k = 0 to array.size(rs) - 1
+            float r = array.get(rs, k)
+            float px = legUp ? swH - rng * r : swL + rng * r
+            bool isOte = r == oteA or r == oteB
+            array.push(fibLines, line.new(x0, px, bar_index + 10, px, color=color.new(isOte ? color.orange : color.gray, isOte ? 20 : 60), style=line.style_dotted))
+            array.push(fibLbls, label.new(bar_index + 10, px, str.tostring(r), style=label.style_none, textcolor=color.gray, size=size.tiny))
+        fibBox := box.new(x0, fibZoneHi, bar_index + 10, fibZoneLo, border_color=na, bgcolor=color.new(color.orange, 88), extend=extend.right)
+if fibDir == 1 and close < fibOrigin
+    fibDir := 0
+if fibDir == -1 and close > fibOrigin
+    fibDir := 0
+buyFibZone = fibDir == 1 and low <= fibZoneHi and high >= fibZoneLo
+sellFibZone = fibDir == -1 and high >= fibZoneLo and low <= fibZoneHi
+fvgBullTap = false
+fvgBearTap = false
+if newHtf
+    swHi := false
+    swLo := false
+    swHiPx := na
+    swLoPx := na
+    crtBias := 0
+float crtEq = (crtH + crtL) / 2.0
+if useCrt and not na(crtH) and not na(crtL)
+    if high > crtH
+        swHi := true
+        swHiPx := na(swHiPx) ? high : math.max(swHiPx, high)
+    if low < crtL
+        swLo := true
+        swLoPx := na(swLoPx) ? low : math.min(swLoPx, low)
+    if crtBias == 0 and swHi and not swLo and close < crtH and (not crtConfirm or close < open)
+        int cScore = 30 + (not trendUp ? 10 : 0) + (bigBody ? 10 : 0) + (bearRej ? 5 : 0) + (close > crtEq ? 10 : 0)
+        if cScore >= crtMinScore and inSess and (not crtTrendFilter or not trendUp)
+            crtBearSig := true
+            crtBias := -1
+            float slC = swHiPx + atr * slBuf
+            float tgC = crtTarget == "Orta (50%)" ? crtEq : crtL
+            if slC > close and tgC < close
+                float riskC = slC - close
+                float rC = (close - tgC) / riskC
+                float qtyC = (account * riskPct / 100.0) / riskC
+                lastSize := qtyC
+                lastSigTxt := "CRT SAT @ " + str.tostring(close, format.mintick) + " (" + str.tostring(cScore) + ")"
+                label.new(bar_index, high, "CRT SAT | " + str.tostring(cScore), yloc=yloc.abovebar, style=label.style_label_down, color=crtCol, textcolor=color.white, size=size.small, tooltip="Range H: " + str.tostring(crtH, format.mintick) + "\nRange L: " + str.tostring(crtL, format.mintick) + "\nSL: " + str.tostring(slC, format.mintick))
+                if rC >= crtMinR and newDir == 0
+                    newDir := -1
+                    newSL := slC
+                    newTP := tgC
+    if crtBias == 0 and swLo and not swHi and close > crtL and (not crtConfirm or close > open)
+        int cScore = 30 + (trendUp ? 10 : 0) + (bigBody ? 10 : 0) + (bullRej ? 5 : 0) + (close < crtEq ? 10 : 0)
+        if cScore >= crtMinScore and inSess and (not crtTrendFilter or trendUp)
+            crtBullSig := true
+            crtBias := 1
+            float slC = swLoPx - atr * slBuf
+            float tgC = crtTarget == "Orta (50%)" ? crtEq : crtH
+            if slC < close and tgC > close
+                float riskC = close - slC
+                float rC = (tgC - close) / riskC
+                float qtyC = (account * riskPct / 100.0) / riskC
+                lastSize := qtyC
+                lastSigTxt := "CRT AL @ " + str.tostring(close, format.mintick) + " (" + str.tostring(cScore) + ")"
+                label.new(bar_index, low, "CRT AL | " + str.tostring(cScore), yloc=yloc.belowbar, style=label.style_label_up, color=crtCol, textcolor=color.white, size=size.small, tooltip="Range H: " + str.tostring(crtH, format.mintick) + "\nRange L: " + str.tostring(crtL, format.mintick) + "\nSL: " + str.tostring(slC, format.mintick))
+                if rC >= crtMinR and newDir == 0
+                    newDir := 1
+                    newSL := slC
+                    newTP := tgC
+if bNew
+    bState := 1
+    bLegHigh := math.max(bShift, hiH)
+if bState != 0
+    bLegHigh := math.max(bLegHigh, high)
+if bState == 1
+    float chk = bNew ? hiC : close
+    if close < bLL
+        bState := 0
+    else if chk > bShift
+        bState := 2
+        bShiftBar := bar_index
+        bDisp := atr > 0 ? (close - bShift) / atr : 0.0
+        bLine := line.new(bQmlBar, bQml, bar_index, bQml, extend=extend.right, color=bullCol, width=2)
+        if showZone
+            bBox := box.new(bQmlBar, bQml + tol, bar_index, bQml - tol, border_color=na, bgcolor=color.new(bullCol, 85), extend=extend.right)
+        if showShift
+            line.new(bShiftHBar, bShift, bar_index, bShift, color=color.new(bullCol, 40), style=line.style_dotted)
+            label.new(bShiftHBar, bShift, "Shift", style=label.style_none, textcolor=bullCol, size=size.small)
+        label.new(bQmlBar, bQml, "QML", style=label.style_none, textcolor=bullCol, size=size.small)
+else if bState == 2
+    if close < bLL or bar_index - bStart > maxAge
+        line.set_extend(bLine, extend.none)
+        line.set_x2(bLine, bar_index)
+        if showZone
+            box.set_extend(bBox, extend.none)
+            box.set_right(bBox, bar_index)
+        bState := 0
+    else if bar_index > bShiftBar and low <= bQml + tol and (not needClose or close > bQml)
+        line.set_extend(bLine, extend.none)
+        line.set_x2(bLine, bar_index)
+        if showZone
+            box.set_extend(bBox, extend.none)
+            box.set_right(bBox, bar_index)
+        float legR = bLegHigh - bLL
+        bool oteHit = legR > 0 and low <= bLegHigh - legR * oteA and high >= bLegHigh - legR * oteB
+        int score = (bKL ? 15 : 0) + (bKH ? 15 : 0) + (trendUp ? 10 : 0) + (volHigh ? 5 : 0) + (bDisp > 0.5 ? 5 : 0) + (wickBull ? 5 : 0) + (oteHit ? 15 : 0) + (crtBias == 1 ? 15 : 0)
+        bool okTrend = trendMode == "Kapali" or trendUp
+        bool okVol = not useVol or volHigh
+        if okTrend and okVol and inSess and score >= minScore
+            bullSig := true
+            float sl = bLL - atr * slBuf
+            if close > sl
+                float risk = close - sl
+                float tp = close + risk * rr
+                float qty = (account * riskPct / 100.0) / risk
+                lastSize := qty
+                lastSigTxt := "QML AL @ " + str.tostring(close, format.mintick) + " (" + str.tostring(score) + ")"
+                label.new(bar_index, low, "QML AL | " + str.tostring(score), yloc=yloc.belowbar, style=label.style_label_up, color=bullCol, textcolor=color.white, size=size.small, tooltip="Giris: " + str.tostring(close, format.mintick) + "\nSL: " + str.tostring(sl, format.mintick))
+                if showFibSig and legR > 0
+                    array<float> rs2 = array.from(0.5, oteA, oteB)
+                    for k = 0 to 2
+                        float pxk = bLegHigh - legR * array.get(rs2, k)
+                        line.new(bLLBar, pxk, bar_index, pxk, color=color.new(color.orange, 30), style=line.style_dashed)
+                        label.new(bar_index, pxk, str.tostring(rs2, "#.##"), style=label.style_none, textcolor=color.orange, size=size.tiny)
+                if newDir == 0
+                    newDir := 1
+                    newSL := sl
+                    newTP := tp
+        bState := 0
+if sNew
+    sState := 1
+    sLegLow := math.min(sShift, loL)
+if sState != 0
+    sLegLow := math.min(sLegLow, low)
+if sState == 1
+    float chk = sNew ? loC : close
+    if close > sHH
+        sState := 0
+    else if chk < sShift
+        sState := 2
+        sShiftBar := bar_index
+        sDisp := atr > 0 ? (sShift - close) / atr : 0.0
+        sLine := line.new(sQmlBar, sQml, bar_index, sQml, extend=extend.right, color=bearCol, width=2)
+        if showZone
+            sBox := box.new(sQmlBar, sQml + tol, bar_index, sQml - tol, border_color=na, bgcolor=color.new(bearCol, 85), extend=extend.right)
+        if showShift
+            line.new(sShiftLBar, sShift, bar_index, sShift, color=color.new(bearCol, 40), style=line.style_dotted)
+            label.new(sShiftLBar, sShift, "Shift", style=label.style_none, textcolor=bearCol, size=size.small)
+        label.new(sQmlBar, sQml, "QML", style=label.style_none, textcolor=bearCol, size=size.small)
+else if sState == 2
+    if close > sHH or bar_index - sStart > maxAge
+        line.set_extend(sLine, extend.none)
+        line.set_x2(sLine, bar_index)
+        if showZone
+            box.set_extend(sBox, extend.none)
+            box.set_right(sBox, bar_index)
+        sState := 0
+    else if bar_index > sShiftBar and high >= sQml - tol and (not needClose or close < sQml)
+        line.set_extend(sLine, extend.none)
+        line.set_x2(sLine, bar_index)
+        if showZone
+            box.set_extend(sBox, extend.none)
+            box.set_right(sBox, bar_index)
+        float legR = sHH - sLegLow
+        bool oteHit = legR > 0 and high >= sLegLow + legR * oteA and low <= sLegLow + legR * oteB
+        int score = (sKL ? 15 : 0) + (sKH ? 15 : 0) + (not trendUp ? 10 : 0) + (volHigh ? 5 : 0) + (sDisp > 0.5 ? 5 : 0) + (wickBear ? 5 : 0) + (oteHit ? 15 : 0) + (crtBias == -1 ? 15 : 0)
+        bool okTrend = trendMode == "Kapali" or not trendUp
+        bool okVol = not useVol or volHigh
+        if okTrend and okVol and inSess and score >= minScore
+            bearSig := true
+            float sl = sHH + atr * slBuf
+            if close < sl
+                float risk = sl - close
+                float tp = close - risk * rr
+                float qty = (account * riskPct / 100.0) / risk
+                lastSize := qty
+                lastSigTxt := "QML SAT @ " + str.tostring(close, format.mintick) + " (" + str.tostring(score) + ")"
+                label.new(bar_index, high, "QML SAT | " + str.tostring(score), yloc=yloc.abovebar, style=label.style_label_down, color=bearCol, textcolor=color.white, size=size.small, tooltip="Giris: " + str.tostring(close, format.mintick) + "\nSL: " + str.tostring(sl, format.mintick))
+                if showFibSig and legR > 0
+                    array<float> rs2 = array.from(0.5, oteA, oteB)
+                    for k = 0 to 2
+                        float pxk = sLegLow + legR * array.get(rs2, k)
+                        line.new(sHHBar, pxk, bar_index, pxk, color=color.new(color.orange, 30), style=line.style_dashed)
+                        label.new(bar_index, pxk, str.tostring(array.get(rs2, k)), style=label.style_none, textcolor=color.orange, size=size.tiny)
+                if newDir == 0
+                    newDir := -1
+                    newSL := sl
+                    newTP := tp
+        sState := 0
+if newDir != 0 and tDir == 0
+    tDir := newDir
+    tEntry := close
+    tSL := newSL
+    tTP := newTP
+    tR := math.abs(newTP - close) / math.abs(close - newSL)
+    if showRR
+        tpBox := box.new(bar_index, math.max(newTP, close), bar_index + 1, math.min(newTP, close), border_color=na, bgcolor=color.new(bullCol, 80))
+        slBox := box.new(bar_index, math.max(newSL, close), bar_index + 1, math.min(newSL, close), border_color=na, bgcolor=color.new(bearCol, 80))
+int buyScore = (trendUp ? 15 : 0) + (crtBias == 1 ? 25 : 0) + (buyFibZone ? 20 : 0) + (bullRej ? 10 : 0) + (bState == 2 ? 10 : 0)
+int sellScore = (not trendUp ? 15 : 0) + (crtBias == -1 ? 25 : 0) + (sellFibZone ? 20 : 0) + (bearRej ? 10 : 0) + (sState == 2 ? 10 : 0)
+buyRaw = useCandle and buyScore >= candleMin and buyScore > sellScore
+sellRaw = useCandle and sellScore >= candleMin and sellScore > buyScore
+candleBuy = buyRaw and not buyRaw[1]
+candleSell = sellRaw and not sellRaw[1]
+plot(showEma ? emaV : na, "Trend EMA", color=color.new(color.gray, 30), linewidth=1)
+plot(showCrtLvl and useCrt ? crtH : na, "CRT High", color=color.new(crtCol, 40), style=plot.style_stepline, linewidth=1)
+plot(showCrtLvl and useCrt ? crtL : na, "CRT Low", color=color.new(crtCol, 40), style=plot.style_stepline, linewidth=1)
+plot(showCrtLvl and useCrt ? crtEq : na, "CRT 50%", color=color.new(crtCol, 70), style=plot.style_stepline, linewidth=1)
+plotshape(candleBuy, "Mum AL", shape.triangleup, location.belowbar, bullCol, size=size.tiny)
+plotshape(candleSell, "Mum SAT", shape.triangledown, location.abovebar, bearCol, size=size.tiny)
+tblPos = dashPos == "Sag Ust" ? position.top_right : dashPos == "Sag Alt" ? position.bottom_right : dashPos == "Sol Ust" ? position.top_left : position.bottom_left
+var table tbl = table.new(tblPos, 2, 15, border_width=1, frame_width=1, frame_color=color.new(color.gray, 60), border_color=color.new(color.gray, 70))
+if barstate.islast and showDash
+    int total = wins + losses
+    float wr = total > 0 ? wins * 100.0 / total : na
+    float netR = grossW - losses * 1.0
+    float pf = losses > 0 ? grossW / losses : na
+    int nBull = 0
+    int nBear = 0
+    if array.size(fvgDir) > 0
+        for k = 0 to array.size(fvgDir) - 1
+            if array.get(fvgDir, k) == 1
+                nBull += 1
+            else
+                nBear += 1
+    color bgc = color.new(#131722, 10)
+    color tc = color.white
+    string crtTxt = crtBias == 1 ? "Boga (AL)" : crtBias == -1 ? "Ayi (SAT)" : (swHi and not swLo ? "Ust sweep" : (swLo and not swHi ? "Alt sweep" : "Bekliyor"))
+    string fibTxt = fibDir == 1 ? "Alis OTE" : fibDir == -1 ? "Satis OTE" : "-"
+    table.cell(tbl, 0, 0, "QML PRO v3", text_color=tc, bgcolor=color.new(#2962ff, 0), text_size=size.small)
+    table.cell(tbl, 1, 0, syminfo.ticker + " " + timeframe.period, text_color=tc, bgcolor=color.new(#2962ff, 0), text_size=size.small)
+    table.cell(tbl, 0, 1, "Bullish QML", text_color=tc, bgcolor=bgc, text_size=size.small, text_halign=text.align_left)
+    table.cell(tbl, 1, 1, stateTxt(bState), text_color=bState == 0 ? color.gray : bullCol, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 2, "Bearish QML", text_color=tc, bgcolor=bgc, text_size=size.small, text_halign=text.align_left)
+    table.cell(tbl, 1, 2, stateTxt(sState), text_color=sState == 0 ? color.gray : bearCol, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 3, "CRT yonu", text_color=tc, bgcolor=bgc, text_size=size.small, text_halign=text.align_left)
+    table.cell(tbl, 1, 3, crtTxt, text_color=crtBias == 1 ? bullCol : crtBias == -1 ? bearCol : crtCol, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 4, "CRT range", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 1, 4, na(crtH) ? "-" : str.tostring(crtL, format.mintick) + " - " + str.tostring(crtH, format.mintick), text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 5, "Aktif FVG (boga/ayi)", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 1, 5, str.tostring(nBull) + " / " + str.tostring(nBear), text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 6, "Fib bolgesi", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 1, 6, fibTxt + ((buyFibZone or sellFibZone) ? " (icinde)" : ""), text_color=fibDir == 1 ? bullCol : fibDir == -1 ? bearCol : color.gray, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 7, "Mum skoru AL / SAT", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 1, 7, str.tostring(buyScore) + " / " + str.tostring(sellScore), text_color=buyScore >= candleMin ? bullCol : sellScore >= candleMin ? bearCol : tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 8, "Trend (EMA " + str.tostring(emaLen) + ")", text_color=tc, bgcolor=bgc, text_size=size.small, text_halign=text.align_left)
+    table.cell(tbl, 1, 8, trendUp ? "Yukselen" : "Dusen", text_color=trendUp ? bullCol : bearCol, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 9, "Son sinyal", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 1, 9, lastSigTxt, text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 10, "Toplam islem", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 1, 10, str.tostring(total) + "  (" + str.tostring(wins) + "K / " + str.tostring(losses) + "Z)", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 11, "Kazanma orani", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 1, 11, na(wr) ? "-" : str.tostring(wr, "#.#") + "%", text_color=na(wr) ? color.gray : (wr >= 50 ? bullCol : bearCol), bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 12, "Net R", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 1, 12, str.tostring(netR, "#.##") + "R", text_color=netR >= 0 ? bullCol : bearCol, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 13, "Profit Factor", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 1, 13, na(pf) ? "-" : str.tostring(pf, "#.##"), text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 0, 14, "Son miktar (risk " + str.tostring(riskPct, "#.#") + "%)", text_color=tc, bgcolor=bgc, text_size=size.small)
+    table.cell(tbl, 1, 14, na(lastSize) ? "-" : str.tostring(lastSize, "#.####"), text_color=tc, bgcolor=bgc, text_size=size.small)
+alertcondition(bullSig, "QML AL", "QML AL sinyali: {{ticker}} {{interval}} fiyat: {{close}}")
+alertcondition(bearSig, "QML SAT", "QML SAT sinyali: {{ticker}} {{interval}} fiyat: {{close}}")
+alertcondition(crtBullSig, "CRT AL", "CRT AL sinyali: {{ticker}} {{interval}} fiyat: {{close}}")
+alertcondition(crtBearSig, "CRT SAT", "CRT SAT sinyali: {{ticker}} {{interval}} fiyat: {{close}}")
+alertcondition(candleBuy, "Mum AL skoru", "Mum bazli AL skoru esigi asildi: {{ticker}} {{interval}} fiyat: {{close}}")
+alertcondition(candleSell, "Mum SAT skoru", "Mum bazli SAT skoru esigi asildi: {{ticker}} {{interval}} fiyat: {{close}}")
