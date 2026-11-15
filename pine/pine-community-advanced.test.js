@@ -233,7 +233,7 @@ for (const item of [
   });
   let output;
   try {
-    output = runPine(parsed, dailyBars, { symbol: 'SPY', timeframe: '1D' });
+    output = runPine(parsed, dailyBars, { symbol: 'SPY', symbolType: 'stock', timezone: 'America/New_York', timeframe: '1D' });
   } catch (error) {
     console.error('UNMODIFIED COMMUNITY INDICATOR FAILED:', name);
     console.error({ name: error.name, code: error.code, message: error.message,
