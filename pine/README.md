@@ -2,7 +2,7 @@
 
 ## Güncel çalışma durumu
 
-- Pine v5/v6 lexer, parser ve bar-bar interpreter uygulamada çalışır; `request.security` için yüksek zaman dilimi verisi mumlardan birleştirilir, düşük zaman dilimi verisi ise gerçek alt mumlar üzerinden değerlendirilir.
+- Pine v5/v6 lexer, parser ve bar-bar interpreter uygulamada çalışır; `timeframe.in_seconds()` ve timeframe dönüşümü desteklenir; `request.security` için yüksek zaman dilimi verisi mumlardan birleştirilir, düşük zaman dilimi verisi ise gerçek alt mumlar üzerinden değerlendirilir.
 - `request.security` düşük zaman dilimi çağrısı, `lowerTimeframeData` / `securityLowerTfData` içindeki alt mumlardan her grafik mumunun son alt mumunu seçer. Veri yoksa tahmin üretmek yerine `PINE_MTF_DATA_REQUIRED` hatası verir.
 - BY LOTUSERIC uygulaması, MTF kullanan Pine kodu daha yüksek zaman diliminde çalıştırıldığında 1 dakikalık kapanmış mumları OKX, Binance veya Bybit genel piyasa API'sinden alır; sembol/borsa bazında 60 saniyelik önbellek kullanır.
 - Bağımsız topluluk uyumluluk korpusu: Quantum Algo SMC, QuanTAlib'den 7 örnek (HMA, Fisher, QQE, OBV, VWAP, Bollinger Bands, KAMA), Volume Profile (RegardHodler), POC/VAH/VAL Volume Profile (mervinj3546, MIT) ve MTF Checklist Dashboard. Bu 12 kaynak, kaynak kodları değiştirilmeden test edilir; bu sayı tüm Pine ekosisteminin desteklendiği anlamına gelmez.
