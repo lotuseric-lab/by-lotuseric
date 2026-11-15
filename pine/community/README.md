@@ -49,3 +49,15 @@ This directory contains unmodified, publicly published Pine sources used as comp
 - Copyright: © 2026 Volodymyr Filias (FeelsStrategy).
 - Exercises: Pine v6 user-defined types (`Pivot`, `Zone`), typed UDT arrays, UDT methods/field mutation, function parameters with UDT types, nested loops, pivot confirmation, zone clustering, drawing-object lifecycle and alerts.
 - Source file is retained unchanged; test harness asserts lexer/parser success and executes the original source against synthetic OHLCV data.
+
+
+## Additional MIT Pine v6 compatibility fixtures — FeelsStrategy
+- Liquidity Magnet: `liquidity-magnet-feelsstrategy-v6.pine`
+  - Source: https://github.com/VolodymyrFilias/feels-indicators/blob/main/indicators/liquidity-magnet.pine
+  - License: MIT; exact upstream notice in `FEELS-INDICATORS-MIT-LICENSE.txt`.
+  - Exercises: UDT pools/history, nested UDT field mutation, typed arrays, timeframe-aware scoring, loops, drawing object lifecycle, historical tracking and table dashboard.
+- Air Pocket Profile: `air-pocket-profile-feelsstrategy-v6.pine`
+  - Source: https://github.com/VolodymyrFilias/feels-indicators/blob/main/indicators/air-pocket-profile.pine
+  - License: MIT; exact upstream notice in `FEELS-INDICATORS-MIT-LICENSE.txt`.
+  - Exercises: range-distributed volume profile, nested loops, array buffers, box/line/label pooling, color gradients, dashboard and anchor history.
+- Both original Pine v6 sources are retained unchanged apart from the leading attribution comment; tests require clean lexing/parsing and execute them against synthetic OHLCV bars.
