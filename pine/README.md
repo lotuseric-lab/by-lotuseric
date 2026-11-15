@@ -5,7 +5,7 @@
 - Pine v5/v6 lexer, parser ve bar-bar interpreter uygulamada çalışır; `timeframe.in_seconds()` ve timeframe dönüşümü desteklenir; `request.security` için yüksek zaman dilimi verisi mumlardan birleştirilir, düşük zaman dilimi verisi ise gerçek alt mumlar üzerinden değerlendirilir.
 - `request.security` düşük zaman dilimi çağrısı, `lowerTimeframeData` / `securityLowerTfData` içindeki alt mumlardan her grafik mumunun son alt mumunu seçer. Veri yoksa tahmin üretmek yerine `PINE_MTF_DATA_REQUIRED` hatası verir.
 - BY LOTUSERIC uygulaması, MTF kullanan Pine kodu daha yüksek zaman diliminde çalıştırıldığında 1 dakikalık kapanmış mumları OKX, Binance veya Bybit genel piyasa API'sinden alır; sembol/borsa bazında 60 saniyelik önbellek kullanır.
-- Bağımsız topluluk uyumluluk korpusu: Quantum Algo SMC, QuanTAlib'den 7 örnek (HMA, Fisher, QQE, OBV, VWAP, Bollinger Bands, KAMA), Volume Profile (RegardHodler), POC/VAH/VAL Volume Profile (mervinj3546, MIT) ve MTF Checklist Dashboard. Bu 12 kaynak, kaynak kodları değiştirilmeden test edilir; bu sayı tüm Pine ekosisteminin desteklendiği anlamına gelmez.
+- Bağımsız topluluk uyumluluk korpusu: Quantum Algo SMC, QuanTAlib'den 7 örnek (HMA, Fisher, QQE, OBV, VWAP, Bollinger Bands, KAMA), Volume Profile (RegardHodler), POC/VAH/VAL Volume Profile (mervinj3546, MIT), MTF Checklist Dashboard ve FeelsStrategy'den 3 gösterge (S&R Zones, Liquidity Magnet, Air Pocket Profile; MIT). Bu 14 kaynak, kaynak kodları değiştirilmeden test edilir; bu sayı tüm Pine ekosisteminin desteklendiği anlamına gelmez.
 - Güncel otomatik doğrulama: 900 sentetik 1 dakikalık mum üzerinde topluluk testleri; MTF paneli ayrıca 180 adet 5 dakikalık mum ve 900 adet 1 dakikalık alt mum ile çalıştırılır. Her yeni dil özelliği için regresyon testi eklenir.
 - Harici sembol verisi, bütün Pine dil özellikleri, tüm borsa zaman dilimi kombinasyonları ve TradingView ile birebir sonuç eşitliği henüz tamamlanmış değildir. Desteklenmeyen veri/özellik açık hata üretmelidir.
 
@@ -65,3 +65,9 @@ Bu yine tam Pine parser değildir: `switch` yapısının tüm biçimleri, `else 
 - Kaynak dosyası değiştirilmeden korpusa alındı; lisans bildirimi `pine/community/FEELS-INDICATORS-MIT-LICENSE.txt` içinde.
 - Bu gösterge, UDT (`Pivot`, `Zone`), UDT dizileri, nesne alanı güncellemeleri, kümelendirme döngüleri ve çizim nesnesi havuzlaması için gerçek dünya uyumluluk testi.
 - Derleme/çalıştırma başarısı CI tamamlanınca ayrıca raporlanacak; yalnızca kaynak eklenmesi uyumluluk kanıtı değildir.
+
+### Yeni topluluk testleri: FeelsStrategy Liquidity Magnet ve Air Pocket Profile
+- Her iki Pine v6 dosyası MIT lisanslı upstream depodan alındı; kaynak kodu değiştirilmedi, yalnızca dosyanın başına atıf yorumu eklendi.
+- Liquidity Magnet testi UDT tabanlı likidite havuzları, geçmiş sonuç takibi ve çizim/panel çıktısını kapsar.
+- Air Pocket Profile testi hacim dağıtımı, fiyat aralığı kutuları, POC/HVN çizimleri ve panel çıktısını kapsar.
+- İki gösterge de lexer, parser ve sentetik OHLCV üzerinde gerçek interpreter çalıştırmasından geçmeden uyumlu sayılmaz.
