@@ -172,3 +172,19 @@ console.log('Additional community Pine tests: ' + cases.length + ' indicators pa
       lines: output.lines?.length || 0, labels: output.labels?.length || 0,
       boxes: output.boxes?.length || 0, alerts: output.alerts?.length || 0 }));
 }
+
+
+// timeframe.in_seconds() / timeframe.in_seconds(timeframe) are used by
+// real-world Pine scripts to select appropriate lower-timeframe sources.
+{
+  const source = `//@version=6
+indicator("Timeframe seconds")
+plot(timeframe.in_seconds(), "Chart timeframe seconds")
+plot(timeframe.in_seconds("5"), "Five-minute seconds")
+plot(timeframe.in_seconds("1D"), "Daily seconds")
+`;
+  const parsed = parsePine(lexPine(source).tokens);
+  assert.deepEqual(parsed.diagnostics, []);
+  const out = runPine(parsed, bars.slice(0, 2), { symbol: 'BTCUSDT', timeframe: '15' });
+  assert.deepEqual(out.plots.map(p => p.values), [[900, 900], [300, 300], [86400, 86400]]);
+}
