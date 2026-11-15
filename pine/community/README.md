@@ -61,3 +61,13 @@ This directory contains unmodified, publicly published Pine sources used as comp
   - License: MIT; exact upstream notice in `FEELS-INDICATORS-MIT-LICENSE.txt`.
   - Exercises: range-distributed volume profile, nested loops, array buffers, box/line/label pooling, color gradients, dashboard and anchor history.
 - Both original Pine v6 sources are retained unchanged apart from the leading attribution comment; tests require clean lexing/parsing and execute them against synthetic OHLCV bars.
+
+
+## Additional MIT Pine v6 compatibility fixtures — FeelsStrategy (continued)
+- Power of Three: `power-of-three-feelsstrategy-v6.pine`
+  - Source: https://github.com/VolodymyrFilias/feels-indicators/blob/main/indicators/power-of-three.pine
+  - Exercises: accumulation/manipulation/distribution cycle detection, historical cycle statistics, stateful arrays and projected paths.
+- Confluence Pivot Zones: `confluence-pivot-zones-feelsstrategy-v6.pine`
+  - Source: https://github.com/VolodymyrFilias/feels-indicators/blob/main/indicators/confluence-pivot-zones.pine
+  - Exercises: pivot clustering, confluence scoring, typed UDT/array state, cooldowns, zone drawings and entry signals.
+- Both are MIT © Volodymyr Filias (FeelsStrategy); retain the shared upstream notice in `FEELS-INDICATORS-MIT-LICENSE.txt`. Original logic is unchanged; only the leading attribution comment is added.
