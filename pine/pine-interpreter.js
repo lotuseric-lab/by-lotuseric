@@ -214,7 +214,19 @@
       lower:v=>String(value(v)||"").toLowerCase(),upper:v=>String(value(v)||"").toUpperCase(),
       contains:(a,b)=>String(value(a)).includes(String(value(b))),startswith:(a,b)=>String(value(a)).startsWith(String(value(b))),
       endswith:(a,b)=>String(value(a)).endsWith(String(value(b))),substring:(a,start,end)=>String(value(a)).slice(Math.trunc(num(value(start))),end===undefined?undefined:Math.trunc(num(value(end)))),
-      format:(fmt,...args)=>{let i=0;return String(value(fmt)).replace(/\\{(\d+)\\}/g,(m,n)=>args[Number(n)]===undefined?m:String(value(args[Number(n)])));}
+      format:(fmt,...args)=>String(value(fmt)).replace(/\\{(\\d+)\\}/g,(m,n)=>args[Number(n)]===undefined?m:String(value(args[Number(n)]))),
+      format_time:(timestamp,fmt,timezone)=>{
+        const seconds=num(value(timestamp));
+        if(!Number.isFinite(seconds))return NA;
+        const date=new Date(seconds*1000);
+        if(!Number.isFinite(date.getTime()))return NA;
+        const zone=String(value(timezone)||options.timezone||"Etc/UTC");
+        const pattern=String(value(fmt)||"yyyy-MM-dd HH:mm:ss");
+        const parts=new Intl.DateTimeFormat("en-US",{timeZone:zone,year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hourCycle:"h23"}).formatToParts(date);
+        const p=Object.fromEntries(parts.map(x=>[x.type,x.value]));
+        const tokens={yyyy:p.year,yy:p.year.slice(-2),MM:p.month,M:String(Number(p.month)),dd:p.day,d:String(Number(p.day)),HH:p.hour,H:String(Number(p.hour)),hh:String((Number(p.hour)%12)||12).padStart(2,"0"),h:String((Number(p.hour)%12)||12),mm:p.minute,m:String(Number(p.minute)),ss:p.second,s:String(Number(p.second))};
+        return pattern.replace(/yyyy|yy|MM|M|dd|d|HH|H|hh|h|mm|m|ss|s/g,k=>tokens[k]);
+      }
     };
     ta.cci=(src,len)=>{const m=sma(src,len);return rolling(src,len,w=>{const mean=w.reduce((z,x)=>z+num(x),0)/w.length,dev=w.reduce((z,x)=>z+Math.abs(num(x)-mean),0)/w.length;return dev===0?NA:(num(value(src))-mean)/(0.015*dev);});};
     ta.dev=(src,len)=>rolling(src,len,w=>{const mean=w.reduce((z,x)=>z+num(x),0)/w.length;return w.reduce((z,x)=>z+Math.abs(num(x)-mean),0)/w.length;});
