@@ -680,7 +680,7 @@
     builtins.text={align_left:"left",align_center:"center",align_right:"right",align_top:"top",align_middle:"middle",align_bottom:"bottom"};
     builtins.line=lineNS;builtins.linefill=linefillNS;builtins.label=labelNS;builtins.box=boxNS;builtins.table=tableNS;
     Object.defineProperty(lineNS,"all",{get:()=>outputs.lines.filter(x=>!x.deleted)});Object.defineProperty(linefillNS,"all",{get:()=>outputs.linefills.filter(x=>!x.deleted)});Object.defineProperty(labelNS,"all",{get:()=>outputs.labels.filter(x=>!x.deleted)});Object.defineProperty(boxNS,"all",{get:()=>outputs.boxes.filter(x=>!x.deleted)});
-    Object.assign(labelNS,{style_label_left:"label_left",style_label_right:"label_right",style_label_up:"label_up",style_label_down:"label_down",style_none:"none"});
+    Object.assign(labelNS,{style_label_left:"label_left",style_label_right:"label_right",style_label_up:"label_up",style_label_down:"label_down",style_label_center:"label_center",style_none:"none"});
     Object.assign(builtins.hline,{style_solid:"solid",style_dotted:"dotted",style_dashed:"dashed"});
     return builtins;
   }
