@@ -31,6 +31,7 @@ jobs:
       - run: node pine/pine-parser.test.js
       - run: node pine/pine-runtime.test.js
       - run: node pine/pine-interpreter.test.js
+      - run: node pine/pine-syntax-coverage.test.js
       - run: node pine/pine-critical-kademeler.test.js
       - run: node pine/pine-function-series-history.test.js
       - run: node pine/pine-security-tuple-history.test.js
