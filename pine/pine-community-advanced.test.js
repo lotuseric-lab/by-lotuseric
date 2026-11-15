@@ -210,6 +210,45 @@ for (const item of [
 }
 
 
+// Timon Krueger MIT RSI(2) daily dip signals: nested daily function state,
+// tuple-returning request.security, force_overlay plots/table, input.time,
+// timestamps, format_time and confirmed-bar execution.
+{
+  const file = 'rsi2-dip-signals-timonkru-v6.pine';
+  const name = 'RSI(2) Dip Above SMA200 [Timon Krueger]';
+  const source = fs.readFileSync(path.join(__dirname, 'community', file), 'utf8');
+  assert.ok(source.startsWith('// © Timon Krueger'), name + ' must retain author attribution');
+  assert.ok(source.includes('//@version=6'), name + ' must remain Pine v6');
+  const lexed = lexPine(source);
+  assert.deepEqual(lexed.diagnostics, [], name + ' lexer diagnostics');
+  const parsed = parsePine(lexed.tokens);
+  assert.deepEqual(parsed.diagnostics, [], name + ' parser diagnostics');
+  const dailyBars = Array.from({ length: 260 }, (_, i) => {
+    const trend = 100 + i * 0.08;
+    const wave = Math.sin(i / 4.5) * 2.8 + Math.cos(i / 13) * 1.2;
+    const close = trend + wave;
+    const open = trend + Math.sin((i - 1) / 4.5) * 2.8 + Math.cos((i - 1) / 13) * 1.2;
+    return { time: 946684800 + i * 86400, open, high: Math.max(open, close) + 1.1,
+      low: Math.min(open, close) - 1.1, close, volume: 500000 + (i % 19) * 12000 };
+  });
+  let output;
+  try {
+    output = runPine(parsed, dailyBars, { symbol: 'SPY', timeframe: '1D' });
+  } catch (error) {
+    console.error('UNMODIFIED COMMUNITY INDICATOR FAILED:', name);
+    console.error({ name: error.name, code: error.code, message: error.message,
+      line: error.line, column: error.column });
+    throw error;
+  }
+  assert.ok(output && typeof output === 'object', name + ' must return output');
+  assert.ok(output.plots?.length >= 3, name + ' must output daily averages and RSI pane');
+  assert.ok(output.tables?.length > 0, name + ' must render the statistics table');
+  console.log('Unmodified community Pine v6 passed:', name,
+    JSON.stringify({ bars: dailyBars.length, plots: output.plots?.length || 0,
+      tables: output.tables?.length || 0, labels: output.labels?.length || 0 }));
+}
+
+
 // timeframe.in_seconds() / timeframe.in_seconds(timeframe) are used by
 // real-world Pine scripts to select appropriate lower-timeframe sources.
 {
