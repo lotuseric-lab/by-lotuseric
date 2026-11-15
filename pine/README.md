@@ -5,7 +5,7 @@
 - Pine v5/v6 lexer, parser ve bar-bar interpreter uygulamada çalışır; `timeframe.in_seconds()` ve timeframe dönüşümü desteklenir; `request.security` için yüksek zaman dilimi verisi mumlardan birleştirilir, düşük zaman dilimi verisi ise gerçek alt mumlar üzerinden değerlendirilir.
 - `request.security` düşük zaman dilimi çağrısı, `lowerTimeframeData` / `securityLowerTfData` içindeki alt mumlardan her grafik mumunun son alt mumunu seçer. Veri yoksa tahmin üretmek yerine `PINE_MTF_DATA_REQUIRED` hatası verir.
 - BY LOTUSERIC uygulaması, MTF kullanan Pine kodu daha yüksek zaman diliminde çalıştırıldığında 1 dakikalık kapanmış mumları OKX, Binance veya Bybit genel piyasa API'sinden alır; sembol/borsa bazında 60 saniyelik önbellek kullanır.
-- Bağımsız topluluk uyumluluk korpusu: Quantum Algo SMC, QuanTAlib'den 7 örnek (HMA, Fisher, QQE, OBV, VWAP, Bollinger Bands, KAMA), Volume Profile (RegardHodler), POC/VAH/VAL Volume Profile (mervinj3546, MIT), MTF Checklist Dashboard ve FeelsStrategy'den 5 gösterge (S&R Zones, Liquidity Magnet, Air Pocket Profile, Power of Three, Confluence Pivot Zones; MIT). Bu 17 kaynak, kaynak kodları değiştirilmeden test edilir; bu sayı tüm Pine ekosisteminin desteklendiği anlamına gelmez.
+- Bağımsız topluluk uyumluluk korpusu: Quantum Algo SMC, QuanTAlib'den 7 örnek (HMA, Fisher, QQE, OBV, VWAP, Bollinger Bands, KAMA), Volume Profile (RegardHodler), POC/VAH/VAL Volume Profile (mervinj3546, MIT), MTF Checklist Dashboard ve FeelsStrategy'den 5 gösterge (S&R Zones, Liquidity Magnet, Air Pocket Profile, Power of Three, Confluence Pivot Zones; MIT). Bu 18 kaynak, kaynak kodları değiştirilmeden test edilir; bu sayı tüm Pine ekosisteminin desteklendiği anlamına gelmez.
 - Güncel otomatik doğrulama: 900 sentetik 1 dakikalık mum üzerinde topluluk testleri; MTF paneli ayrıca 180 adet 5 dakikalık mum ve 900 adet 1 dakikalık alt mum ile çalıştırılır. Her yeni dil özelliği için regresyon testi eklenir.
 - Harici sembol verisi, bütün Pine dil özellikleri, tüm borsa zaman dilimi kombinasyonları ve TradingView ile birebir sonuç eşitliği henüz tamamlanmış değildir. Desteklenmeyen veri/özellik açık hata üretmelidir.
 
@@ -80,3 +80,8 @@ Bu yine tam Pine parser değildir: `switch` yapısının tüm biçimleri, `else 
 - Kaynak: https://github.com/Timonkru/pine-indicators (MIT).
 - Günlük veri üzerinde tuple döndüren `request.security`, fonksiyon içi kalıcı durum, `input.time`, zaman biçimlendirme, `force_overlay` ve tablo çıktısı test edilir.
 - Kaynak gösterge mantığı değiştirilmeden korunur; CI gerçek interpreter çıktısını doğrular.
+
+### Yeni topluluk testi: Futures Volume + Delta [Timon Krueger]
+- Kaynak: https://github.com/Timonkru/pine-indicators (MIT).
+- 5 dakikalık grafik ve sağlanan 1 dakikalık alt mum verisiyle `request.security_lower_tf` tuple dizileri, zaman dilimi çarpanı, hacim/range örnek dizileri ve panel grafikleri sınanır.
+- Sentetik testte canlı harici vadeli işlem sembolü verisi kullanılmaz; kaynak kod mantığı korunur.
