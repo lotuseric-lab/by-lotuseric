@@ -32,7 +32,7 @@ const mobileClipboardReport = analyzePineSource("\u200B" + sample);
 assert.equal(mobileClipboardReport.version, 6);
 assert.equal(mobileClipboardReport.diagnostics.length, 0);
 
-const spacedDirectiveReport = analyzePineSource("  //@version=6\\nindicator('Space', overlay=true)");
+const spacedDirectiveReport = analyzePineSource("  //@version=6\nindicator('Space', overlay=true)");
 assert.equal(spacedDirectiveReport.version, 6);
 
 assert.equal(report.requirements.plots, true);
