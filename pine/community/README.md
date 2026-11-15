@@ -71,3 +71,11 @@ This directory contains unmodified, publicly published Pine sources used as comp
   - Source: https://github.com/VolodymyrFilias/feels-indicators/blob/main/indicators/confluence-pivot-zones.pine
   - Exercises: pivot clustering, confluence scoring, typed UDT/array state, cooldowns, zone drawings and entry signals.
 - Both are MIT © Volodymyr Filias (FeelsStrategy); retain the shared upstream notice in `FEELS-INDICATORS-MIT-LICENSE.txt`. Original logic is unchanged; only the leading attribution comment is added.
+
+
+## Additional MIT Pine v6 fixture — Timon Krueger
+- RSI(2) Dip Above SMA200 — Signals: `rsi2-dip-signals-timonkru-v6.pine`
+- Source: https://github.com/Timonkru/pine-indicators/blob/main/rsi2_dip_signals.pine
+- License: MIT; exact upstream license text is retained in `TIMONKRU-MIT-LICENSE.txt`.
+- Exercises: nested daily-core function with persistent state, tuple-returning `request.security`, daily timeframe handling, `input.time`, timestamps, `str.format_time`, `force_overlay` plots and table output.
+- Source logic is retained; only the leading copyright attribution comment is added.
