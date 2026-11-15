@@ -160,8 +160,14 @@
         }
       }
     }
-    const directive = tokens.find(t => t.type === "DIRECTIVE");
-    const versionMatch = directive && directive.value.match(/@version\s*=\s*(\d+)/);
+    // Read the version pragma from raw source as well as lexer tokens.
+    // Mobile keyboards/clipboards can prepend invisible Unicode characters.
+    const firstLine = String(source == null ? "" : source)
+      .replace(/^\\uFEFF/, "")
+      .replace(/\\r\\n?/g, "\\n")
+      .split("\\n", 1)[0]
+      .replace(/^[\\s\\u200B\\u200C\\u200D\\u2060]+/, "");
+    const versionMatch = firstLine.match(/^\\/\\/\\s*@version\\s*=\\s*(\\d+)\\s*$/);
     const version = versionMatch ? Number(versionMatch[1]) : null;
     const errors = result.diagnostics.slice();
     if (version !== 5 && version !== 6) {
