@@ -35,6 +35,10 @@ assert.equal(mobileClipboardReport.diagnostics.length, 0);
 const spacedDirectiveReport = analyzePineSource("  //@version=6\nindicator('Space', overlay=true)");
 assert.equal(spacedDirectiveReport.version, 6);
 
+const leadingBlankReport = analyzePineSource("\n\n//@version=6\\nindicator('Leading blank', overlay=true)");
+assert.equal(leadingBlankReport.version, 6);
+
+
 assert.equal(report.requirements.plots, true);
 assert.equal(report.requirements.labels, true);
 assert.equal(report.requirements.functions, false);
