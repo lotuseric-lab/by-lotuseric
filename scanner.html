@@ -69,7 +69,7 @@ const API='https://www.okx.com', WS='wss://ws.okx.com:8443/ws/v5/public';
 const $=id=>document.getElementById(id);
 const state={instruments:[],tickers:new Map(),results:[],tab:'all',selected:null,chart:null,candleSeries:null,chartTf:'5m',busy:false,lastScan:0,priceLines:[]};
 const tfMap={'1m':'1m','3m':'3m','5m':'5m','15m':'15m','30m':'30m','1H':'1H','2H':'2H','4H':'4H','6H':'6H','12H':'12H','1D':'1D','1W':'1W','1M':'1M'};
-const fmt=n=>{if(!Number.isFinite(n))return '—';if(n>=1000)return n.toLocaleString('en-US',{maximumFractionDigits:2});if(n>=1)return n.toFixed(4);return n.toPrecision(5)};
+const quoteVolume=t=>Number(t&&t.volCcy24h||0)*Number(t&&t.last||0);\nconst fmt=n=>{if(!Number.isFinite(n))return '—';if(n>=1000)return n.toLocaleString('en-US',{maximumFractionDigits:2});if(n>=1)return n.toFixed(4);return n.toPrecision(5)};
 const volFmt=n=>n>=1e9?(n/1e9).toFixed(2)+'B':n>=1e6?(n/1e6).toFixed(2)+'M':n>=1e3?(n/1e3).toFixed(1)+'K':Math.round(n).toString();
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function setStatus(s,ok=false){$('connection').textContent=s;$('connection').style.color=ok?'var(--green)':'var(--gold)';}
@@ -121,7 +121,7 @@ async function scanAll(){
  try{
   if(!state.instruments.length)await loadMarkets();
   const tf=$('timeframe').value,minVol=+$('minVolume').value;
-  const universe=state.instruments.filter(x=>{const t=state.tickers.get(x.instId);return t&&Number(t.volCcy24h||0)>=minVol;});
+  const universe=state.instruments.filter(x=>{const t=state.tickers.get(x.instId);return t&&quoteVolume(t)>=minVol;});
   const results=[];let cursor=0;
   await workerPool(universe,5,async inst=>{
    const c=await candles(inst.instId,tf);if(c.length<70)return;
@@ -131,7 +131,7 @@ async function scanAll(){
    const closed=raw.filter(r=>r[8]==='1').map(barFromRow).reverse();
    if(closed.length<70)return;
    const a=analyse(closed),ticker=state.tickers.get(inst.instId);
-   if(a.kind!=='none')results.push({inst,a,ticker,volume:+(ticker.volCcy24h||0),change:+(ticker.sodUtc8||0)});
+   if(a.kind!=='none')results.push({inst,a,ticker,volume:quoteVolume(ticker),change:+(ticker.sodUtc8||0)});
    cursor++;
    await new Promise(r=>setTimeout(r,260));
   });
@@ -145,7 +145,7 @@ async function scanAll(){
 }
 function render(){
  const q=$('search').value.trim().toUpperCase(),sort=$('sort').value;
- let list=state.instruments.map(inst=>({inst,ticker:state.tickers.get(inst.instId),a:(state.results.find(x=>x.inst.instId===inst.instId)||{}).a||{kind:'none',quality:0},volume:+((state.tickers.get(inst.instId)||{}).volCcy24h||0)})).filter(x=>x.ticker&&x.inst.instId.toUpperCase().includes(q));
+ let list=state.instruments.map(inst=>({inst,ticker:state.tickers.get(inst.instId),a:(state.results.find(x=>x.inst.instId===inst.instId)||{}).a||{kind:'none',quality:0},volume:quoteVolume(state.tickers.get(inst.instId))})).filter(x=>x.ticker&&x.inst.instId.toUpperCase().includes(q));
  if(state.tab==='signals')list=list.filter(x=>x.a.kind!=='none'&&!x.a.kind.startsWith('setup'));
  if(state.tab==='setups')list=list.filter(x=>x.a.kind.startsWith('setup'));
  if(state.tab==='long')list=list.filter(x=>['long','pump','setup-long'].includes(x.a.kind));
