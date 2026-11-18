@@ -9,6 +9,7 @@ Goal: build a responsive, installable, multi-exchange charting and analysis work
 - Preserve working features while each release is added and tested.
 - Show data source, exchange, symbol, timeframe and connection state clearly.
 - Avoid false claims: Pine compatibility is feature-by-feature, not full parity.
+- Spot and perpetual markets are analyzed separately; their risk and signal rules must not be mixed.
 
 ## Release plan
 
@@ -47,13 +48,45 @@ Goal: build a responsive, installable, multi-exchange charting and analysis work
 - Foreground alerts first; reliable background/push/Telegram requires a secure relay service.
 - Demo trade journal and replay tools; no live order execution by default.
 
+### Phase 6 — AI analysis layer (new priority)
+- Two-stage pipeline: indicator/source scan first, independent AI scoring second. The AI layer must not invent a signal when the source scan found none.
+- Keep the AI decision settings in a dedicated panel with editable weights, minimum score and clear score explanations.
+- Reference weighting from the supplied design: ADX trend strength 25%, RSI momentum 20%, volume participation 20%, signal consistency 15%, HTF/MTF alignment 10%. The supplied values total 90%; reserve the remaining 10% for ATR/volatility health so the scoring model totals 100%.
+- Display a factor-by-factor score, positive/negative evidence, missing data, confidence, invalidation level and a concise Turkish explanation on every approved candidate.
+- Separate "candidate", "watch", "confirmed" and "rejected" states. A high score is not a guarantee and must not be presented as a buy/sell instruction.
+- Use closed candles for confirmation, record the candle timestamp and data source, and label provisional live-candle readings as provisional.
+- Add a BTC/ETH market-regime check, liquidity/spread checks, volatility and abnormal-move filters, and duplicate/cooldown controls.
+- Store every evaluated candidate, including rejected candidates, so later outcome analysis is not biased toward only successful alerts.
+- Evaluate outcomes at 1h, 4h and 24h with fees/slippage assumptions; keep model training disabled until there is enough clean, labeled data and out-of-sample validation.
+
+### Phase 7 — Spot opportunity scanner (new priority)
+- Add spot as a separate market mode, not as a perpetual-market toggle over the same rules.
+- Discover active spot instruments dynamically for each supported exchange; exclude inactive, delisted, leveraged-token and unsupported quote pairs.
+- Configurable exchange, quote currency (default USDT), minimum 24h quote volume, maximum coin price (optional), scan limit and result count.
+- Rank a "Top 6 spot candidates" list by liquidity, spread, trend, momentum, volume expansion, breakout quality, volatility health and broader BTC/market regime.
+- Spot is long-only: no SHORT cards, leverage fields or perpetual funding logic. Show entry zone, invalidation/stop reference, staged target zones and estimated risk/reward only when the data supports them.
+- Price ceiling is an optional preference filter, never a quality score; a low nominal coin price does not mean a coin is cheap or undervalued.
+- Display the exchange-native pair, last price, 24h quote volume, spread, score, timeframe, signal age and the reason it ranked.
+- Support both one-shot scans and an explicitly enabled foreground refresh loop; report stale data and partial exchange failures.
+
+## AI scoring reference from the supplied UI
+- ADX trend strength: 25
+- RSI momentum: 20
+- Volume participation: 20
+- Signal consistency: 15
+- HTF/MTF alignment: 10
+- ATR / volatility health: 10 (added to close the 90-point gap in the reference weights)
+- Default approval threshold: 70/100, adjustable by the user.
+These are initial product defaults, not empirically validated trading parameters. They must be calibrated using logged outcomes and out-of-sample tests before being described as predictive.
+
 ## Exchange adapter contract
 Each adapter must normalize:
-- exchange id and market category
+- exchange id and market category (spot / linear perpetual)
 - canonical symbol and exchange-native symbol
 - instrument discovery and tradability state
 - OHLCV candles (time in Unix seconds, numeric OHLCV, closed flag)
 - ticker / last price
+- 24h quote volume and best bid/ask or spread where available
 - WebSocket subscription and reconnect behavior
 
 ## Initial exchange documentation
