@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "13.1",
-  "build": 131,
-  "publishedAt": "2026-11-19T10:56:00+03:00",
-  "notes": "v13 Sunucu Proxy korunarak uygulama içi sürüm kontrolü eklendi"
+  "version": "13.2",
+  "build": 132,
+  "publishedAt": "2026-11-19T19:30:00+03:00",
+  "notes": "Perpetual tarama için sunucu proxy bağlantısı; Spot ve AI motoru korunmuştur."
 }
