@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "14.3",
-  "build": 143,
-  "publishedAt": "2026-11-21T08:30:00+03:00",
-  "notes": "Güncelleme düğmesinin tıklama ve önbellek yenileme akışı düzeltildi; sürüm kontrolü 14.3 ile eşitlendi. İndikatör listesi 01–33 sırasını korur."
+  "version": "14.4",
+  "build": 144,
+  "publishedAt": "2026-11-21T09:00:00+03:00",
+  "notes": "Emir defteri imbalance alanı null veya geçersiz olduğunda sinyal kartı render hatası vermez; eksik veri güvenli biçimde — gösterilir."
 }
