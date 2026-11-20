@@ -1058,7 +1058,7 @@ async function ensureChartLibrary(){
  close.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();closePanel()});
  head.append(title,close);aside.prepend(head);
  const tabs=document.createElement('div');tabs.className='analysisPanelTabs';tabs.setAttribute('role','tablist');
- labels.forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.panel=id;b.setAttribute('role','tab');b.addEventListener('click',()=>{sections.forEach(sec=>sec.classList.toggle('panel-hidden',sec.id!==id));tabs.querySelectorAll('button').forEach(x=>{const on=x===b;x.classList.toggle('active',on);x.setAttribute('aria-selected',String(on))})});tabs.appendChild(b)});
+ labels.forEach(([id,label])=>{const b=document.createElement('button');b.type='button';b.textContent=label;b.dataset.panel=id;b.setAttribute('role','tab');b.addEventListener('click',()=>{sections.forEach(sec=>sec.classList.toggle('panel-hidden',sec.id!==id));tabs.querySelectorAll('button').forEach(x=>{const on=x===b;x.classList.toggle('active',on);x.setAttribute('aria-selected',String(on))});if(id==='aiLearningPanel')loadAILearning()});tabs.appendChild(b)});
  aside.insertBefore(tabs,sections[0]||null);
  sections.forEach(sec=>sec.classList.toggle('panel-hidden',sec.id!=='signalPanel'));
  const backdrop=document.getElementById('analysisPanelBackdrop');
