@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "13.4",
-  "build": 134,
-  "publishedAt": "2026-11-20T08:30:00+03:00",
-  "notes": "Borsada Aç bağlantısı aynı sekmede açılır; AI öğrenme/eğitim durumu 12 değerlendirme kademesi için gösterilir."
+  "version": "13.5",
+  "build": 135,
+  "publishedAt": "2026-11-20T08:45:00+03:00",
+  "notes": "Öğrenme paneli açılır-kapanır; sinyal kartlarına coine özel TradingView Aç eklendi."
 }
