@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "13.8",
-  "build": 138,
-  "publishedAt": "2026-11-21T08:00:00+03:00",
-  "notes": "v13.7 tarama ve borsa bağlantıları korunarak Supabase herkese açık AI öğrenme özeti ve 1 saatlik geçmiş performans/kalibrasyon paneli eklendi. ML modeli hâlâ eğitilmedi; canlı emir kapalı."
+  "version": "13.9",
+  "build": 139,
+  "publishedAt": "2026-11-21T08:30:00+03:00",
+  "notes": "Borsa bazlı açılır-kapanır performans kartları; 1m–48h zaman ufku seçimi; yön başarı yüzdesi, ortalama getiri, örnek/sonuç sayısı ve ayrı skor kalibrasyonu. Her sinyal/outcome kaydından sonra otomatik yenileme; 60 saniyede bir güvenlik yenilemesi."
 }
