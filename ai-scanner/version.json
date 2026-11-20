@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "14.0",
-  "build": 140,
-  "publishedAt": "2026-11-21T00:45:00+03:00",
-  "notes": "33. indikatör: MONEY TRADER SİHİRLİ ÇİZGİLER (DI-/RSI kesişimleri ve RSI pozitif/negatif uyumsuzlukları). Önceki 32 indikatör korunmuştur; yeni indikatör varsayılan seçime eklenmiştir."
+  "version": "14.1",
+  "build": 141,
+  "publishedAt": "2026-11-21T08:00:00+03:00",
+  "notes": "33. indikatör güncellendi: DI-/RSI kesişimleri, RSI pozitif/negatif uyumsuzlukları ve yüzde hareket AL/SAT sinyalleri. Kaynak sembol tarayıcıda çözümlenemediğinde aktif coin yedek kaynak olarak kullanılır. Önceki 32 indikatör korunmuştur."
 }
