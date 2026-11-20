@@ -1082,7 +1082,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>>
 <script>
 (()=>{'use strict';
-const APP_VERSION='14.3',MANIFEST='./version.json';let latest=null;
+const APP_VERSION='14.4',MANIFEST='./version.json';let latest=null;
 const $=id=>document.getElementById(id);
 function cmp(a,b){const x=String(a||'0').split('.').map(v=>parseInt(v,10)||0),y=String(b||'0').split('.').map(v=>parseInt(v,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
 async function check(){const b=$('lotuseric-update-check'),v=$('lotuseric-version'),a=$('lotuseric-update-apply');if(b){b.disabled=true;b.textContent='KONTROL EDİLİYOR…';}if(v)v.textContent='Güncelleme kontrol ediliyor…';try{const r=await fetch(MANIFEST+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();if(!d.version)throw Error('Sürüm bilgisi geçersiz');latest=d;const newer=cmp(d.version,APP_VERSION)>0;if(v)v.textContent=newer?'Yeni sürüm bulundu: v'+d.version+' · '+(d.notes||''):'v'+APP_VERSION+' · Güncel';if(a){a.hidden=!newer;a.textContent='ŞİMDİ GÜNCELLE';}if(b)b.textContent=newer?'↻ YENİ SÜRÜM HAZIR':'✓ GÜNCEL';}catch(e){if(v)v.textContent='Kontrol başarısız: '+e.message;if(b)b.textContent='↻ TEKRAR DENE';if(a)a.hidden=true;}finally{if(b)b.disabled=false;}}
