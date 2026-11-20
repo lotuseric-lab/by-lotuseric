@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "13.6",
-  "build": 136,
-  "publishedAt": "2026-11-20T09:00:00+03:00",
-  "notes": "Borsa uygulamasına yönlendirme bağlantıları ve USDT Perpetual sözleşme sembol eşlemesi iyileştirildi."
+  "version": "13.7",
+  "build": 137,
+  "publishedAt": "2026-11-20T09:20:00+03:00",
+  "notes": "Daha önce iPhone'da çalıştığı doğrulanan okex://main OKX uygulama bağlantısı geri getirildi; diğer borsaların web/Universal Link yönlendirmeleri korundu."
 }
