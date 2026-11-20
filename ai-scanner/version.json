@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "13.9",
-  "build": 139,
-  "publishedAt": "2026-11-21T08:30:00+03:00",
-  "notes": "Borsa bazlı açılır-kapanır performans kartları; 1m–48h zaman ufku seçimi; yön başarı yüzdesi, ortalama getiri, örnek/sonuç sayısı ve ayrı skor kalibrasyonu. Her sinyal/outcome kaydından sonra otomatik yenileme; 60 saniyede bir güvenlik yenilemesi."
+  "version": "14.0",
+  "build": 140,
+  "publishedAt": "2026-11-21T00:45:00+03:00",
+  "notes": "33. indikatör: MONEY TRADER SİHİRLİ ÇİZGİLER (DI-/RSI kesişimleri ve RSI pozitif/negatif uyumsuzlukları). Önceki 32 indikatör korunmuştur; yeni indikatör varsayılan seçime eklenmiştir."
 }
