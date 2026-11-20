@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "14.2",
-  "build": 142,
-  "publishedAt": "2026-11-21T08:15:00+03:00",
-  "notes": "İndikatör listesine sabit sıra numaraları eklendi (01–33). Yeni eklenen indikatörler sıradaki numarayı alır; mevcut 33 indikatörün sırası korunur."
+  "version": "14.3",
+  "build": 143,
+  "publishedAt": "2026-11-21T08:30:00+03:00",
+  "notes": "Güncelleme düğmesinin tıklama ve önbellek yenileme akışı düzeltildi; sürüm kontrolü 14.3 ile eşitlendi. İndikatör listesi 01–33 sırasını korur."
 }
