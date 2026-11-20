@@ -71,7 +71,12 @@ select,input,button{font:inherit;color:var(--text);background:var(--panel);borde
 <div class="ai-panel">
 <h3>PERPETUAL AI MOTORU · AYARLAR</h3>
 <div class="sub" id="aiBackendStatus">Supabase AI hafızası: bağlantı kontrol ediliyor…</div>
-<details id="learningDisclosure" style="margin:12px 0;border:1px solid #56318a;border-radius:12px;background:#170f2a"><summary style="cursor:pointer;padding:12px;color:#d8b4ff;font-weight:800;list-style-position:inside">ÖĞRENME / EĞİTİM DURUMU · Görmek için dokun</summary><div id="learningStatus" class="sub" style="padding:0 12px 12px"><div>Sonuç verileri yükleniyor…</div></div></details>
+<details id="learningDisclosure" style="margin:12px 0;border:1px solid #56318a;border-radius:12px;background:#170f2a"><summary style="cursor:pointer;padding:12px;color:#d8b4ff;font-weight:800;list-style-position:inside">ÖĞRENME / EĞİTİM DURUMU · Görmek için dokun</summary><div id="learningStatus" class="sub" style="padding:0 12px 12px"><div>Sonuç verileri yükleniyor…</div></div>
+<div id="learningCalibrationSummary" style="margin:0 12px 12px;padding:10px;border:1px solid #49316f;border-radius:10px;background:#120d20;color:#cbb5e8;font-size:12px;line-height:1.55">
+  <div style="font-weight:800;color:#d8b4ff;margin-bottom:5px">1 SAATLİK GEÇMİŞ PERFORMANS / SKOR KALİBRASYONU</div>
+  <div id="learningCalibrationText">Geçmiş performans verisi yükleniyor…</div>
+  <button id="learningCalibrationRefresh" type="button" style="margin-top:8px;padding:7px 10px;border:1px solid #65439a;border-radius:8px;background:#1a1230;color:#d8b4ff">↻ PERFORMANSI YENİLE</button>
+</div></details>
 <div class="grid">
 <div class="field"><label for="aiTrendW">ADX TREND AĞIRLIĞI</label><select id="aiTrendW"><option value="15">Düşük (%15)</option><option value="25" selected>Normal (%25)</option><option value="35">Yüksek (%35)</option></select></div>
 <div class="field"><label for="aiMomW">RSI MOMENTUM AĞIRLIĞI</label><select id="aiMomW"><option value="10">Düşük (%10)</option><option value="20" selected>Normal (%20)</option><option value="30">Yüksek (%30)</option></select></div>
@@ -963,7 +968,35 @@ window.LotusericSpotScanner={scan,stop,get running(){return running;}};
 </script>
 <script>
 (()=>{'use strict';
-const APP_VERSION='13.7',MANIFEST='./version.json';let latest=null;
+const endpoint='https://okrpkmvcjsbiemdvrenp.supabase.co/functions/v1/lotuseric-ai-ingest?view=public-learning';
+const out=()=>document.getElementById('learningCalibrationText');
+const fmt=v=>{const n=Number(v);return Number.isFinite(n)?n.toFixed(2)+'%':'—'};
+async function refresh(){
+ const el=out(),btn=document.getElementById('learningCalibrationRefresh');if(!el)return;
+ if(btn)btn.disabled=true;el.textContent='Geçmiş performans alınıyor…';
+ try{
+  const response=await fetch(endpoint,{method:'GET',cache:'no-store'});
+  const data=await response.json();if(!response.ok)throw new Error(data.error||('HTTP '+response.status));
+  const totals=data.totals||{};
+  const total=totals.signals??totals.totalSignals??totals.signal_count??data.totalSignals??'—';
+  const model=String(data.modelStatus??data.model_status??'Bilinmiyor').replaceAll('_',' ');
+  const live=data.liveTrading===false?'KAPALI':data.liveTrading===true?'AÇIK':'Bilinmiyor';
+  const segments=Array.isArray(data.segmentPerformance)?data.segmentPerformance.filter(x=>String(x.horizon||'').toLowerCase()==='1h').slice(0,8):[];
+  const calibration=Array.isArray(data.scoreCalibration)?data.scoreCalibration:Array.isArray(data.score_calibration)?data.score_calibration:[];
+  const lines=['Toplam sinyal: '+total,'Model: '+model,'Canlı işlem: '+live];
+  if(segments.length){lines.push('1 saatlik piyasa performansı:');for(const x of segments){const venue=[x.exchange,x.market,x.direction].filter(Boolean).join(' / ');lines.push((venue||'Genel')+' · örnek '+(x.sampleCount??x.sample_count??x.count??'—')+' · yön başarısı '+fmt(x.directionalWinRate??x.directional_win_rate??x.winRate??x.win_rate)+' · ort. getiri '+fmt(x.avgReturnPct??x.avg_return_pct??x.averageReturnPct??x.average_return_pct));}}
+  if(calibration.length){lines.push('Skor kalibrasyonu:');for(const x of calibration){lines.push((x.scoreBand??x.score_band??x.bucket??'Skor')+' · örnek '+(x.sampleCount??x.sample_count??x.count??'—')+' · yön başarısı '+fmt(x.directionalWinRate??x.directional_win_rate??x.winRate??x.win_rate));}}
+  if(!segments.length&&!calibration.length)lines.push('Kalibrasyon ayrıntısı henüz yayımlanmıyor; özet veriler gösteriliyor.');
+  el.textContent=lines.join('\n');
+ }catch(error){el.textContent='Performans verisi alınamadı: '+(error&&error.message?error.message:String(error));}
+ finally{if(btn)btn.disabled=false;}
+}
+document.addEventListener('DOMContentLoaded',()=>{document.getElementById('learningCalibrationRefresh')?.addEventListener('click',refresh);refresh();});
+})();
+</script>
+<script>
+(()=>{'use strict';
+const APP_VERSION='13.8',MANIFEST='./version.json';let latest=null;
 const $=id=>document.getElementById(id);
 function cmp(a,b){const x=String(a||'0').split('.').map(v=>parseInt(v,10)||0),y=String(b||'0').split('.').map(v=>parseInt(v,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
 async function check(){const b=$('lotuseric-update-check'),v=$('lotuseric-version'),a=$('lotuseric-update-apply');if(b)b.disabled=true;if(v)v.textContent='Güncelleme kontrol ediliyor…';try{const r=await fetch(MANIFEST+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();if(!d.version)throw Error('Sürüm bilgisi geçersiz');latest=d;const newer=cmp(d.version,APP_VERSION)>0;if(v)v.textContent=newer?'Yeni sürüm bulundu: v'+d.version+' · '+(d.notes||''):'v'+APP_VERSION+' · Güncel';if(a)a.hidden=!newer;if(b)b.textContent=newer?'↻ YENİ SÜRÜM HAZIR':'✓ GÜNCEL';}catch(e){if(v)v.textContent='Kontrol başarısız: '+e.message;if(b)b.textContent='↻ TEKRAR DENE';}finally{if(b)b.disabled=false;}}
