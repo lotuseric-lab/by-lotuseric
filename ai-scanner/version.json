@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "13.7",
-  "build": 137,
-  "publishedAt": "2026-11-20T09:20:00+03:00",
-  "notes": "Daha önce iPhone'da çalıştığı doğrulanan okex://main OKX uygulama bağlantısı geri getirildi; diğer borsaların web/Universal Link yönlendirmeleri korundu."
+  "version": "13.8",
+  "build": 138,
+  "publishedAt": "2026-11-21T08:00:00+03:00",
+  "notes": "v13.7 tarama ve borsa bağlantıları korunarak Supabase herkese açık AI öğrenme özeti ve 1 saatlik geçmiş performans/kalibrasyon paneli eklendi. ML modeli hâlâ eğitilmedi; canlı emir kapalı."
 }
