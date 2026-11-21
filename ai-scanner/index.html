@@ -1128,7 +1128,8 @@ const SB_URL='https://okrpkmvcjsbiemdvrenp.supabase.co';
 const SB_KEY='sb_publishable_d5WfsR3b7TlT0_-Fbef21A_YMbDmPq5';
 // GitHub Pages is a browser-only app. Use implicit auth flow so email recovery links work across Gmail's in-app browser storage contexts.
 // Keep Supabase's default PKCE flow: resetPasswordForEmail creates a verifier that must be exchanged on this same browser.
-const sb=createClient(SB_URL,SB_KEY,{auth:{flowType:'pkce',detectSessionInUrl:false,persistSession:true,autoRefreshToken:true}});
+// Use implicit recovery tokens so a copied email link can be opened in Safari even if the reset request began in Gmail's in-app browser.
+const sb=createClient(SB_URL,SB_KEY,{auth:{flowType:'implicit',detectSessionInUrl:false,persistSession:true,autoRefreshToken:true}});
 window.LotusericSupabase=sb;
 const wall=document.getElementById('lotuseric-auth-wall'),msg=document.getElementById('la-status');
 let active=false, license=null;
