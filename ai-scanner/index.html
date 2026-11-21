@@ -630,14 +630,16 @@ const PerpetualDecisionEngine=Object.freeze({profile:'perpetual-profile-v1',anal
 const SpotDecisionEngine=Object.freeze({profile:'spot-profile-v2',analyze:analyzeSpot});
 window.LotusericAI={perpetual:PerpetualDecisionEngine,spot:SpotDecisionEngine,analyze,analyzePerpetual,analyzeSpot};
 window.LotusericAIBackend={
-  endpoint:'https://lotuseric-ai-core.vercel.app/api/ai-ingest',
-  async health(){const r=await fetch(this.endpoint,{method:'GET',cache:'no-store'});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));return j;},
+  endpoint:'https://okrpkmvcjsbiemdvrenp.supabase.co/functions/v1/lotuseric-ai-ingest',
+  async health(){const r=await fetch(this.endpoint+'?view=public-learning',{method:'GET',cache:'no-store'});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));return j;},
   async saveSignals(signals){
     if(!Array.isArray(signals)||!signals.length)return{saved:0,failed:0};
-    let saved=0,failed=0;const chunks=[];for(let i=0;i<signals.length;i+=50)chunks.push(signals.slice(i,i+50));
-    for(const batch of chunks){try{const r=await fetch(this.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'signals',signals:batch})});const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||('HTTP '+r.status));saved+=Number(j.count||batch.length);}catch(e){failed+=batch.length;}}
+    const {data:{session}}=await window.LotusericSupabase?.auth.getSession()||{data:{session:null}};
+    if(!session)return{saved:0,failed:signals.length,reason:'login_required'};
+    let saved=0,failed=0,skippedConsent=false;const chunks=[];for(let i=0;i<signals.length;i+=50)chunks.push(signals.slice(i,i+50));
+    for(const batch of chunks){try{const r=await fetch(this.endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,'apikey':'sb_publishable_d5WfsR3b7TlT0_-Fbef21A_YMbDmPq5'},body:JSON.stringify({action:'signals',signals:batch})});const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||('HTTP '+r.status));if(j.skipped_consent)skippedConsent=true;saved+=Number(j.count||0);}catch(e){failed+=batch.length;}}
     if(saved>0)document.dispatchEvent(new CustomEvent('lotuseric:signals-saved',{detail:{saved}}));
-    return{saved,failed};
+    return{saved,failed,skippedConsent};
   },
   async saveOutcome(outcome){const r=await fetch(this.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'outcome',...outcome})});const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||('HTTP '+r.status));document.dispatchEvent(new CustomEvent('lotuseric:outcome-saved',{detail:j}));return j;}
 };
@@ -1119,6 +1121,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SB_URL='https://okrpkmvcjsbiemdvrenp.supabase.co';
 const SB_KEY='sb_publishable_d5WfsR3b7TlT0_-Fbef21A_YMbDmPq5';
 const sb=createClient(SB_URL,SB_KEY);
+window.LotusericSupabase=sb;
 const wall=document.getElementById('lotuseric-auth-wall'),msg=document.getElementById('la-status');
 let active=false, license=null;
 const say=t=>msg.textContent=t;
@@ -1140,7 +1143,7 @@ async function verify(){
  if(!session){say('Giriş yapmanız gerekiyor.');return false;}
  try{
   const d=await call('claim-device',{device_key:deviceKey(),device_label:navigator.userAgent.slice(0,70)});
-  license=d;active=true;wall.hidden=true;
+  license=d;active=true;const consentBox=document.getElementById('la-ai-consent');if(consentBox)consentBox.checked=d.ai_training_consent===true;wall.hidden=true;
   window.LotusericLicense={requireActive:async()=>active,refresh:verify,get status(){return license;}};
   document.dispatchEvent(new CustomEvent('lotuseric:license-active',{detail:d}));
   return true;
