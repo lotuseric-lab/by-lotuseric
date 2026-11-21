@@ -1127,7 +1127,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SB_URL='https://okrpkmvcjsbiemdvrenp.supabase.co';
 const SB_KEY='sb_publishable_d5WfsR3b7TlT0_-Fbef21A_YMbDmPq5';
 // GitHub Pages is a browser-only app. Use implicit auth flow so email recovery links work across Gmail's in-app browser storage contexts.
-const sb=createClient(SB_URL,SB_KEY,{auth:{flowType:'implicit',detectSessionInUrl:false,persistSession:true,autoRefreshToken:true}});
+// Keep Supabase's default PKCE flow: resetPasswordForEmail creates a verifier that must be exchanged on this same browser.
+const sb=createClient(SB_URL,SB_KEY,{auth:{flowType:'pkce',detectSessionInUrl:false,persistSession:true,autoRefreshToken:true}});
 window.LotusericSupabase=sb;
 const wall=document.getElementById('lotuseric-auth-wall'),msg=document.getElementById('la-status');
 let active=false, license=null;
@@ -1193,13 +1194,13 @@ async function establishRecoverySession(){
    }
    if(query.get('token_hash') && query.get('type')==='recovery'){
      status.textContent='Şifre bağlantısı doğrulanıyor…';
-     const {data,error}=await sb.auth.verifyOtp({token_hash:query.get('token_hash'),type:'recovery'});
+     const {data,error}=await Promise.race([sb.auth.verifyOtp({token_hash:query.get('token_hash'),type:'recovery'}),new Promise((_,reject)=>setTimeout(()=>reject(new Error('E-posta doğrulaması 12 saniyede tamamlanmadı.')),12000))]);
      if(error)throw error;
      if(data.session){history.replaceState(null,'',location.pathname);showPasswordRecovery();return true;}
    }
    if(query.get('code')){
      status.textContent='Şifre bağlantısı doğrulanıyor…';
-     const {data,error}=await sb.auth.exchangeCodeForSession(query.get('code'));
+     const {data,error}=await Promise.race([sb.auth.exchangeCodeForSession(query.get('code')),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Kod değişimi 12 saniyede tamamlanmadı. Aynı tarayıcıda yeni bağlantı gerekir.')),12000))]);
      if(error)throw error;
      if(data.session){history.replaceState(null,'',location.pathname);showPasswordRecovery();return true;}
    }
