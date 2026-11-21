@@ -1127,7 +1127,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SB_URL='https://okrpkmvcjsbiemdvrenp.supabase.co';
 const SB_KEY='sb_publishable_d5WfsR3b7TlT0_-Fbef21A_YMbDmPq5';
 // GitHub Pages is a browser-only app. Use implicit auth flow so email recovery links work across Gmail's in-app browser storage contexts.
-const sb=createClient(SB_URL,SB_KEY,{auth:{flowType:'implicit',detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}});
+const sb=createClient(SB_URL,SB_KEY,{auth:{flowType:'implicit',detectSessionInUrl:false,persistSession:true,autoRefreshToken:true}});
 window.LotusericSupabase=sb;
 const wall=document.getElementById('lotuseric-auth-wall'),msg=document.getElementById('la-status');
 let active=false, license=null;
@@ -1179,29 +1179,40 @@ function showPasswordRecovery(){
 }
 async function establishRecoverySession(){
  const status=document.getElementById('la-password-status');
+ const msg=document.getElementById('la-status');
  const query=new URLSearchParams(location.search);
  const hash=new URLSearchParams(location.hash.replace(/^#/,'')); 
  try{
+   status.textContent='Bağlantı bilgileri okunuyor…';
+   const access=hash.get('access_token'),refresh=hash.get('refresh_token');
+   if(access&&refresh){
+     status.textContent='Şifre kurtarma oturumu açılıyor…';
+     const {data,error}=await sb.auth.setSession({access_token:access,refresh_token:refresh});
+     if(error)throw error;
+     if(data.session){history.replaceState(null,'',location.pathname+location.search);showPasswordRecovery();return true;}
+   }
    if(query.get('token_hash') && query.get('type')==='recovery'){
+     status.textContent='Şifre bağlantısı doğrulanıyor…';
      const {data,error}=await sb.auth.verifyOtp({token_hash:query.get('token_hash'),type:'recovery'});
      if(error)throw error;
-     if(data.session){showPasswordRecovery();return true;}
+     if(data.session){history.replaceState(null,'',location.pathname);showPasswordRecovery();return true;}
    }
    if(query.get('code')){
+     status.textContent='Şifre bağlantısı doğrulanıyor…';
      const {data,error}=await sb.auth.exchangeCodeForSession(query.get('code'));
      if(error)throw error;
-     if(data.session){showPasswordRecovery();return true;}
+     if(data.session){history.replaceState(null,'',location.pathname);showPasswordRecovery();return true;}
    }
-   if(hash.get('access_token')&&hash.get('refresh_token')){
-     const {data,error}=await sb.auth.setSession({access_token:hash.get('access_token'),refresh_token:hash.get('refresh_token')});
-     if(error)throw error;
-     if(data.session){showPasswordRecovery();return true;}
-   }
-   const {data:{session}}=await sb.auth.getSession();
-   if(session){showPasswordRecovery();return true;}
-   status.textContent='Şifre sıfırlama bağlantısı oturumu bulunamadı. E-postadaki en son bağlantıyı tekrar aç.';
- }catch(error){status.textContent='Şifre bağlantısı doğrulanamadı: '+(error.message||'Bilinmeyen hata');}
- return false;
+   status.textContent='Tarayıcı oturumu kontrol ediliyor…';
+   const result=await Promise.race([sb.auth.getSession(),new Promise((_,reject)=>setTimeout(()=>reject(new Error('Oturum kontrolü zaman aşımına uğradı.')),8000))]);
+   if(result.data?.session){showPasswordRecovery();return true;}
+   throw new Error('Bağlantıda kullanılabilir kurtarma anahtarı bulunamadı. E-posta bağlantısı bu tarayıcıda açılmamış olabilir.');
+ }catch(error){
+   const message='Şifre bağlantısı açılamadı: '+(error?.message||'Bilinmeyen hata');
+   status.textContent=message;
+   if(msg)msg.textContent=message;
+   return false;
+ }
 }
 sb.auth.onAuthStateChange((event,session)=>{
  if(event==='PASSWORD_RECOVERY'&&session) showPasswordRecovery();
