@@ -1126,7 +1126,8 @@ window.LotusericUpdate={version:APP_VERSION,check,apply};
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SB_URL='https://okrpkmvcjsbiemdvrenp.supabase.co';
 const SB_KEY='sb_publishable_d5WfsR3b7TlT0_-Fbef21A_YMbDmPq5';
-const sb=createClient(SB_URL,SB_KEY);
+// GitHub Pages is a browser-only app. Use implicit auth flow so email recovery links work across Gmail's in-app browser storage contexts.
+const sb=createClient(SB_URL,SB_KEY,{auth:{flowType:'implicit',detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}});
 window.LotusericSupabase=sb;
 const wall=document.getElementById('lotuseric-auth-wall'),msg=document.getElementById('la-status');
 let active=false, license=null;
@@ -1206,7 +1207,12 @@ sb.auth.onAuthStateChange((event,session)=>{
  if(event==='PASSWORD_RECOVERY'&&session) showPasswordRecovery();
  if(!session){active=false;wall.hidden=false;document.getElementById('la-consent-settings').hidden=true;document.getElementById('lotuseric-admin-panel').hidden=true;document.getElementById('la-admin-open')?.remove();}
 });
-document.getElementById('la-open-recovery').addEventListener('click',establishRecoverySession);
+document.getElementById('la-open-recovery').addEventListener('click',async()=>{
+ const status=document.getElementById('la-status');
+ status.textContent='Şifre bağlantısı doğrulanıyor…';
+ const ok=await establishRecoverySession();
+ if(!ok) status.textContent='Bu tarayıcıda geçerli şifre kurtarma oturumu bulunamadı. Eski bağlantı kullanılmış veya e-posta farklı tarayıcıda açılmış olabilir. Yeni bir bağlantı isteyip aynı Safari sekmesinde açmalısın.';
+});
 (async()=>{
  const query=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.replace(/^#/,'')); 
  const recoveryHint=query.get('type')==='recovery'||query.has('token_hash')||query.has('code')||hash.get('type')==='recovery'||hash.has('access_token');
