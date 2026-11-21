@@ -1117,6 +1117,7 @@ window.LotusericUpdate={version:APP_VERSION,check,apply};
   <div id="la-status" class="la-status">Lisans kontrolü bekleniyor.</div>
  </div>
 </div>
+<div id="la-consent-settings" hidden style="position:fixed;z-index:99995;left:12px;bottom:12px;max-width:min(390px,calc(100vw - 24px));background:#111a27;color:#f5f7fb;border:1px solid #42516a;border-radius:13px;padding:12px;font:12px system-ui;box-shadow:0 8px 30px #0008"><label style="display:flex;gap:8px;align-items:flex-start"><input id="la-consent-live" type="checkbox" style="margin-top:2px"> Sinyal özelliklerimin ve sonuçlarımın kimlik bilgilerimden ayrıştırılarak ortak AI geliştirme havuzunda kullanılmasına izin veriyorum.</label><button id="la-consent-live-save" type="button" style="margin-top:8px">AI VERİ İZNİNİ KAYDET</button></div>
 <div id="lotuseric-admin-panel" hidden style="position:fixed;z-index:99997;inset:12px;overflow:auto;background:#10151f;color:#f5f7fb;border:1px solid #3a4658;border-radius:18px;padding:18px;font:14px system-ui"><div style="display:flex;justify-content:space-between"><h2>LOTUSERIC · Yönetici</h2><button id="la-admin-close">KAPAT</button></div><p>Deneme lisansı: 15 gün · 1 cihaz · AI paylaşımı varsayılan kapalı</p><form id="la-invite-form" style="display:flex;gap:8px;flex-wrap:wrap"><input id="la-invite-email" type="email" placeholder="E-posta adresi" required><input id="la-invite-days" type="number" min="1" max="90" value="15" style="width:70px"><button type="submit">DAVET GÖNDER</button></form><div id="la-admin-msg"></div><h3>Kullanıcılar <button id="la-admin-refresh">YENİLE</button></h3><div id="la-admin-users">Yükleniyor…</div></div>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -1145,7 +1146,7 @@ async function verify(){
  if(!session){say('Giriş yapmanız gerekiyor.');return false;}
  try{
   const d=await call('claim-device',{device_key:deviceKey(),device_label:navigator.userAgent.slice(0,70)});
-  license=d;active=true;const consentBox=document.getElementById('la-ai-consent');if(consentBox)consentBox.checked=d.ai_training_consent===true;wall.hidden=true;
+  license=d;active=true;const consentBox=document.getElementById('la-ai-consent');if(consentBox)consentBox.checked=d.ai_training_consent===true;const liveConsent=document.getElementById('la-consent-live');if(liveConsent)liveConsent.checked=d.ai_training_consent===true;document.getElementById('la-consent-settings').hidden=false;wall.hidden=true;
   window.LotusericLicense={requireActive:async()=>active,refresh:verify,get status(){return license;}};
   document.dispatchEvent(new CustomEvent('lotuseric:license-active',{detail:d}));
   try{await call('list-users');window.LotusericAdmin={open:()=>{document.getElementById('lotuseric-admin-panel').hidden=false;loadUsers();}};if(!document.getElementById('la-admin-open')){const b=document.createElement('button');b.id='la-admin-open';b.textContent='YÖNETİCİ PANELİ';b.style='position:fixed;z-index:99996;right:12px;top:12px;padding:10px;border-radius:10px;background:#1c6b48;color:white;border:0';b.onclick=()=>window.LotusericAdmin.open();document.body.appendChild(b);}}catch(_e){window.LotusericAdmin=null;}
@@ -1163,6 +1164,7 @@ document.getElementById('la-login').addEventListener('submit',async e=>{
  if(error){say('Giriş başarısız: '+error.message);return;}
  await verify();
 });
+document.getElementById('la-consent-live-save').addEventListener('click',async()=>{try{const allowed=document.getElementById('la-consent-live').checked;const d=await call('consent',{allowed});document.getElementById('la-ai-consent').checked=allowed;document.getElementById('la-admin-msg')?.replaceChildren();alert(allowed?'AI veri paylaşım izni açıldı.':'AI veri paylaşım izni kapatıldı.');license={...license,ai_training_consent:d.ai_training_consent};}catch(e){alert(e.message);}});
 document.getElementById('la-consent-save').addEventListener('click',async()=>{
  try{const d=await call('consent',{allowed:document.getElementById('la-ai-consent').checked});say(d.ai_training_consent?'AI veri paylaşım izni kaydedildi.':'AI veri paylaşım izni kapatıldı.');}
  catch(e){say(e.message);}
@@ -1174,7 +1176,7 @@ function adminMsg(t){document.getElementById('la-admin-msg').textContent=t;}
 document.getElementById('la-admin-close').onclick=()=>document.getElementById('lotuseric-admin-panel').hidden=true;
 document.getElementById('la-admin-refresh').onclick=loadUsers;
 document.getElementById('la-invite-form').addEventListener('submit',async e=>{e.preventDefault();try{const email=document.getElementById('la-invite-email').value.trim(),days=Number(document.getElementById('la-invite-days').value||15);await call('invite',{email,days});adminMsg('Davet gönderildi: '+email);e.target.reset();document.getElementById('la-invite-days').value=15;loadUsers();}catch(err){adminMsg(err.message);}});
-sb.auth.onAuthStateChange((_event,session)=>{if(!session){active=false;wall.hidden=false;document.getElementById('lotuseric-admin-panel').hidden=true;document.getElementById('la-admin-open')?.remove();}});
+sb.auth.onAuthStateChange((_event,session)=>{if(!session){active=false;wall.hidden=false;document.getElementById('la-consent-settings').hidden=true;document.getElementById('lotuseric-admin-panel').hidden=true;document.getElementById('la-admin-open')?.remove();}});
 window.LotusericLicense={requireActive:async()=>active,refresh:verify};
 verify();
 </script></body></html>
