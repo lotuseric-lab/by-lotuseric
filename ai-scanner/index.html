@@ -1120,6 +1120,7 @@ window.LotusericUpdate={version:APP_VERSION,check,apply};
 </div>
 <div id="la-consent-settings" hidden style="position:fixed;z-index:99995;left:12px;bottom:12px;max-width:min(390px,calc(100vw - 24px));background:#111a27;color:#f5f7fb;border:1px solid #42516a;border-radius:13px;padding:12px;font:12px system-ui;box-shadow:0 8px 30px #0008"><label style="display:flex;gap:8px;align-items:flex-start"><input id="la-consent-live" type="checkbox" style="margin-top:2px"> Sinyal özelliklerimin ve sonuçlarımın kimlik bilgilerimden ayrıştırılarak ortak AI geliştirme havuzunda kullanılmasına izin veriyorum.</label><button id="la-consent-live-save" type="button" style="margin-top:8px">AI VERİ İZNİNİ KAYDET</button></div>
 <div id="lotuseric-admin-panel" hidden style="position:fixed;z-index:99997;inset:12px;overflow:auto;background:#10151f;color:#f5f7fb;border:1px solid #3a4658;border-radius:18px;padding:18px;font:14px system-ui"><div style="display:flex;justify-content:space-between"><h2>LOTUSERIC · Yönetici</h2><button id="la-admin-close">KAPAT</button></div><p>Deneme lisansı: 15 gün · 1 cihaz · AI paylaşımı varsayılan kapalı</p><form id="la-invite-form" style="display:flex;gap:8px;flex-wrap:wrap"><input id="la-invite-email" type="email" placeholder="E-posta adresi" required><input id="la-invite-days" type="number" min="1" max="90" value="15" style="width:70px"><button type="submit">DAVET GÖNDER</button></form><div id="la-admin-msg"></div><h3>Kullanıcılar <button id="la-admin-refresh">YENİLE</button></h3><div id="la-admin-users">Yükleniyor…</div></div>
+<div id="la-password-recovery" hidden style="position:fixed;z-index:100000;inset:0;background:#080c16ee;display:none;place-items:center;padding:18px"><div style="width:min(440px,100%);background:#151d2d;border:1px solid #46536b;border-radius:18px;padding:22px;color:#fff"><h2>Yeni şifre belirle</h2><p>Yönetici hesabın için en az 8 karakterli yeni bir şifre oluştur.</p><input id="la-new-password" type="password" minlength="8" autocomplete="new-password" placeholder="Yeni şifre" style="width:100%;padding:14px;margin:8px 0;border-radius:10px"><input id="la-new-password2" type="password" minlength="8" autocomplete="new-password" placeholder="Yeni şifreyi tekrar yaz" style="width:100%;padding:14px;margin:8px 0;border-radius:10px"><button id="la-save-new-password" type="button" style="width:100%;padding:14px;background:#8657ee;color:white;border:0;border-radius:10px;font-weight:700">ŞİFREYİ KAYDET</button><div id="la-password-status" style="margin-top:12px;color:#ffd166"></div></div></div>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 const SB_URL='https://okrpkmvcjsbiemdvrenp.supabase.co';
@@ -1167,15 +1168,19 @@ document.getElementById('la-reset-password').addEventListener('click',async()=>{
  if(error){say('Şifre bağlantısı gönderilemedi: '+error.message);return;}
  say('Şifre oluşturma bağlantısı e-posta adresine gönderildi. Gelen kutusu ve spam klasörünü kontrol et.');
 });
-sb.auth.onAuthStateChange(async(event,session)=>{
- if(event==='PASSWORD_RECOVERY'&&session){
-  const password=prompt('LOTUSERIC için yeni şifreni belirle (en az 8 karakter):');
-  if(!password||password.length<8){say('Şifre en az 8 karakter olmalı. Şifre oluşturma işlemini yeniden başlat.');return;}
-  const {error}=await sb.auth.updateUser({password});
-  if(error){say('Şifre güncellenemedi: '+error.message);return;}
-  say('Şifren kaydedildi. Şimdi giriş yapabilirsin.');await sb.auth.signOut();
- }
+let passwordRecoverySession=false;
+sb.auth.onAuthStateChange((event,session)=>{
+ if(event==='PASSWORD_RECOVERY'&&session){passwordRecoverySession=true;const box=document.getElementById('la-password-recovery');box.hidden=false;box.style.display='grid';document.getElementById('la-password-status').textContent='Yeni şifreni iki kez yazıp kaydet.';}
  if(!session){active=false;wall.hidden=false;document.getElementById('la-consent-settings').hidden=true;document.getElementById('lotuseric-admin-panel').hidden=true;document.getElementById('la-admin-open')?.remove();}
+});
+document.getElementById('la-save-new-password').addEventListener('click',async()=>{
+ const p=document.getElementById('la-new-password').value,p2=document.getElementById('la-new-password2').value,status=document.getElementById('la-password-status');
+ if(!passwordRecoverySession){status.textContent='Şifre sıfırlama oturumu bulunamadı. E-postadaki en son bağlantıyı yeniden aç.';return;}
+ if(p.length<8){status.textContent='Şifre en az 8 karakter olmalı.';return;}
+ if(p!==p2){status.textContent='Şifreler aynı değil.';return;}
+ status.textContent='Şifre kaydediliyor…';const {error}=await sb.auth.updateUser({password:p});
+ if(error){status.textContent='Şifre kaydedilemedi: '+error.message;return;}
+ passwordRecoverySession=false;status.textContent='Şifre başarıyla kaydedildi. Giriş ekranına dönülüyor…';await sb.auth.signOut();document.getElementById('la-password-recovery').hidden=true;document.getElementById('la-password-recovery').style.display='none';say('Yeni şifren kaydedildi. Şimdi giriş yapabilirsin.');
 });
 document.getElementById('la-login').addEventListener('submit',async e=>{
  e.preventDefault();say('Giriş yapılıyor…');
