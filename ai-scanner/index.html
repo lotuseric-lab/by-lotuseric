@@ -1109,6 +1109,7 @@ window.LotusericUpdate={version:APP_VERSION,check,apply};
    <input id="la-email" type="email" autocomplete="username" placeholder="E-posta adresi" required>
    <input id="la-password" type="password" autocomplete="current-password" placeholder="Şifre" required>
    <button id="la-submit" type="submit">GİRİŞ YAP</button>
+   <button id="la-reset-password" type="button" style="background:#46536b">ŞİFRE OLUŞTUR / ŞİFREMİ UNUTTUM</button>
    <button id="la-owner-invite" type="button" style="background:#285d48">YÖNETİCİ DAVETİNİ GÖNDER</button>
   </form>
   <label class="la-consent"><input id="la-ai-consent" type="checkbox" style="width:auto;margin:2px 0 0"> Sinyal özelliklerim ve sonuçlarımın kimlik bilgilerimden ayrıştırılarak ortak AI geliştirme havuzunda kullanılmasına izin veriyorum. Bu izin isteğe bağlıdır ve sonradan geri alınabilir.</label>
@@ -1158,6 +1159,24 @@ document.getElementById('la-owner-invite').addEventListener('click',async()=>{
  try{const r=await fetch(SB_URL+'/functions/v1/lotuseric-license',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({action:'bootstrap-owner',email:'lotuseric@gmail.com'})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||d.error||'Davet gönderilemedi');say('Yönetici daveti gönderildi. E-postandaki bağlantıyı açıp şifreni oluştur.');b.textContent='DAVET GÖNDERİLDİ';}
  catch(e){say(e.message);b.disabled=false;b.textContent='YÖNETİCİ DAVETİNİ GÖNDER';}
 });
+document.getElementById('la-reset-password').addEventListener('click',async()=>{
+ const email=document.getElementById('la-email').value.trim();
+ if(!email){say('Önce e-posta adresini yaz.');return;}
+ say('Şifre oluşturma bağlantısı gönderiliyor…');
+ const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:'https://lotuseric-lab.github.io/by-lotuseric/ai-scanner/'});
+ if(error){say('Şifre bağlantısı gönderilemedi: '+error.message);return;}
+ say('Şifre oluşturma bağlantısı e-posta adresine gönderildi. Gelen kutusu ve spam klasörünü kontrol et.');
+});
+sb.auth.onAuthStateChange(async(event,session)=>{
+ if(event==='PASSWORD_RECOVERY'&&session){
+  const password=prompt('LOTUSERIC için yeni şifreni belirle (en az 8 karakter):');
+  if(!password||password.length<8){say('Şifre en az 8 karakter olmalı. Şifre oluşturma işlemini yeniden başlat.');return;}
+  const {error}=await sb.auth.updateUser({password});
+  if(error){say('Şifre güncellenemedi: '+error.message);return;}
+  say('Şifren kaydedildi. Şimdi giriş yapabilirsin.');await sb.auth.signOut();
+ }
+ if(!session){active=false;wall.hidden=false;document.getElementById('la-consent-settings').hidden=true;document.getElementById('lotuseric-admin-panel').hidden=true;document.getElementById('la-admin-open')?.remove();}
+});
 document.getElementById('la-login').addEventListener('submit',async e=>{
  e.preventDefault();say('Giriş yapılıyor…');
  const {error}=await sb.auth.signInWithPassword({email:document.getElementById('la-email').value.trim(),password:document.getElementById('la-password').value});
@@ -1176,7 +1195,6 @@ function adminMsg(t){document.getElementById('la-admin-msg').textContent=t;}
 document.getElementById('la-admin-close').onclick=()=>document.getElementById('lotuseric-admin-panel').hidden=true;
 document.getElementById('la-admin-refresh').onclick=loadUsers;
 document.getElementById('la-invite-form').addEventListener('submit',async e=>{e.preventDefault();try{const email=document.getElementById('la-invite-email').value.trim(),days=Number(document.getElementById('la-invite-days').value||15);await call('invite',{email,days});adminMsg('Davet gönderildi: '+email);e.target.reset();document.getElementById('la-invite-days').value=15;loadUsers();}catch(err){adminMsg(err.message);}});
-sb.auth.onAuthStateChange((_event,session)=>{if(!session){active=false;wall.hidden=false;document.getElementById('la-consent-settings').hidden=true;document.getElementById('lotuseric-admin-panel').hidden=true;document.getElementById('la-admin-open')?.remove();}});
 window.LotusericLicense={requireActive:async()=>active,refresh:verify};
 verify();
 </script></body></html>
