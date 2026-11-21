@@ -1110,6 +1110,7 @@ window.LotusericUpdate={version:APP_VERSION,check,apply};
    <input id="la-password" type="password" autocomplete="current-password" placeholder="Şifre" required>
    <button id="la-submit" type="submit">GİRİŞ YAP</button>
    <button id="la-reset-password" type="button" style="background:#46536b">ŞİFRE OLUŞTUR / ŞİFREMİ UNUTTUM</button>
+   <button id="la-open-recovery" type="button" style="background:#37465d">E-POSTADAKİ ŞİFRE BAĞLANTISINI AÇTIM</button>
    <button id="la-owner-invite" type="button" style="background:#285d48">YÖNETİCİ DAVETİNİ GÖNDER</button>
   </form>
   <label class="la-consent"><input id="la-ai-consent" type="checkbox" style="width:auto;margin:2px 0 0"> Sinyal özelliklerim ve sonuçlarımın kimlik bilgilerimden ayrıştırılarak ortak AI geliştirme havuzunda kullanılmasına izin veriyorum. Bu izin isteğe bağlıdır ve sonradan geri alınabilir.</label>
@@ -1175,24 +1176,41 @@ function showPasswordRecovery(){
  box.hidden=false;box.style.display='grid';
  document.getElementById('la-password-status').textContent='Yeni şifreni iki kez yazıp kaydet.';
 }
+async function establishRecoverySession(){
+ const status=document.getElementById('la-password-status');
+ const query=new URLSearchParams(location.search);
+ const hash=new URLSearchParams(location.hash.replace(/^#/,'')); 
+ try{
+   if(query.get('token_hash') && query.get('type')==='recovery'){
+     const {data,error}=await sb.auth.verifyOtp({token_hash:query.get('token_hash'),type:'recovery'});
+     if(error)throw error;
+     if(data.session){showPasswordRecovery();return true;}
+   }
+   if(query.get('code')){
+     const {data,error}=await sb.auth.exchangeCodeForSession(query.get('code'));
+     if(error)throw error;
+     if(data.session){showPasswordRecovery();return true;}
+   }
+   if(hash.get('access_token')&&hash.get('refresh_token')){
+     const {data,error}=await sb.auth.setSession({access_token:hash.get('access_token'),refresh_token:hash.get('refresh_token')});
+     if(error)throw error;
+     if(data.session){showPasswordRecovery();return true;}
+   }
+   const {data:{session}}=await sb.auth.getSession();
+   if(session){showPasswordRecovery();return true;}
+   status.textContent='Şifre sıfırlama bağlantısı oturumu bulunamadı. E-postadaki en son bağlantıyı tekrar aç.';
+ }catch(error){status.textContent='Şifre bağlantısı doğrulanamadı: '+(error.message||'Bilinmeyen hata');}
+ return false;
+}
 sb.auth.onAuthStateChange((event,session)=>{
  if(event==='PASSWORD_RECOVERY'&&session) showPasswordRecovery();
  if(!session){active=false;wall.hidden=false;document.getElementById('la-consent-settings').hidden=true;document.getElementById('lotuseric-admin-panel').hidden=true;document.getElementById('la-admin-open')?.remove();}
 });
-// Recovery links can initialize the session before this listener is attached.
-// Check both the URL marker and the already-restored Supabase session.
+document.getElementById('la-open-recovery').addEventListener('click',establishRecoverySession);
 (async()=>{
- const hash=new URLSearchParams(location.hash.replace(/^#/,''));
- const query=new URLSearchParams(location.search);
- const recoveryHint=hash.get('type')==='recovery'||query.get('type')==='recovery'||query.has('code')||hash.has('access_token');
- if(recoveryHint){
-   for(let attempt=0;attempt<12;attempt++){
-     const {data:{session}}=await sb.auth.getSession();
-     if(session){showPasswordRecovery();return;}
-     await new Promise(resolve=>setTimeout(resolve,250));
-   }
-   document.getElementById('la-password-status').textContent='Bağlantı oturumu alınamadı. E-postadaki en son şifre bağlantısını yeniden aç.';
- }
+ const query=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.replace(/^#/,'')); 
+ const recoveryHint=query.get('type')==='recovery'||query.has('token_hash')||query.has('code')||hash.get('type')==='recovery'||hash.has('access_token');
+ if(recoveryHint) await establishRecoverySession();
 })();
 document.getElementById('la-save-new-password').addEventListener('click',async()=>{
  const p=document.getElementById('la-new-password').value,p2=document.getElementById('la-new-password2').value,status=document.getElementById('la-password-status');
