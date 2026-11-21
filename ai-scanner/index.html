@@ -1110,6 +1110,7 @@ window.LotusericUpdate={version:APP_VERSION,check,apply};
    <input id="la-password" type="password" autocomplete="current-password" placeholder="Şifre" required>
    <button id="la-submit" type="submit">GİRİŞ YAP</button>
    <button id="la-reset-password" type="button" style="background:#46536b">ŞİFRE OLUŞTUR / ŞİFREMİ UNUTTUM</button>
+   <button id="la-magic-link" type="button" style="background:#37465d">YÖNETİCİ OLARAK E-POSTA İLE GİRİŞ</button>
    <button id="la-open-recovery" type="button" style="background:#37465d">E-POSTADAKİ ŞİFRE BAĞLANTISINI AÇTIM</button>
    <button id="la-owner-invite" type="button" style="background:#285d48">YÖNETİCİ DAVETİNİ GÖNDER</button>
   </form>
@@ -1129,7 +1130,7 @@ const SB_KEY='sb_publishable_d5WfsR3b7TlT0_-Fbef21A_YMbDmPq5';
 // GitHub Pages is a browser-only app. Use implicit auth flow so email recovery links work across Gmail's in-app browser storage contexts.
 // Keep Supabase's default PKCE flow: resetPasswordForEmail creates a verifier that must be exchanged on this same browser.
 // Use implicit recovery tokens so a copied email link can be opened in Safari even if the reset request began in Gmail's in-app browser.
-const sb=createClient(SB_URL,SB_KEY,{auth:{flowType:'implicit',detectSessionInUrl:false,persistSession:true,autoRefreshToken:true}});
+const sb=createClient(SB_URL,SB_KEY,{auth:{flowType:'implicit',detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}});
 window.LotusericSupabase=sb;
 const wall=document.getElementById('lotuseric-auth-wall'),msg=document.getElementById('la-status');
 let active=false, license=null;
@@ -1163,6 +1164,14 @@ document.getElementById('la-owner-invite').addEventListener('click',async()=>{
  const b=document.getElementById('la-owner-invite');b.disabled=true;b.textContent='DAVET GÖNDERİLİYOR…';say('Yönetici daveti hazırlanıyor…');
  try{const r=await fetch(SB_URL+'/functions/v1/lotuseric-license',{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({action:'bootstrap-owner',email:'lotuseric@gmail.com'})});const d=await r.json();if(!r.ok||!d.ok)throw new Error(d.message||d.error||'Davet gönderilemedi');say('Yönetici daveti gönderildi. E-postandaki bağlantıyı açıp şifreni oluştur.');b.textContent='DAVET GÖNDERİLDİ';}
  catch(e){say(e.message);b.disabled=false;b.textContent='YÖNETİCİ DAVETİNİ GÖNDER';}
+});
+document.getElementById('la-magic-link').addEventListener('click',async()=>{
+ const email=document.getElementById('la-email').value.trim().toLowerCase();
+ if(email!=='lotuseric@gmail.com'){say('Bu hızlı giriş yalnızca LOTUSERIC yönetici e-postası içindir.');return;}
+ say('Yönetici giriş bağlantısı gönderiliyor…');
+ const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:'https://lotuseric-lab.github.io/by-lotuseric/ai-scanner/',shouldCreateUser:false}});
+ if(error){say('Giriş bağlantısı gönderilemedi: '+error.message);return;}
+ say('Giriş bağlantısı gönderildi. Aynı Safari tarayıcısında e-postadaki bağlantıyı aç. Şifre girmen gerekmiyor.');
 });
 document.getElementById('la-reset-password').addEventListener('click',async()=>{
  const email=document.getElementById('la-email').value.trim();
