@@ -53,6 +53,13 @@ select,input,button{font:inherit;color:var(--text);background:var(--panel);borde
 .spot-quickbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:10px 0;padding:9px 10px;border:1px solid #285c53;border-radius:10px;background:#0d211f;color:#a8cfc2;font-size:11px}.spot-quickbar button{padding:8px 11px;font-size:10px}.spot-ai-panel{margin-top:10px}.spot-ai-panel h3{color:#8ce7c2}
 
 .learning-exchange{margin:7px 0;border:1px solid #49316f;border-radius:9px;background:#171126;overflow:hidden}.learning-exchange summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:11px;cursor:pointer;color:#e3d0ff;font-weight:800;list-style:none}.learning-exchange summary::-webkit-details-marker{display:none}.learning-summary-metrics{margin-left:auto;color:#8ce7c2;font-weight:700}.learning-count{color:#9eabc1;font-size:10px}.learning-exchange-body{padding:0 10px 10px}.learning-kpi-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin:5px 0 10px}.learning-kpi-row>div{padding:8px;border:1px solid #302344;border-radius:8px;background:#120d20}.learning-kpi-row small{display:block;color:#91a2bb;font-size:9px}.learning-kpi-row b{display:block;color:#d8b4ff;font-size:14px;margin-top:4px}.learning-detail-row{display:grid;grid-template-columns:1fr auto;gap:6px;padding:8px 2px;border-top:1px solid #302344;align-items:center}.learning-detail-row span{color:#91a2bb}.learning-detail-row b{text-align:right;color:#e5d7fa}.learning-detail-row em{grid-column:1/-1;color:#e6bd79;font-size:10px;font-style:normal}.learning-cal-row{display:grid;grid-template-columns:1fr auto;gap:5px;padding:8px 0;border-bottom:1px solid #302344}.learning-cal-row b{color:#d8b4ff}.learning-cal-row span{color:#91a2bb}.learning-exchange[open]>summary{border-bottom:1px solid #49316f}@media(max-width:420px){.learning-summary-metrics{margin-left:0;width:100%}.learning-kpi-row b{font-size:12px}}
+</style><style>
+#lotuseric-auth-wall{position:fixed;inset:0;z-index:999999;background:#080b14;color:#eaf0ff;display:flex;align-items:center;justify-content:center;padding:18px;font-family:inherit}
+#lotuseric-auth-wall[hidden]{display:none!important}.la-card{width:min(440px,100%);background:#111827;border:1px solid #344054;border-radius:18px;padding:22px;box-shadow:0 20px 70px #0009}
+.la-card h2{margin:0 0 8px;font-size:22px}.la-card p{color:#aebbd0;font-size:13px;line-height:1.5}
+.la-card input{box-sizing:border-box;width:100%;margin:7px 0;padding:13px;border-radius:9px;border:1px solid #475467;background:#0b1220;color:white}
+.la-card button{width:100%;padding:13px;margin-top:9px;border:0;border-radius:9px;background:#8b5cf6;color:white;font-weight:700}
+.la-status{font-size:12px;color:#fbbf24;min-height:20px;margin-top:10px}.la-consent{display:flex;gap:9px;align-items:flex-start;margin:12px 0;font-size:12px;color:#cbd5e1}
 </style></head><body>
 <header><div class="brand"><div><b>BY LOTUSERIC</b><small>ÇOKLU BORSA · PERPETUAL + SPOT + AI ANALİZ</small></div><div style="display:flex;align-items:center"><span class="pill" id="state">DURDURULDU</span><span class="pill ai" id="aiState">AI BEKLEMEDE</span></div></div></header><div id="lotuseric-updatebar" style="max-width:1000px;margin:8px auto;padding:0 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
 <span id="lotuseric-version" style="font-size:11px;color:#8da2bb;flex:1;min-width:140px">v13 · Sürüm kontrol edilmedi</span>
@@ -818,7 +825,7 @@ function start(){if(S.running)return;S.running=true;outcomeTimer=setInterval(()=
 function stop(){S.running=false;clearInterval(outcomeTimer);outcomeTimer=null;if(S.abort)S.abort.abort();if(window.LotusericSpotScanner)window.LotusericSpotScanner.stop();clearInterval(S.timer);S.timer=null;status('DURDURULDU');aiStatus('AI BEKLEMEDE');$('start').disabled=false;$('stop').disabled=true;$('statusText').textContent='Perpetual ve Spot taraması durduruldu.';paintScanProof('Tarama kullanıcı tarafından durduruldu.','')}
 syncTimeframes();renderPineSelectors();
 (async()=>{const el=$('aiBackendStatus'),panel=$('learningStatus');if(!el)return;try{const h=await window.LotusericAIBackend.health();const signals=Array.isArray(h.signals)?h.signals:[];el.textContent=`Supabase AI hafızası: BAĞLI · son 50 saatte ${h.count??signals.length} sinyal kaydı · ML modeli henüz eğitilmedi`;el.style.color='#65d6a5';if(panel){const hs=['1m','3m','5m','15m','30m','1h','2h','4h','8h','12h','24h','48h'];const total=signals.length;const rows=hs.map(k=>{const done=signals.reduce((n,x)=>n+(Array.isArray(x.evaluated_horizons)&&x.evaluated_horizons.includes(k)?1:0),0);const pending=Math.max(0,total-done);return `<div style="display:grid;grid-template-columns:48px 1fr 1fr 1fr;gap:6px;padding:6px 0;border-bottom:1px solid #35234d"><b>${k}</b><span>Örnek: ${total}</span><span>Sonuç: ${done}</span><span>Bekleyen: ${pending}</span></div>`}).join('');panel.innerHTML=`<b style="color:#d8b4ff">ÖĞRENME / EĞİTİM DURUMU</b><div style="margin:6px 0;color:#f3c98b">ML MODELİ: HENÜZ EĞİTİLMEDİ · Şu an sinyal ve sonuç verisi biriktiriliyor.</div><div style="display:grid;grid-template-columns:48px 1fr 1fr 1fr;gap:6px;padding:6px 0;color:#9caec5;font-size:11px"><b>Kademe</b><b>Sinyal</b><b>Değerl.</b><b>Bekleyen</b></div>${rows}<div style="margin-top:8px;color:#9caec5;font-size:11px">Değerlendirilen sonuçlar eğitim değildir. Model eğitimi başlatıldığında ayrıca model sürümü, eğitim tarihi ve doğrulama başarısı gösterilecektir.</div>`}}catch(e){el.textContent='Supabase AI hafızası: BAĞLANTI DOĞRULANAMADI · '+(e?.message||String(e));el.style.color='#f59aaa';if(panel)panel.textContent='Öğrenme verileri alınamadı: '+(e?.message||String(e));}})();
-$('pineAccordionToggle').addEventListener('click',()=>{const box=$('pineAccordion'),body=$('pineAccordionBody'),open=body.hidden;body.hidden=!open;box.classList.toggle('open',open);$('pineAccordionToggle').setAttribute('aria-expanded',String(open));$('pineAccordionArrow').textContent=open?'−':'＋';});$('telegramTest').addEventListener('click',async()=>{try{await telegramSend({exchange:'TEST',symbol:'BTCUSDT',side:'INFO',timeframe:'test',score:100,details:'By LOTUSERIC Telegram bağlantı testi'});$('telegramStatus').textContent='Test bildirimi başarıyla gönderildi.'}catch(e){$('telegramStatus').textContent='Telegram test hatası: '+e.message}});$('selectCore').addEventListener('click',()=>{document.querySelectorAll('.pine-check').forEach(x=>x.checked=PINE_DEFAULTS.includes(x.dataset.name));updatePineCount()});$('start').addEventListener('click',start);$('stop').addEventListener('click',stop);$('exchange').addEventListener('change',()=>{syncTimeframes();refreshPineTimeframes();if(S.running){stop();start()}});$('tf').addEventListener('change',()=>{if(S.running){clearInterval(S.timer);runCombinedCycle().then(()=>S.running&&(S.timer=setInterval(()=>runCombinedCycle(),+$('interval').value)))}});$('volume').addEventListener('change',()=>{if(S.running)runCombinedCycle()});$('interval').addEventListener('change',()=>{if(S.running){clearInterval(S.timer);S.timer=setInterval(()=>{if(!document.hidden)runCombinedCycle()},+$('interval').value)}});
+$('pineAccordionToggle').addEventListener('click',()=>{const box=$('pineAccordion'),body=$('pineAccordionBody'),open=body.hidden;body.hidden=!open;box.classList.toggle('open',open);$('pineAccordionToggle').setAttribute('aria-expanded',String(open));$('pineAccordionArrow').textContent=open?'−':'＋';});$('telegramTest').addEventListener('click',async()=>{try{await telegramSend({exchange:'TEST',symbol:'BTCUSDT',side:'INFO',timeframe:'test',score:100,details:'By LOTUSERIC Telegram bağlantı testi'});$('telegramStatus').textContent='Test bildirimi başarıyla gönderildi.'}catch(e){$('telegramStatus').textContent='Telegram test hatası: '+e.message}});$('selectCore').addEventListener('click',()=>{document.querySelectorAll('.pine-check').forEach(x=>x.checked=PINE_DEFAULTS.includes(x.dataset.name));updatePineCount()});$('start').addEventListener('click',async()=>{if(window.LotusericLicense?.requireActive && await window.LotusericLicense.requireActive())start();else if(!window.LotusericLicense)alert('Lisans doğrulaması yükleniyor.');});$('stop').addEventListener('click',stop);$('exchange').addEventListener('change',()=>{syncTimeframes();refreshPineTimeframes();if(S.running){stop();start()}});$('tf').addEventListener('change',()=>{if(S.running){clearInterval(S.timer);runCombinedCycle().then(()=>S.running&&(S.timer=setInterval(()=>runCombinedCycle(),+$('interval').value)))}});$('volume').addEventListener('change',()=>{if(S.running)runCombinedCycle()});$('interval').addEventListener('change',()=>{if(S.running){clearInterval(S.timer);S.timer=setInterval(()=>{if(!document.hidden)runCombinedCycle()},+$('interval').value)}});
 // AI ayarları değişince yeniden tarama
 ['aiTrendW','aiMomW','aiVolW','aiSigW','aiHtfW','aiAtrW','aiMinScore'].forEach(id=>{$(id).addEventListener('change',()=>{if(S.running&&!S.scanInProgress&&!combinedCycleInProgress){aiStatus('AI AYARI DEĞİŞTİ · Yeniden analiz…');setTimeout(()=>runCombinedCycle(),300);}});});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.running)runCombinedCycle()});
@@ -979,8 +986,8 @@ async function scan(){
  }
 }
 initSpotSelection();
-$('spotStart').addEventListener('click',scan);
-$('spotQuickStart')?.addEventListener('click',()=>{ $('spot-panel').scrollIntoView({behavior:'smooth',block:'start'}); scan(); });
+$('spotStart').addEventListener('click',async()=>{if(window.LotusericLicense?.requireActive && await window.LotusericLicense.requireActive())scan();else if(!window.LotusericLicense)alert('Lisans doğrulaması yükleniyor.');});
+$('spotQuickStart')?.addEventListener('click',async()=>{if(!(window.LotusericLicense?.requireActive && await window.LotusericLicense.requireActive()))return;$('spot-panel').scrollIntoView({behavior:'smooth',block:'start'}); scan(); });
 $('spotStop').addEventListener('click',()=>{abort=true;$('spotStatus').textContent='Tarama durduruluyor…';});
 function stop(){abort=true;}
 window.LotusericSpotScanner={scan,stop,get running(){return running;}};
@@ -1091,4 +1098,66 @@ function bind(){const b=$('lotuseric-update-check'),a=$('lotuseric-update-apply'
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
 window.LotusericUpdate={version:APP_VERSION,check,apply};
 })();
+</script>
+<div id="lotuseric-auth-wall">
+ <div class="la-card">
+  <h2>LOTUSERIC AI Scanner</h2>
+  <p id="la-intro">Deneme erişimi için yönetici tarafından davet edilmiş hesabınızla giriş yapın.</p>
+  <form id="la-login">
+   <input id="la-email" type="email" autocomplete="username" placeholder="E-posta adresi" required>
+   <input id="la-password" type="password" autocomplete="current-password" placeholder="Şifre" required>
+   <button id="la-submit" type="submit">GİRİŞ YAP</button>
+  </form>
+  <label class="la-consent"><input id="la-ai-consent" type="checkbox" style="width:auto;margin:2px 0 0"> Sinyal özelliklerim ve sonuçlarımın kimlik bilgilerimden ayrıştırılarak ortak AI geliştirme havuzunda kullanılmasına izin veriyorum. Bu izin isteğe bağlıdır ve sonradan geri alınabilir.</label>
+  <button id="la-consent-save" type="button">VERİ PAYLAŞIMI TERCİHİNİ KAYDET</button>
+  <button id="la-logout" type="button" style="background:#344054">ÇIKIŞ YAP</button>
+  <div id="la-status" class="la-status">Lisans kontrolü bekleniyor.</div>
+ </div>
+</div>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const SB_URL='https://okrpkmvcjsbiemdvrenp.supabase.co';
+const SB_KEY='sb_publishable_d5WfsR3b7TlT0_-Fbef21A_YMbDmPq5';
+const sb=createClient(SB_URL,SB_KEY);
+const wall=document.getElementById('lotuseric-auth-wall'),msg=document.getElementById('la-status');
+let active=false, license=null;
+const say=t=>msg.textContent=t;
+const endpoint=SB_URL+'/functions/v1/lotuseric-license';
+async function call(action,extra={}) {
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session)throw new Error('Önce davetli hesabınızla giriş yapın.');
+ const res=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,'apikey':SB_KEY},body:JSON.stringify({action,...extra})});
+ const d=await res.json();if(!res.ok||!d.ok)throw new Error(d.message||d.error||'Lisans doğrulanamadı');return d;
+}
+function deviceKey(){
+ let k=localStorage.getItem('lotuseric_device_key');
+ if(!k){k=crypto.randomUUID()+'-'+crypto.randomUUID();localStorage.setItem('lotuseric_device_key',k);}
+ return k;
+}
+async function verify(){
+ active=false;wall.hidden=false;
+ const {data:{session}}=await sb.auth.getSession();
+ if(!session){say('Giriş yapmanız gerekiyor.');return false;}
+ try{
+  const d=await call('claim-device',{device_key:deviceKey(),device_label:navigator.userAgent.slice(0,70)});
+  license=d;active=true;wall.hidden=true;
+  window.LotusericLicense={requireActive:async()=>active,refresh:verify,get status(){return license;}};
+  document.dispatchEvent(new CustomEvent('lotuseric:license-active',{detail:d}));
+  return true;
+ }catch(e){say(e.message);return false;}
+}
+document.getElementById('la-login').addEventListener('submit',async e=>{
+ e.preventDefault();say('Giriş yapılıyor…');
+ const {error}=await sb.auth.signInWithPassword({email:document.getElementById('la-email').value.trim(),password:document.getElementById('la-password').value});
+ if(error){say('Giriş başarısız: '+error.message);return;}
+ await verify();
+});
+document.getElementById('la-consent-save').addEventListener('click',async()=>{
+ try{const d=await call('consent',{allowed:document.getElementById('la-ai-consent').checked});say(d.ai_training_consent?'AI veri paylaşım izni kaydedildi.':'AI veri paylaşım izni kapatıldı.');}
+ catch(e){say(e.message);}
+});
+document.getElementById('la-logout').addEventListener('click',async()=>{await sb.auth.signOut();active=false;wall.hidden=false;say('Oturum kapatıldı.');});
+sb.auth.onAuthStateChange((_event,session)=>{if(!session){active=false;wall.hidden=false;}});
+window.LotusericLicense={requireActive:async()=>active,refresh:verify};
+verify();
 </script></body></html>
