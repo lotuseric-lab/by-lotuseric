@@ -102,6 +102,10 @@ select,input,button{font:inherit;color:var(--text);background:var(--panel);borde
   </details>
   <details id="sharedSignalDisclosure" style="margin:12px 0;border:1px solid #56318a;border-radius:12px;background:#170f2a">
 <summary style="cursor:pointer;padding:12px;color:#d8b4ff;font-weight:800;list-style-position:inside">ORTAK AI SİNYAL AKIŞI · Son 50 saat</summary>
+<details id="mySignalDisclosure" style="margin:12px 0;border:1px solid #267a66;border-radius:12px;background:#0d211f">
+<summary style="cursor:pointer;padding:12px;color:#8ee0c2;font-weight:800;list-style-position:inside">SİNYALLERİM · TP / SL DURUMU</summary>
+<div id="mySignalStatusList" class="sub" style="padding:0 12px 12px"><div>Kişisel sinyaller yükleniyor…</div></div>
+</details>
 <div id="sharedSignalList" class="sub" style="padding:0 12px 12px"><div>Ortak sinyaller yükleniyor…</div></div>
 </details>
 <div data-learning-updated style="margin-top:8px;color:#8294ad;font-size:10px"></div>
@@ -1288,7 +1292,23 @@ window.LotusericUpdate={version:APP_VERSION,check,apply};
  </div>
 </div>
 <div id="la-consent-settings" hidden style="position:fixed;z-index:99995;left:12px;right:12px;bottom:12px;max-width:420px;margin:auto;background:#111a27;color:#f5f7fb;border:1px solid #42516a;border-radius:13px;padding:12px;font:12px system-ui;box-shadow:0 8px 30px #0008"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>AI VERİ PAYLAŞIM TERCİHİ</b><button id="la-consent-close" type="button" style="padding:5px 9px;background:#344054;color:white;border:0;border-radius:7px">KAPAT ✕</button></div><label style="display:flex;gap:8px;align-items:flex-start"><input id="la-consent-live" type="checkbox" style="margin-top:2px"> Sinyal özelliklerimin ve sonuçlarımın kimlik bilgilerimden ayrıştırılarak ortak AI geliştirme havuzunda kullanılmasına izin veriyorum.</label><button id="la-consent-live-save" type="button" style="margin-top:8px">AI VERİ İZNİNİ KAYDET</button></div>
-<div id="lotuseric-admin-panel" hidden style="position:fixed;z-index:99997;inset:8px;overflow:auto;background:#10151f;color:#f5f7fb;border:1px solid #3a4658;border-radius:18px;padding:14px;font:14px system-ui"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:4px 0">LOTUSERIC · Yönetici</h2><button id="la-admin-close">KAPAT</button></div><p style="color:#aebbd0;font-size:12px">Deneme lisansı: 15 gün · 1 cihaz · AI paylaşım izni ayrı ve isteğe bağlıdır.</p><form id="la-invite-form" style="display:flex;gap:8px;flex-wrap:wrap"><input id="la-invite-email" type="email" placeholder="Davet edilecek e-posta" required style="flex:1;min-width:180px"><input id="la-invite-days" type="number" min="1" max="90" value="15" aria-label="Lisans günü" style="width:76px"><button type="submit">DAVET GÖNDER</button></form><div id="la-admin-msg" style="padding:8px 0;color:#f0c979;font-size:12px"></div><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:10px 0">Kullanıcılar</h3><button id="la-admin-refresh">YENİLE</button></div><div id="la-admin-users">Yükleniyor…</div></div>
+<div id="lotuseric-admin-panel" hidden style="position:fixed;z-index:99997;inset:8px;overflow:auto;background:#10151f;color:#f5f7fb;border:1px solid #3a4658;border-radius:18px;padding:14px;font:14px system-ui"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:4px 0">LOTUSERIC · Yönetici</h2><button id="la-admin-close">KAPAT</button></div><p style="color:#aebbd0;font-size:12px">Deneme lisansı: 15 gün · 1 cihaz · AI paylaşım izni ayrı ve isteğe bağlıdır.</p><form id="la-invite-form" style="display:flex;gap:8px;flex-wrap:wrap"><input id="la-invite-email" type="email" placeholder="Davet edilecek e-posta" required style="flex:1;min-width:180px"><input id="la-invite-days" type="number" min="1" max="90" value="15" aria-label="Lisans günü" style="width:76px"><button type="submit">DAVET GÖNDER</button></form><div id="la-admin-msg" style="padding:8px 0;color:#f0c979;font-size:12px"></div>
+<div style="margin:12px 0;padding:12px;border:1px solid #46536b;border-radius:12px;background:#151e2d">
+<h3 style="margin:0 0 9px;color:#d8b4ff">Kullanıcılara duyuru gönder</h3>
+<form id="la-announcement-form">
+<input id="la-announcement-title" maxlength="140" required placeholder="Duyuru başlığı · Örn. Yeni güncelleme yayınlandı" style="width:100%;box-sizing:border-box;padding:11px;margin:5px 0;border-radius:8px">
+<textarea id="la-announcement-body" maxlength="3000" required rows="5" placeholder="Güncellemenin içeriğini ve yenilikleri yaz…" style="width:100%;box-sizing:border-box;padding:11px;margin:5px 0;border-radius:8px;resize:vertical"></textarea>
+<button type="submit" style="width:100%;padding:12px;background:#7048bd;color:white;border:0;border-radius:9px;font-weight:800">DUYURUYU HERKESE GÖNDER</button>
+</form><div id="la-announcement-msg" style="font-size:12px;color:#f0c979;margin-top:7px"></div>
+</div><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:10px 0">Kullanıcılar</h3><button id="la-admin-refresh">YENİLE</button></div><div id="la-admin-users">Yükleniyor…</div></div>
+<div id="la-announcement-modal" hidden style="position:fixed;z-index:100010;inset:0;background:#050914eF;display:none;place-items:center;padding:18px">
+<div style="width:min(520px,100%);max-height:85vh;overflow:auto;background:#151d2d;border:1px solid #7450bd;border-radius:18px;padding:20px;color:#fff;box-shadow:0 18px 60px #0009">
+<div style="color:#c9a8ff;font-size:11px;font-weight:900;letter-spacing:1px">LOTUSERIC · YÖNETİCİ DUYURUSU</div>
+<h2 id="la-announcement-view-title" style="margin:8px 0 12px"></h2>
+<div id="la-announcement-view-body" style="white-space:pre-wrap;line-height:1.55;color:#d8e0ef"></div>
+<div id="la-announcement-view-date" style="font-size:11px;color:#8494aa;margin-top:12px"></div>
+<button id="la-announcement-dismiss" type="button" style="width:100%;margin-top:18px;padding:13px;background:#7048bd;color:white;border:0;border-radius:9px;font-weight:800">OKUDUM</button>
+</div></div>
 <div id="la-password-recovery" hidden style="position:fixed;z-index:100000;inset:0;background:#080c16ee;display:none;place-items:center;padding:18px"><div style="width:min(440px,100%);background:#151d2d;border:1px solid #46536b;border-radius:18px;padding:22px;color:#fff"><h2>Yeni şifre belirle</h2><p>Hesabın için en az 8 karakterli yeni bir şifre oluştur.</p><input id="la-new-password" type="password" minlength="8" autocomplete="new-password" placeholder="Yeni şifre" style="width:100%;padding:14px;margin:8px 0;border-radius:10px"><input id="la-new-password2" type="password" minlength="8" autocomplete="new-password" placeholder="Yeni şifreyi tekrar yaz" style="width:100%;padding:14px;margin:8px 0;border-radius:10px"><button id="la-save-new-password" type="button" style="width:100%;padding:14px;background:#8657ee;color:white;border:0;border-radius:10px;font-weight:700">ŞİFREYİ KAYDET</button><div id="la-password-status" style="margin-top:12px;color:#ffd166"></div></div></div>
 <script type="module">
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -1351,9 +1371,12 @@ async function verify(){
   license=d;active=true;showFirstUseGuide();const consentBox=document.getElementById('la-ai-consent');if(consentBox)consentBox.checked=d.ai_training_consent===true;const liveConsent=document.getElementById('la-consent-live');if(liveConsent)liveConsent.checked=d.ai_training_consent===true;document.getElementById('la-consent-settings').hidden=true;wall.hidden=true;
   window.LotusericLicense={requireActive:async()=>active,refresh:verify,logScanEvent:async(payload)=>{try{return await call("scan-event",payload);}catch(e){console.warn("LOTUSERIC scan telemetry:",e.message);return null;}},get status(){return license;}};
   document.dispatchEvent(new CustomEvent('lotuseric:license-active',{detail:d}));
+  refreshAnnouncements(true);refreshMySignals();
+  if(announcementPollTimer)clearInterval(announcementPollTimer);
+  announcementPollTimer=setInterval(()=>{refreshAnnouncements(true);refreshMySignals();},60000);
   if(!document.getElementById('la-consent-open')){const c=document.createElement('button');c.id='la-consent-open';c.textContent='AI İZNİ';c.type='button';c.style='position:static;display:inline-flex;align-items:center;justify-content:center;width:auto;max-width:100%;padding:7px 9px;margin:0;border-radius:9px;background:#202b3b;color:#cbd5e1;border:1px solid #42516a;font-size:10px;line-height:1.2;white-space:nowrap;flex:0 0 auto';c.onclick=()=>{document.getElementById('la-consent-settings').hidden=false;};const slot=document.querySelector('header .brand > div:last-child');if(slot){slot.style='display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;max-width:62%';slot.appendChild(c);}else{c.style='position:fixed;z-index:99994;right:12px;bottom:12px';document.body.appendChild(c);}}
   if(d.role==='admin'){
-   window.LotusericAdmin={open:()=>{document.getElementById('lotuseric-admin-panel').hidden=false;loadUsers();}};
+   window.LotusericAdmin={open:()=>{document.getElementById('lotuseric-admin-panel').hidden=false;loadUsers();refreshAnnouncements(false);}};
    if(!document.getElementById('la-admin-open')){const b=document.createElement('button');b.id='la-admin-open';b.textContent='YÖNETİCİ PANELİ';b.style='position:static;display:inline-flex;align-items:center;justify-content:center;width:auto;max-width:100%;padding:7px 9px;margin:0;border-radius:9px;background:#1c6b48;color:white;border:0;font-size:10px;line-height:1.2;white-space:nowrap;flex:0 0 auto';b.onclick=()=>window.LotusericAdmin.open();const slot=document.querySelector('header .brand > div:last-child');if(slot){slot.style='display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;max-width:62%';slot.appendChild(b);}else{b.style='position:fixed;z-index:99996;right:12px;top:calc(env(safe-area-inset-top) + 12px)';document.body.appendChild(b);}}
   }else{
    try{await call('list-users');}catch(_e){}
@@ -1450,6 +1473,54 @@ document.getElementById('la-consent-save').addEventListener('click',async()=>{
  catch(e){say(e.message);}
 });
 document.getElementById('la-logout').addEventListener('click',async()=>{await sb.auth.signOut();active=false;wall.hidden=false;say('Oturum kapatıldı.');});
+
+let announcementPollTimer=null;
+async function refreshAnnouncements(showPopup=true){
+ try{
+  const d=await call('announcements');
+  const latest=d.announcements?.[0];if(!latest)return;
+  const {data:{session}}=await sb.auth.getSession();if(!session)return;
+  const key='lotuseric_announcement_seen_'+session.user.id;
+  const seen=Number(localStorage.getItem(key)||0);
+  if(showPopup&&Number(latest.id)>seen){
+   document.getElementById('la-announcement-view-title').textContent=latest.title;
+   document.getElementById('la-announcement-view-body').textContent=latest.body;
+   document.getElementById('la-announcement-view-date').textContent=adminDate(latest.created_at);
+   const box=document.getElementById('la-announcement-modal');box.hidden=false;box.style.display='grid';
+   box.dataset.announcementId=String(latest.id);
+  }
+ }catch(e){console.warn('LOTUSERIC announcements:',e.message);}
+}
+document.getElementById('la-announcement-dismiss').addEventListener('click',()=>{
+ const box=document.getElementById('la-announcement-modal'),id=Number(box.dataset.announcementId||0);
+ sb.auth.getSession().then(({data:{session}})=>{if(session&&id)localStorage.setItem('lotuseric_announcement_seen_'+session.user.id,String(id));});
+ box.hidden=true;box.style.display='none';
+});
+async function refreshMySignals(){
+ const host=document.getElementById('mySignalStatusList');if(!host||!active)return;
+ try{
+  const d=await call('my-signals');host.replaceChildren();
+  if(!d.signals?.length){host.textContent='Henüz bu hesaba ait kayıtlı sinyal bulunmuyor.';return;}
+  for(const x of d.signals.slice(0,40)){
+   const ls=Array.isArray(x.signal_level_status)?(x.signal_level_status[0]||{}):(x.signal_level_status||{});
+   const status=ls.status==='sl'?'STOP OLDU':ls.status==='tp3'?'TP3 TAMAMLANDI':ls.status==='tp2'?'TP2 ULAŞTI':ls.status==='tp1'?'TP1 ULAŞTI':'BEKLEMEDE';
+   const row=document.createElement('div');row.style.cssText='padding:10px 0;border-bottom:1px solid #285248;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap';
+   const left=document.createElement('div'),name=document.createElement('b');name.textContent=String(x.symbol||'—')+' · '+String(x.side||'—');
+   const meta=document.createElement('div');meta.style.cssText='font-size:11px;color:#9abbb1;margin-top:4px';meta.textContent=String(x.exchange||'').toUpperCase()+' · '+String(x.timeframe||'')+' · Giriş '+(x.entry_price??'—')+' · Son '+(ls.last_price??'—');
+   left.append(name,meta);
+   const right=document.createElement('div');right.style.cssText='text-align:right;font-size:12px;color:'+(ls.status==='sl'?'#ff8b9b':ls.status==='pending'?'#f0c979':'#79dfb2');
+   const st=document.createElement('b');st.textContent=status;
+   const levels=document.createElement('div');levels.style.cssText='font-size:10px;color:#a7b6c7;margin-top:4px';levels.textContent=['TP1 '+(x.take_profit_1??'—'), 'TP2 '+(x.take_profit_2??'—'),'TP3 '+(x.take_profit_3??'—'),'SL '+(x.stop_loss??'—')].join(' · ');
+   right.append(st,levels);row.append(left,right);host.appendChild(row);
+  }
+ }catch(e){host.textContent='Sinyal durumları alınamadı: '+e.message;}
+}
+document.getElementById('la-announcement-form').addEventListener('submit',async e=>{
+ e.preventDefault();const msg=document.getElementById('la-announcement-msg'),title=document.getElementById('la-announcement-title').value.trim(),body=document.getElementById('la-announcement-body').value.trim();
+ if(!title||!body)return;msg.textContent='Duyuru gönderiliyor…';
+ try{const d=await call('create-announcement',{title,body});msg.textContent='Duyuru yayınlandı. Kullanıcılar uygulamayı açtıklarında görecek.';e.target.reset();await refreshAnnouncements(false);}
+ catch(err){msg.textContent='Gönderilemedi: '+err.message;}
+});
 function adminDate(v){if(!v)return '—';const d=new Date(v);return Number.isNaN(d.getTime())?'—':d.toLocaleString('tr-TR',{dateStyle:'short',timeStyle:'short'});}
 async function loadUsers(){
  const host=document.getElementById('la-admin-users');host.textContent='Kullanıcı bilgileri yükleniyor…';
