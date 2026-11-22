@@ -1199,6 +1199,10 @@ window.LotusericUpdate={version:APP_VERSION,check,apply};
  </div>
 </div>
 <style>
+/* Keep account controls out of the signed-out login view; retain their DOM and handlers. */
+#lotuseric-auth-wall .la-card > .la-consent,
+#lotuseric-auth-wall #la-consent-save,
+#lotuseric-auth-wall #la-logout{display:none!important}
 #la-onboarding[hidden]{display:none!important}
 #la-onboarding{position:fixed;inset:0;z-index:100001;background:#050914ed;display:grid;place-items:center;padding:14px;font-family:inherit}
 .la-onboard-card{width:min(560px,100%);max-height:min(90vh,850px);overflow:auto;background:#111c2d;border:1px solid #4b3972;border-radius:18px;padding:20px;box-shadow:0 24px 80px #000b}
