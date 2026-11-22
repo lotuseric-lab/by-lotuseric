@@ -759,7 +759,7 @@ for(const x of baseFiltered){
 // Save both approved and rejected candidates to the AI memory store.
 let memoryStatus=aiMemoryRecords.length?'Supabase kayıt servisi beklemede':'Bu turda hafızaya yazılacak uygun sinyal yok';
 if(window.LotusericAIBackend&&aiMemoryRecords.length){
-  try{const saved=await window.LotusericAIBackend.saveSignals(aiMemoryRecords);memoryStatus=saved.skippedConsent?'AI izni kapalı · kayıtlar paylaşım havuzuna gönderilmedi':saved.reason==='login_required'?'Oturum yok · AI hafızasına kayıt yapılamadı':`Supabase hafıza ${saved.saved}/${aiMemoryRecords.length} kayıt · ${saved.failed} hata`;
+  try{const saved=await window.LotusericAIBackend.saveSignals(aiMemoryRecords);memoryStatus=saved.skippedConsent?'AI izni kapalı · kayıtlar paylaşım havuzuna gönderilmedi':saved.reason==='login_required'?'Oturum yok · AI hafızasına kayıt yapılamadı':`Supabase hafıza ${saved.saved}/${aiMemoryRecords.length} kayıt · ${saved.failed} hata`;}
   catch(e){memoryStatus='Supabase kayıt hatası: '+(e?.message||String(e));}
 }
 // STEP 3: Sort by AI score
