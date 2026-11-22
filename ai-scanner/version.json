@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.2.0",
-  "build": 1520,
-  "publishedAt": "2026-11-22T22:10:00.000Z",
-  "notes": "Yönetici duyuru yayınlama paneli, tüm kullanıcılara duyuru bildirimi ve kişisel TP/SL sinyal durumu ekranı."
+  "version": "15.3.0",
+  "build": 1530,
+  "publishedAt": "2026-11-22T22:30:00.000Z",
+  "notes": "Kullanıcı destek merkezi: uygulama içinden öneri, istek ve hata bildirimi; yönetici gelen kutusu, durum takibi ve kullanıcıya yanıt."
 }
