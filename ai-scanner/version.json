@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.1.6",
-  "build": 1516,
-  "publishedAt": "2026-11-22T21:00:00.000Z",
-  "notes": "Supabase bağımsız TP/SL takipçisi; sinyal durumları her dakika güncellenir ve ortak sinyal akışında gösterilir."
+  "version": "15.2.0",
+  "build": 1520,
+  "publishedAt": "2026-11-22T22:10:00.000Z",
+  "notes": "Yönetici duyuru yayınlama paneli, tüm kullanıcılara duyuru bildirimi ve kişisel TP/SL sinyal durumu ekranı."
 }
