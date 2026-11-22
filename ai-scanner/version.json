@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.1.4",
-  "build": 1514,
-  "publishedAt": "2026-11-22T20:00:00.000Z",
-  "notes": "İlk açılışta hiçbir Pine indikatörü otomatik seçilmez; her kullanıcı kendi indikatörlerini seçer."
+  "version": "15.1.5",
+  "build": 1515,
+  "publishedAt": "2026-11-22T20:40:00.000Z",
+  "notes": "Supabase bağımsız sinyal takipçisi; TP1/TP2/TP3/SL durumları ve son fiyat ortak sinyal akışında gösterilir."
 }
