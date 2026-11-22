@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.1",
-  "build": 151,
+  "version": "15.1.1",
+  "build": 1511,
   "publishedAt": "2026-11-22T00:00:00.000Z",
-  "notes": "İlk giriş rehberi eklendi: Spot/Perpetual kullanım adımları, kaldıraç ve sinyal güvenliği kuralları, AI öğrenme izninin amacı ve isteğe bağlılık açıklaması. Lisans ve kimlik doğrulama akışı korunmuştur."
+  "notes": "v15.1 ilk kullanım rehberi: mobil AI izin kutusu görünümü ve sabit alt işlem düğmeleri iyileştirildi."
 }
