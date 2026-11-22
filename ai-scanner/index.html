@@ -982,7 +982,7 @@ async function scanCore(){
 }
 async function scan(){
  const started=Date.now(),selected=selectedSpotExchanges(),base={scan_type:"spot",exchange:selected.join(","),timeframe:"5m"};window.LotusericLicense?.logScanEvent?.({...base,phase:"start"});
- try{await scanCore();const scanned=Number($('spotScanned')?.textContent)||0,hasCandidates=Number($('spotTotal')?.textContent.replace(/[^0-9]/g,''))>0;if(!scanned&&!hasCandidates)throw new Error('empty_scan_result: Spot motoru coin taraması yapmadan döndü.');window.LotusericLicense?.logScanEvent?.({...base,phase:"finish",scanned,signals:Array.isArray(results)?results.length:0,duration_ms:Date.now()-started});}
+ try{await scanCore();const scannedText=String($('spotScanned')?.textContent||'').trim(),scannedMatch=scannedText.match(/^(\d[\d.,]*)/),scanned=scannedMatch?Number(scannedMatch[1].replace(/[.,]/g,'')):0,hasCandidates=Number($('spotTotal')?.textContent.replace(/[^0-9]/g,''))>0;if(!scanned&&!hasCandidates)throw new Error('empty_scan_result: Spot motoru coin taraması yapmadan döndü.');window.LotusericLicense?.logScanEvent?.({...base,phase:"finish",scanned,signals:Array.isArray(results)?results.length:0,duration_ms:Date.now()-started});}
  catch(e){window.LotusericLicense?.logScanEvent?.({...base,phase:"error",duration_ms:Date.now()-started,error_message:e?.message||String(e)});
   const message=e?.message||String(e);
   const statusEl=$('spotStatus');if(statusEl)statusEl.textContent='Spot tarama hatası: '+message;
@@ -1096,7 +1096,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>>
 <script>
 (()=>{'use strict';
-const APP_VERSION='14.8',MANIFEST='./version.json';let latest=null;
+const APP_VERSION='14.9',MANIFEST='./version.json';let latest=null;
 const $=id=>document.getElementById(id);
 function cmp(a,b){const x=String(a||'0').split('.').map(v=>parseInt(v,10)||0),y=String(b||'0').split('.').map(v=>parseInt(v,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
 async function check(){const b=$('lotuseric-update-check'),v=$('lotuseric-version'),a=$('lotuseric-update-apply');if(b){b.disabled=true;b.textContent='KONTROL EDİLİYOR…';}if(v)v.textContent='Güncelleme kontrol ediliyor…';try{const r=await fetch(MANIFEST+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();if(!d.version)throw Error('Sürüm bilgisi geçersiz');latest=d;const newer=cmp(d.version,APP_VERSION)>0;if(v)v.textContent=newer?'Yeni sürüm bulundu: v'+d.version+' · '+(d.notes||''):'v'+APP_VERSION+' · Güncel';if(a){a.hidden=!newer;a.textContent='ŞİMDİ GÜNCELLE';}if(b)b.textContent=newer?'↻ YENİ SÜRÜM HAZIR':'✓ GÜNCEL';}catch(e){if(v)v.textContent='Kontrol başarısız: '+e.message;if(b)b.textContent='↻ TEKRAR DENE';if(a)a.hidden=true;}finally{if(b)b.disabled=false;}}
