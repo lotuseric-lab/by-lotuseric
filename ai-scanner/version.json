@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "14.7",
-  "build": 147,
-  "publishedAt": "2026-11-22T13:30:00.000Z",
-  "notes": "Tarayıcı başlangıcını engelleyen JavaScript sözdizimi hatası giderildi; indikatör listesi ve BAŞLAT akışı yeniden etkinleştirildi."
+  "version": "14.8",
+  "build": 148,
+  "publishedAt": "2026-11-22T13:45:00.000Z",
+  "notes": "Yönetici panelinde Perpetual ve Spot taramalarının son kayıtları ayrı ayrı gösterilir; tarama sayaçları korunur."
 }
