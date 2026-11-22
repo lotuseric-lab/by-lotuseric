@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.1.1",
-  "build": 1511,
+  "version": "15.1.2",
+  "build": 1512,
   "publishedAt": "2026-11-22T00:00:00.000Z",
-  "notes": "v15.1 ilk kullanım rehberi: mobil AI izin kutusu görünümü ve sabit alt işlem düğmeleri iyileştirildi."
+  "notes": "Sürüm denetimi uygulamanın gerçek sürümüyle eşitlendi; güncelleme düğmesi önbellek kıran yenileme yapar. iPhone başlığındaki yönetici düğmesi durum göstergeleriyle çakışmayacak şekilde düzenlendi."
 }
