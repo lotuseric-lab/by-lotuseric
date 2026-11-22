@@ -1158,6 +1158,52 @@ window.LotusericUpdate={version:APP_VERSION,check,apply};
   <div id="la-status" class="la-status">Lisans kontrolü bekleniyor.</div>
  </div>
 </div>
+<style>
+#la-onboarding[hidden]{display:none!important}
+#la-onboarding{position:fixed;inset:0;z-index:100001;background:#050914ed;display:grid;place-items:center;padding:14px;font-family:inherit}
+.la-onboard-card{width:min(560px,100%);max-height:min(90vh,850px);overflow:auto;background:#111c2d;border:1px solid #4b3972;border-radius:18px;padding:20px;box-shadow:0 24px 80px #000b}
+.la-onboard-card h2{margin:0 0 7px;color:#e9d5ff;font-size:21px}
+.la-onboard-card p{color:#c1cde0;font-size:13px;line-height:1.55}
+.la-onboard-step{margin:12px 0;padding:12px;border:1px solid #30415b;border-radius:12px;background:#0c1626}
+.la-onboard-step b{display:block;color:#e5d7fa;margin-bottom:5px;font-size:13px}
+.la-onboard-step span{display:block;color:#aebbd0;font-size:12px;line-height:1.5}
+.la-onboard-rule{margin:7px 0;color:#cbd5e1;font-size:12px;line-height:1.5}
+.la-onboard-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.la-onboard-actions button{flex:1;min-width:130px;padding:12px}
+.la-onboard-primary{background:#6d45bd!important;color:white!important;font-weight:800}
+.la-onboard-consent{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid #60428a;border-radius:11px;background:#1a1230;color:#e5d7fa;font-size:12px;line-height:1.5}
+.la-onboard-consent input{width:18px;min-width:18px;margin:2px 0 0;accent-color:#9b75ed}
+</style>
+<div id="la-onboarding" hidden role="dialog" aria-modal="true" aria-labelledby="la-onboard-title">
+ <div class="la-onboard-card">
+  <div style="font-size:10px;letter-spacing:1.5px;color:#b99ae9;font-weight:800;margin-bottom:8px">LOTUSERIC · İLK KULLANIM REHBERİ</div>
+  <h2 id="la-onboard-title">Hoş geldin! Başlamadan önce…</h2>
+  <p>LOTUSERIC, Spot ve Perpetual piyasalarını tarar; seçtiğin zaman diliminde teknik sinyalleri ve AI değerlendirmelerini bir arada sunar. Bu kısa rehber, ekranları doğru ve kontrollü kullanmana yardımcı olur.</p>
+  <div class="la-onboard-step"><b>1 · Perpetual taraması</b><span>Borsa ve zaman dilimini seç, hacim filtresini ihtiyacına göre ayarla ve BAŞLAT'a dokun. Sinyal kartındaki yönü, puanı, giriş bölgesini ve risk seviyelerini incele. Kaldıraç riski nedeniyle işlem kararını vermeden önce stop seviyesini mutlaka değerlendir.</span></div>
+  <div class="la-onboard-step"><b>2 · Spot taraması</b><span>Spot AI taraması ayrı çalışır. Spot bölümünden desteklenen borsaları seçip taramayı başlat. Spot sonuçlarını Perpetual sinyalleriyle karıştırma; ürün ve risk yapıları farklıdır.</span></div>
+  <div class="la-onboard-step"><b>3 · İndikatörler ve AI değerlendirmesi</b><span>İndikatörleri ihtiyacına göre seç. AI puanı; teknik koşulları birlikte değerlendirmeye yardımcı olan bir filtredir, kesinlik veya kâr garantisi değildir. Farklı zaman dilimlerinde sinyalin tutarlılığını kontrol et.</span></div>
+  <div class="la-onboard-step"><b>4 · Sonuçları takip et</b><span>Sinyal kartlarını, grafik bağlantılarını ve tarama geçmişini incele. Sinyal oluşması otomatik emir verildiği anlamına gelmez; borsada işlemi kendin kontrol ederek gerçekleştir.</span></div>
+  <div class="la-onboard-step">
+   <b>Güvenli kullanım kuralları</b>
+   <div class="la-onboard-rule">• Önce demo veya küçük tutarla deneme yap; kaybetmeyi göze alamayacağın parayla işlem açma.</div>
+   <div class="la-onboard-rule">• Kaldıraç kazancı da zararı da büyütür. Kaldıraç oranını artırmak zorunda değilsin.</div>
+   <div class="la-onboard-rule">• Stop-loss seviyesini ve pozisyon büyüklüğünü işlemden önce belirle; tek bir sinyale dayanarak karar verme.</div>
+   <div class="la-onboard-rule">• Hacim, likidite, haber akışı ve üst zaman dilimi yönünü ayrıca kontrol et.</div>
+   <div class="la-onboard-rule">• Uygulama yatırım tavsiyesi veya getiri garantisi vermez. Piyasa koşulları hızla değişebilir.</div>
+   <div class="la-onboard-rule">• Hesabını ve davet bağlantını başkalarıyla paylaşma. Lisans bir cihaz için tanımlıdır.</div>
+  </div>
+  <div class="la-onboard-step">
+   <b>AI öğrenme izni neden önemli?</b>
+   <span>İzin verirsen, sinyal özelliklerin ve gerçekleşen sonuçların kimlik bilgilerinden ayrıştırılmış biçimde ortak AI geliştirme havuzunda değerlendirilebilir. Bu katkı; farklı piyasa koşullarında hangi sinyallerin daha tutarlı olduğunu incelemeye, AI değerlendirmesini ve sinyal yönetimini zaman içinde geliştirmeye yardımcı olabilir. Katkı, tek başına daha iyi veya kârlı sinyal garantisi değildir.</span>
+  </div>
+  <label class="la-onboard-consent"><input id="la-onboard-ai-consent" type="checkbox"><span><b>İsteğe bağlı AI geliştirme katkısına izin veriyorum.</b><br>Bu tercih zorunlu değildir. İzin vermezsen de LOTUSERIC'i kullanabilirsin. Tercihini daha sonra uygulamadaki AI İZNİ bölümünden değiştirebilirsin.</span></label>
+  <div id="la-onboard-status" class="la-status" aria-live="polite"></div>
+  <div class="la-onboard-actions">
+   <button id="la-onboard-skip" type="button" style="background:#344054">ŞİMDİLİK GEÇ</button>
+   <button id="la-onboard-finish" type="button" class="la-onboard-primary">ANLADIM · BAŞLA</button>
+  </div>
+ </div>
+</div>
 <div id="la-consent-settings" hidden style="position:fixed;z-index:99995;left:12px;right:12px;bottom:12px;max-width:420px;margin:auto;background:#111a27;color:#f5f7fb;border:1px solid #42516a;border-radius:13px;padding:12px;font:12px system-ui;box-shadow:0 8px 30px #0008"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b>AI VERİ PAYLAŞIM TERCİHİ</b><button id="la-consent-close" type="button" style="padding:5px 9px;background:#344054;color:white;border:0;border-radius:7px">KAPAT ✕</button></div><label style="display:flex;gap:8px;align-items:flex-start"><input id="la-consent-live" type="checkbox" style="margin-top:2px"> Sinyal özelliklerimin ve sonuçlarımın kimlik bilgilerimden ayrıştırılarak ortak AI geliştirme havuzunda kullanılmasına izin veriyorum.</label><button id="la-consent-live-save" type="button" style="margin-top:8px">AI VERİ İZNİNİ KAYDET</button></div>
 <div id="lotuseric-admin-panel" hidden style="position:fixed;z-index:99997;inset:8px;overflow:auto;background:#10151f;color:#f5f7fb;border:1px solid #3a4658;border-radius:18px;padding:14px;font:14px system-ui"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:4px 0">LOTUSERIC · Yönetici</h2><button id="la-admin-close">KAPAT</button></div><p style="color:#aebbd0;font-size:12px">Deneme lisansı: 15 gün · 1 cihaz · AI paylaşım izni ayrı ve isteğe bağlıdır.</p><form id="la-invite-form" style="display:flex;gap:8px;flex-wrap:wrap"><input id="la-invite-email" type="email" placeholder="Davet edilecek e-posta" required style="flex:1;min-width:180px"><input id="la-invite-days" type="number" min="1" max="90" value="15" aria-label="Lisans günü" style="width:76px"><button type="submit">DAVET GÖNDER</button></form><div id="la-admin-msg" style="padding:8px 0;color:#f0c979;font-size:12px"></div><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:10px 0">Kullanıcılar</h3><button id="la-admin-refresh">YENİLE</button></div><div id="la-admin-users">Yükleniyor…</div></div>
 <div id="la-password-recovery" hidden style="position:fixed;z-index:100000;inset:0;background:#080c16ee;display:none;place-items:center;padding:18px"><div style="width:min(440px,100%);background:#151d2d;border:1px solid #46536b;border-radius:18px;padding:22px;color:#fff"><h2>Yeni şifre belirle</h2><p>Yönetici hesabın için en az 8 karakterli yeni bir şifre oluştur.</p><input id="la-new-password" type="password" minlength="8" autocomplete="new-password" placeholder="Yeni şifre" style="width:100%;padding:14px;margin:8px 0;border-radius:10px"><input id="la-new-password2" type="password" minlength="8" autocomplete="new-password" placeholder="Yeni şifreyi tekrar yaz" style="width:100%;padding:14px;margin:8px 0;border-radius:10px"><button id="la-save-new-password" type="button" style="width:100%;padding:14px;background:#8657ee;color:white;border:0;border-radius:10px;font-weight:700">ŞİFREYİ KAYDET</button><div id="la-password-status" style="margin-top:12px;color:#ffd166"></div></div></div>
@@ -1185,13 +1231,41 @@ function deviceKey(){
  if(!k){k=crypto.randomUUID()+'-'+crypto.randomUUID();localStorage.setItem('lotuseric_device_key',k);}
  return k;
 }
+function showFirstUseGuide(){
+ const key='lotuseric_first_use_guide_v151';
+ if(localStorage.getItem(key)==='done')return;
+ const box=document.getElementById('la-onboarding');
+ const consent=document.getElementById('la-onboard-ai-consent');
+ if(!box||!consent)return;
+ consent.checked=license?.ai_training_consent===true;
+ box.hidden=false;
+}
+function closeFirstUseGuide(markDone){
+ const box=document.getElementById('la-onboarding');
+ if(markDone)localStorage.setItem('lotuseric_first_use_guide_v151','done');
+ if(box)box.hidden=true;
+}
+document.getElementById('la-onboard-skip').addEventListener('click',()=>closeFirstUseGuide(true));
+document.getElementById('la-onboard-finish').addEventListener('click',async()=>{
+ const status=document.getElementById('la-onboard-status');
+ const allowed=document.getElementById('la-onboard-ai-consent').checked;
+ const current=license?.ai_training_consent===true;
+ try{
+  if(allowed!==current){
+   status.textContent='AI veri izni tercihin kaydediliyor…';
+   const d=await call('consent',{allowed});
+   license={...license,ai_training_consent:d.ai_training_consent};
+  }
+  closeFirstUseGuide(true);
+ }catch(e){status.textContent='Tercih kaydedilemedi: '+e.message+' · Yeniden deneyebilir veya şimdilik geçebilirsin.';}
+});
 async function verify(){
  active=false;wall.hidden=false;
  const {data:{session}}=await sb.auth.getSession();
  if(!session){say('Giriş yapmanız gerekiyor.');return false;}
  try{
   const d=await call('claim-device',{device_key:deviceKey(),device_label:navigator.userAgent.slice(0,70)});
-  license=d;active=true;const consentBox=document.getElementById('la-ai-consent');if(consentBox)consentBox.checked=d.ai_training_consent===true;const liveConsent=document.getElementById('la-consent-live');if(liveConsent)liveConsent.checked=d.ai_training_consent===true;document.getElementById('la-consent-settings').hidden=true;wall.hidden=true;
+  license=d;active=true;showFirstUseGuide();const consentBox=document.getElementById('la-ai-consent');if(consentBox)consentBox.checked=d.ai_training_consent===true;const liveConsent=document.getElementById('la-consent-live');if(liveConsent)liveConsent.checked=d.ai_training_consent===true;document.getElementById('la-consent-settings').hidden=true;wall.hidden=true;
   window.LotusericLicense={requireActive:async()=>active,refresh:verify,logScanEvent:async(payload)=>{try{return await call("scan-event",payload);}catch(e){console.warn("LOTUSERIC scan telemetry:",e.message);return null;}},get status(){return license;}};
   document.dispatchEvent(new CustomEvent('lotuseric:license-active',{detail:d}));
   if(!document.getElementById('la-consent-open')){const c=document.createElement('button');c.id='la-consent-open';c.textContent='AI İZNİ';c.style='position:fixed;z-index:99994;left:12px;bottom:12px;padding:8px 11px;border-radius:9px;background:#202b3b;color:#cbd5e1;border:1px solid #42516a';c.onclick=()=>{document.getElementById('la-consent-settings').hidden=false;};document.body.appendChild(c);}
