@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.1.5",
-  "build": 1515,
-  "publishedAt": "2026-11-22T20:40:00.000Z",
-  "notes": "Supabase bağımsız sinyal takipçisi; TP1/TP2/TP3/SL durumları ve son fiyat ortak sinyal akışında gösterilir."
+  "version": "15.1.6",
+  "build": 1516,
+  "publishedAt": "2026-11-22T21:00:00.000Z",
+  "notes": "Supabase bağımsız TP/SL takipçisi; sinyal durumları her dakika güncellenir ve ortak sinyal akışında gösterilir."
 }
