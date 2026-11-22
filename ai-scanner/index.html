@@ -60,9 +60,18 @@ select,input,button{font:inherit;color:var(--text);background:var(--panel);borde
 .la-card input{box-sizing:border-box;width:100%;margin:7px 0;padding:13px;border-radius:9px;border:1px solid #475467;background:#0b1220;color:white}
 .la-card button{width:100%;padding:13px;margin-top:9px;border:0;border-radius:9px;background:#8b5cf6;color:white;font-weight:700}
 .la-status{font-size:12px;color:#fbbf24;min-height:20px;margin-top:10px}.la-consent{display:flex;gap:9px;align-items:flex-start;margin:12px 0;font-size:12px;color:#cbd5e1}
+/* Mobile header: keep status pills and admin action inside the header flow. */
+@media(max-width:520px){
+ header .brand{align-items:flex-start;gap:8px}
+ header .brand>div:first-child{min-width:0;flex:1}
+ header .brand>div:first-child b{font-size:16px}
+ header .brand>div:last-child{min-width:0;max-width:58%;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+ header .brand .pill{font-size:9px;padding:5px 7px}
+ #la-admin-open{position:static!important;top:auto!important;right:auto!important}
+}
 </style></head><body>
 <header><div class="brand"><div><b>BY LOTUSERIC</b><small>ÇOKLU BORSA · PERPETUAL + SPOT + AI ANALİZ</small></div><div style="display:flex;align-items:center"><span class="pill" id="state">DURDURULDU</span><span class="pill ai" id="aiState">AI BEKLEMEDE</span></div></div></header><div id="lotuseric-updatebar" style="max-width:1000px;margin:8px auto;padding:0 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-<span id="lotuseric-version" style="font-size:11px;color:#8da2bb;flex:1;min-width:140px">v13 · Sürüm kontrol edilmedi</span>
+<span id="lotuseric-version" style="font-size:11px;color:#8da2bb;flex:1;min-width:140px">v15.1.1 · Sürüm kontrol ediliyor…</span>
 <button id="lotuseric-update-check" type="button" style="padding:8px 11px;font-size:10px;border:1px solid #315b80;border-radius:8px;background:#142238;color:#c6e2ff">↻ GÜNCELLEMEYİ KONTROL ET</button>
 <button id="lotuseric-update-apply" type="button" hidden style="padding:8px 11px;font-size:10px;border:1px solid #246d5a;border-radius:8px;background:#12382e;color:#8ce7c2;font-weight:800">ŞİMDİ GÜNCELLE</button>
 </div>
@@ -1130,12 +1139,44 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>>
 <script>
 (()=>{'use strict';
-const APP_VERSION='15.0',MANIFEST='./version.json';let latest=null;
+const APP_VERSION='15.1.1',MANIFEST='./version.json';let latest=null;
 const $=id=>document.getElementById(id);
 function cmp(a,b){const x=String(a||'0').split('.').map(v=>parseInt(v,10)||0),y=String(b||'0').split('.').map(v=>parseInt(v,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
-async function check(){const b=$('lotuseric-update-check'),v=$('lotuseric-version'),a=$('lotuseric-update-apply');if(b){b.disabled=true;b.textContent='KONTROL EDİLİYOR…';}if(v)v.textContent='Güncelleme kontrol ediliyor…';try{const r=await fetch(MANIFEST+'?t='+Date.now(),{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const d=await r.json();if(!d.version)throw Error('Sürüm bilgisi geçersiz');latest=d;const newer=cmp(d.version,APP_VERSION)>0;if(v)v.textContent=newer?'Yeni sürüm bulundu: v'+d.version+' · '+(d.notes||''):'v'+APP_VERSION+' · Güncel';if(a){a.hidden=!newer;a.textContent='ŞİMDİ GÜNCELLE';}if(b)b.textContent=newer?'↻ YENİ SÜRÜM HAZIR':'✓ GÜNCEL';}catch(e){if(v)v.textContent='Kontrol başarısız: '+e.message;if(b)b.textContent='↻ TEKRAR DENE';if(a)a.hidden=true;}finally{if(b)b.disabled=false;}}
-function apply(){if(!latest)return;const u=new URL(location.href);u.searchParams.set('lotuseric_version',String(latest.version));u.searchParams.set('refresh',String(Date.now()));location.href=u.toString();}
-function bind(){const b=$('lotuseric-update-check'),a=$('lotuseric-update-apply');if(b)b.addEventListener('click',check);if(a)a.addEventListener('click',apply);check();}
+async function check(){
+ const b=$('lotuseric-update-check'),v=$('lotuseric-version'),a=$('lotuseric-update-apply');
+ if(b){b.disabled=true;b.textContent='KONTROL EDİLİYOR…';}
+ if(v)v.textContent='Güncelleme kontrol ediliyor…';
+ try{
+  const r=await fetch(MANIFEST+'?t='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw Error('Sürüm dosyası okunamadı (HTTP '+r.status+')');
+  const d=await r.json();if(!d.version)throw Error('Sürüm bilgisi geçersiz');
+  latest=d;
+  const newer=cmp(d.version,APP_VERSION)>0;
+  if(v)v.textContent=newer?'Yeni sürüm bulundu: v'+d.version+' · '+(d.notes||''):'v'+APP_VERSION+' · Güncel';
+  if(a){a.hidden=!newer;a.textContent='ŞİMDİ GÜNCELLE';}
+  if(b)b.textContent=newer?'↻ YENİ SÜRÜM HAZIR':'✓ GÜNCEL';
+ }catch(e){
+  if(v)v.textContent='Kontrol başarısız: '+e.message;
+  if(b)b.textContent='↻ TEKRAR DENE';
+  if(a)a.hidden=true;
+ }finally{if(b)b.disabled=false;}
+}
+function apply(){
+ if(!latest||cmp(latest.version,APP_VERSION)<=0)return;
+ const u=new URL(location.href);
+ u.searchParams.set('lotuseric_version',String(latest.version));
+ u.searchParams.set('refresh',String(Date.now()));
+ u.hash='';
+ if($('lotuseric-version'))$('lotuseric-version').textContent='v'+latest.version+' yükleniyor…';
+ if($('lotuseric-update-apply'))$('lotuseric-update-apply').disabled=true;
+ location.replace(u.toString());
+}
+function bind(){
+ const b=$('lotuseric-update-check'),a=$('lotuseric-update-apply');
+ if(b)b.addEventListener('click',check);
+ if(a)a.addEventListener('click',apply);
+ check();
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bind,{once:true});else bind();
 window.LotusericUpdate={version:APP_VERSION,check,apply};
 })();
@@ -1277,7 +1318,7 @@ async function verify(){
   if(!document.getElementById('la-consent-open')){const c=document.createElement('button');c.id='la-consent-open';c.textContent='AI İZNİ';c.style='position:fixed;z-index:99994;left:12px;bottom:12px;padding:8px 11px;border-radius:9px;background:#202b3b;color:#cbd5e1;border:1px solid #42516a';c.onclick=()=>{document.getElementById('la-consent-settings').hidden=false;};document.body.appendChild(c);}
   if(d.role==='admin'){
    window.LotusericAdmin={open:()=>{document.getElementById('lotuseric-admin-panel').hidden=false;loadUsers();}};
-   if(!document.getElementById('la-admin-open')){const b=document.createElement('button');b.id='la-admin-open';b.textContent='YÖNETİCİ PANELİ';b.style='position:fixed;z-index:99996;right:12px;top:12px;padding:10px;border-radius:10px;background:#1c6b48;color:white;border:0';b.onclick=()=>window.LotusericAdmin.open();document.body.appendChild(b);}
+   if(!document.getElementById('la-admin-open')){const b=document.createElement('button');b.id='la-admin-open';b.textContent='YÖNETİCİ PANELİ';b.style='position:static;display:inline-flex;align-items:center;justify-content:center;width:auto;max-width:100%;padding:7px 9px;margin:0;border-radius:9px;background:#1c6b48;color:white;border:0;font-size:10px;line-height:1.2;white-space:nowrap;flex:0 0 auto';b.onclick=()=>window.LotusericAdmin.open();const slot=document.querySelector('header .brand > div:last-child');if(slot){slot.style='display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;max-width:62%';slot.appendChild(b);}else{b.style='position:fixed;z-index:99996;right:12px;top:calc(env(safe-area-inset-top) + 12px)';document.body.appendChild(b);}}
   }else{
    try{await call('list-users');}catch(_e){}
   }
