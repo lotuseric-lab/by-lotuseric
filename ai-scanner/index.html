@@ -1139,7 +1139,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>>
 <script>
 (()=>{'use strict';
-const APP_VERSION='15.1.2',MANIFEST='./version.json';let latest=null;
+const APP_VERSION='15.1.3',MANIFEST='./version.json';let latest=null;
 const $=id=>document.getElementById(id);
 function cmp(a,b){const x=String(a||'0').split('.').map(v=>parseInt(v,10)||0),y=String(b||'0').split('.').map(v=>parseInt(v,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
 async function check(){
@@ -1315,7 +1315,7 @@ async function verify(){
   license=d;active=true;showFirstUseGuide();const consentBox=document.getElementById('la-ai-consent');if(consentBox)consentBox.checked=d.ai_training_consent===true;const liveConsent=document.getElementById('la-consent-live');if(liveConsent)liveConsent.checked=d.ai_training_consent===true;document.getElementById('la-consent-settings').hidden=true;wall.hidden=true;
   window.LotusericLicense={requireActive:async()=>active,refresh:verify,logScanEvent:async(payload)=>{try{return await call("scan-event",payload);}catch(e){console.warn("LOTUSERIC scan telemetry:",e.message);return null;}},get status(){return license;}};
   document.dispatchEvent(new CustomEvent('lotuseric:license-active',{detail:d}));
-  if(!document.getElementById('la-consent-open')){const c=document.createElement('button');c.id='la-consent-open';c.textContent='AI İZNİ';c.style='position:fixed;z-index:99994;left:12px;bottom:12px;padding:8px 11px;border-radius:9px;background:#202b3b;color:#cbd5e1;border:1px solid #42516a';c.onclick=()=>{document.getElementById('la-consent-settings').hidden=false;};document.body.appendChild(c);}
+  if(!document.getElementById('la-consent-open')){const c=document.createElement('button');c.id='la-consent-open';c.textContent='AI İZNİ';c.type='button';c.style='position:static;display:inline-flex;align-items:center;justify-content:center;width:auto;max-width:100%;padding:7px 9px;margin:0;border-radius:9px;background:#202b3b;color:#cbd5e1;border:1px solid #42516a;font-size:10px;line-height:1.2;white-space:nowrap;flex:0 0 auto';c.onclick=()=>{document.getElementById('la-consent-settings').hidden=false;};const slot=document.querySelector('header .brand > div:last-child');if(slot){slot.style='display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;max-width:62%';slot.appendChild(c);}else{c.style='position:fixed;z-index:99994;right:12px;bottom:12px';document.body.appendChild(c);}}
   if(d.role==='admin'){
    window.LotusericAdmin={open:()=>{document.getElementById('lotuseric-admin-panel').hidden=false;loadUsers();}};
    if(!document.getElementById('la-admin-open')){const b=document.createElement('button');b.id='la-admin-open';b.textContent='YÖNETİCİ PANELİ';b.style='position:static;display:inline-flex;align-items:center;justify-content:center;width:auto;max-width:100%;padding:7px 9px;margin:0;border-radius:9px;background:#1c6b48;color:white;border:0;font-size:10px;line-height:1.2;white-space:nowrap;flex:0 0 auto';b.onclick=()=>window.LotusericAdmin.open();const slot=document.querySelector('header .brand > div:last-child');if(slot){slot.style='display:flex;align-items:center;justify-content:flex-end;gap:5px;flex-wrap:wrap;max-width:62%';slot.appendChild(b);}else{b.style='position:fixed;z-index:99996;right:12px;top:calc(env(safe-area-inset-top) + 12px)';document.body.appendChild(b);}}
