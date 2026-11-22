@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.1.2",
-  "build": 1512,
+  "version": "15.1.3",
+  "build": 1513,
   "publishedAt": "2026-11-22T00:00:00.000Z",
-  "notes": "Sürüm denetimi uygulamanın gerçek sürümüyle eşitlendi; güncelleme düğmesi önbellek kıran yenileme yapar. iPhone başlığındaki yönetici düğmesi durum göstergeleriyle çakışmayacak şekilde düzenlendi."
+  "notes": "AI İZNİ kısayolu mobil ekranda içerik kartlarını kapatmaması için başlık alanına taşındı."
 }
