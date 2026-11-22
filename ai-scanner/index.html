@@ -1573,7 +1573,7 @@ async function loadUsers(){
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function adminMsg(t){document.getElementById('la-admin-msg').textContent=t;}
 document.getElementById('la-admin-close').onclick=()=>document.getElementById('lotuseric-admin-panel').hidden=true;
-document.getElementById('la-admin-refresh').onclick=loadUsers;
+document.getElementById('la-admin-refresh').onclick=loadUsers;document.getElementById('la-support-inbox-refresh').onclick=loadSupportInbox;
 document.getElementById('la-invite-form').addEventListener('submit',async e=>{e.preventDefault();try{const email=document.getElementById('la-invite-email').value.trim(),days=Number(document.getElementById('la-invite-days').value||15);await call('invite',{email,days});adminMsg('Davet gönderildi: '+email);e.target.reset();document.getElementById('la-invite-days').value=15;loadUsers();}catch(err){adminMsg(err.message);}});
 window.LotusericLicense={requireActive:async()=>{await verificationPromise;return active;},refresh:async()=>{verificationPromise=verify();return verificationPromise;}};
 verificationPromise=verify();
