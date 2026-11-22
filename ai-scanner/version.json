@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "14.8",
-  "build": 148,
-  "publishedAt": "2026-11-22T13:45:00.000Z",
-  "notes": "Yönetici panelinde Perpetual ve Spot taramalarının son kayıtları ayrı ayrı gösterilir; tarama sayaçları korunur."
+  "version": "14.9",
+  "build": 149,
+  "publishedAt": "2026-11-22T13:55:00.000Z",
+  "notes": "Spot taramasında yönetici paneline yazılan coin sayısı artık tamamlanan aday mum taramasının sayısal değeridir; 0 görünme hatası giderildi."
 }
