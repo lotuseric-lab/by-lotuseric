@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "14.4",
-  "build": 144,
-  "publishedAt": "2026-11-21T09:00:00+03:00",
-  "notes": "Emir defteri imbalance alanı null veya geçersiz olduğunda sinyal kartı render hatası vermez; eksik veri güvenli biçimde — gösterilir."
+  "version": "14.5",
+  "build": 145,
+  "publishedAt": "2026-11-22T13:09:33.479Z",
+  "notes": "Başlatma hatasında güvenli geri dönüş, indikatör tablosu için korumalı açma ve sürüm güncellemesi."
 }
