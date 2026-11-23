@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.8.0",
-  "build": 1580,
-  "publishedAt": "2026-11-23T10:45:00.000Z",
-  "notes": "Güncelleme motoru düzeltildi: sürüm karşılaştırması senkronlandı ve yeni HTML önbellek atlatılarak yükleniyor."
+  "version": "15.9.0",
+  "build": 1590,
+  "publishedAt": "2026-11-23T23:55:00.000Z",
+  "notes": "Tarama durdur/yeniden başlat yarış durumu düzeltildi; Pine indikatör kaynak sayısı dinamik olarak listeden hesaplanıyor."
 }
