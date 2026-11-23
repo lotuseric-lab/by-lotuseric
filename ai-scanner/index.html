@@ -473,8 +473,8 @@ function takoz(c,cfg={}){
    if(wave>=(cfg.minWavePct??2)&&(!cfg.requireGridHit||nearGrid(ph.v))&&rsiOk)candHigh={...ph,expires:k+(cfg.confirmWindow??5),anchor:hi[ph.at]};
    else candHigh=null;lastHigh=ph;
   }
-  if(dl){if(prevDivLow&&dl.v<prevDivLow.v&&dl.rsi>prevDivLow.rsi&&k-prevDivLow.at<=(cfg.divMaxLookback??60)&&k-prevDivLow.at>=(divLeft+divRight)&&k-lastPosDiv>=divGap){positiveDiv=k===i; if(positiveDiv)lastPosDiv=k;}prevDivLow=dl;}
-  if(dh){if(prevDivHigh&&dh.v>prevDivHigh.v&&dh.rsi<prevDivHigh.rsi&&k-prevDivHigh.at<=(cfg.divMaxLookback??60)&&k-prevDivHigh.at>=(divLeft+divRight)&&k-lastNegDiv>=divGap){negativeDiv=k===i;if(negativeDiv)lastNegDiv=k;}prevDivHigh=dh;}
+  if(dl){if(prevDivLow&&dl.v<prevDivLow.v&&dl.rsi>prevDivLow.rsi&&k-prevDivLow.at<=(cfg.divMaxLookback??60)&&k-prevDivLow.at>=(divLeft+divRight)&&k-lastPosDiv>=divGap){positiveDiv=k===i; lastPosDiv=k;if(k===i)positiveDiv=true;}prevDivLow=dl;}
+  if(dh){if(prevDivHigh&&dh.v>prevDivHigh.v&&dh.rsi<prevDivHigh.rsi&&k-prevDivHigh.at<=(cfg.divMaxLookback??60)&&k-prevDivHigh.at>=(divLeft+divRight)&&k-lastNegDiv>=divGap){negativeDiv=k===i;lastNegDiv=k;if(k===i)negativeDiv=true;}prevDivHigh=dh;}
  }
  const rsiNow=r[i],rsiPrev=r[i-1],barOk=!confirmed||c[i].confirmed===true||c[i].closed===true;
  // Candle feeds used by the scanner contain closed candles; keep the final-bar gate enabled by default.
