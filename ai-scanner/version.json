@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.6.0",
-  "build": 1560,
-  "publishedAt": "2026-11-23T10:20:00.000Z",
-  "notes": "TAKOZ indikatörü: RSI uyumsuzluğu, 6 yatay ızgara seviyesi, teyitli dip/tepe AL-SAT ve çapraz trend kırılım sinyalleri."
+  "version": "15.7.0",
+  "build": 1570,
+  "publishedAt": "2026-11-23T10:35:00.000Z",
+  "notes": "Yönetici paneline kullanıcı bazlı 1-10 cihaz izni ayarı eklendi; aynı hesap birden fazla cihazda kullanılabilir."
 }
