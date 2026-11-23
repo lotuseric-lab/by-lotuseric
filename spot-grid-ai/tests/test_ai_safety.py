@@ -13,6 +13,16 @@ class AISafetyTests(unittest.TestCase):
         signal = BotSignal(bot="news_hbr", symbol="BTC/USDT", side="BUY", confidence=0.99, reason="headline")
         self.assertEqual(AIBrain().decide([signal])["decision"], "HOLD")
 
+    def test_duplicate_votes_from_same_bot_count_once(self):
+        a = BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.9, reason="a")
+        b = BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.9, reason="b")
+        self.assertEqual(AIBrain().decide([a, b])["decision"], "HOLD")
+
+    def test_conflicting_bot_votes_hold(self):
+        a = BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.8, reason="up")
+        b = BotSignal(bot="volume_liquidity", symbol="BTC/USDT", side="SELL", confidence=0.8, reason="down")
+        self.assertEqual(AIBrain().decide([a, b])["reason"], "CONFLICTING_SIGNALS")
+
     def test_live_is_blocked(self):
         verdict = RiskEngine().evaluate("BUY", Decimal("0.01"), RiskContext(mode="live"))
         self.assertFalse(verdict.allowed)
