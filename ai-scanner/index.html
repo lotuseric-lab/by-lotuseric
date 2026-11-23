@@ -277,7 +277,7 @@ const ADAPTERS={
 'MONEY TRADER - ADX DI Kesişim':adapters.adxDiCross,
 'MONEY TRADER SİHİRLİ ÇİZGİLER · 33':adapters.magicLines33,
 'MONEY TRADER SİHİRLİ ÇİZGİLER PRO V4':adapters.magicLinesProV4,
-'LOTUSERIC SİHİRLİ ÇİZGİLER':adapters.lotusericMagicLines,
+'TAKOZ':adapters.takoz,
 'MONEY TRADER - TAVAN ADAYI':adapters.tavanAdayi,
 'MONEY TRADER ADX':adapters.adxFull,
 'MONEY TRADER FORMASYON':adapters.formasyon,
@@ -442,39 +442,80 @@ return out;
 }
 function signalQualities(c,cfg={}){check(c,220);const n=c.length,cl=c.map(x=>+x.close),atr=p.atr(c,cfg.atrLen??14),emaF=p.ema(cl,9),emaS=p.ema(cl,21),cross=p.crossover(emaF,emaS),crossDn=p.crossunder(emaF,emaS);let trades=0,wins=0,eq=100,peak=100,maxDD=0,lastEntry=null,side=0;for(let i=1;i<n;i++){if(side===1&&crossDn[i]){const ret=(cl[i]-lastEntry)/lastEntry*100-(cfg.commissionPct??.1)*2;eq*=1+ret/100;trades++;if(ret>0)wins++;side=0;}else if(side===-1&&cross[i]){const ret=(lastEntry-cl[i])/lastEntry*100-(cfg.commissionPct??.1)*2;eq*=1+ret/100;trades++;if(ret>0)wins++;side=0;}if(side===0){if(cross[i]){side=1;lastEntry=cl[i];}else if(crossDn[i]){side=-1;lastEntry=cl[i];}}peak=Math.max(peak,eq);maxDD=Math.max(maxDD,(peak-eq)/peak*100);}return[sig('indicator-quality-report','INFO','İNDİKATÖR SİNYAL KALİTELERİ — RAPOR','Bu kaynak canlı LONG/SHORT alarmı değil; strateji karne/backtest ve kalite sıralaması üretir.',{sampleBars:n,ema921Trades:trades,ema921WinRate:trades?wins/trades*100:null,equity:Math.round(eq*100)/100,maxDrawdownPct:Math.round(maxDD*100)/100,atr:atr[n-1]})];}
 
-function lotusericMagicLines(c,cfg={}){
+function takoz(c,cfg={}){
  check(c,220);
  const n=c.length,i=n-1,cl=c.map(x=>+x.close),hi=c.map(x=>+x.high),lo=c.map(x=>+x.low),op=c.map(x=>+x.open);
- const r=p.rsi(cl,cfg.rsiLen??14),left=cfg.pivotLeft??10,right=cfg.pivotRight??3;
- const divLeft=cfg.divPivotLeft??5,divRight=cfg.divPivotRight??2;
- const gridN=Math.min(n,cfg.gridLookback??250),gh=Math.max(...hi.slice(-gridN)),gl=Math.min(...lo.slice(-gridN)),step=(gh-gl)/5;
- const levels=[gh,gl+step*4,gl+step*3,gl+step*2,gl+step,gl];
- const band=(cfg.bandPct??2)/100,nearGrid=v=>levels.some(x=>x>0&&Math.abs(v-x)<=x*band);
- const pivot=(arr,k,L,R,isHigh)=>{const at=k-R;if(at<L||at<0)return null;const v=arr[at];for(let z=at-L;z<=at+R;z++){if(z===at)continue;if(isHigh?arr[z]>=v:arr[z]<=v)return null;}return {v,at,rsi:r[at]};};
- let prevLo=null,prevHi=null,lastLow=null,lastHigh=null,divBull=false,divBear=false;
+ const r=p.rsi(cl,cfg.rsiLen??14),confirmed=cfg.confirmOnClose!==false;
+ const left=cfg.pivotLeft??10,right=cfg.pivotRight??3,divLeft=cfg.divPivotLeft??5,divRight=cfg.divPivotRight??2;
+ const gridN=Math.min(n,cfg.gridLookback??250),gh=Math.max(...hi.slice(-gridN)),gl=Math.min(...lo.slice(-gridN));
+ const span=Math.max(gh-gl,Math.max(1e-12,Math.abs(cl[i])*1e-8)),step=span/5;
+ const levels=cfg.gridMode==='fixed'
+  ? [cfg.grid1??1.521,cfg.grid2??1.514,cfg.grid3??1.505,cfg.grid4??1.496,cfg.grid5??1.487,cfg.grid6??1.478]
+  : [gh,gl+step*4,gl+step*3,gl+step*2,gl+step,gl];
+ const band=(cfg.bandPct??2)/100,nearGrid=v=>levels.some(x=>Number.isFinite(x)&&x>0&&Math.abs(v-x)<=x*band);
+ const pivot=(arr,k,L,R,isHigh)=>{const at=k-R;if(at<L||at+R>i)return null;const v=arr[at];for(let z=at-L;z<=at+R;z++){if(z===at)continue;if(isHigh?arr[z]>=v:arr[z]<=v)return null;}return {v,at,rsi:r[at]};};
+ let prevDivLow=null,prevDivHigh=null,lastLow=null,lastHigh=null,positiveDiv=false,negativeDiv=false;
+ let candLow=null,candHigh=null,lastSignal=-1e9,lastBreak=-1e9,lowWave=999,highWave=999;
+ const rsiMinBuy=Math.min(cfg.buyRsiMin??0,cfg.buyRsiMax??45),rsiMaxBuy=Math.max(cfg.buyRsiMin??0,cfg.buyRsiMax??45);
+ const rsiMinSell=Math.min(cfg.sellRsiMin??55,cfg.sellRsiMax??100),rsiMaxSell=Math.max(cfg.sellRsiMin??55,cfg.sellRsiMax??100);
+ const minGap=cfg.minBarsBetween??15,divGap=cfg.divMinBars??10,breakGap=cfg.breakMinBars??12;
+ let lastPosDiv=-1e9,lastNegDiv=-1e9;
  for(let k=Math.max(left+right,divLeft+divRight);k<=i;k++){
   const pl=pivot(lo,k,left,right,false),ph=pivot(hi,k,left,right,true);
   const dl=pivot(lo,k,divLeft,divRight,false),dh=pivot(hi,k,divLeft,divRight,true);
-  if(pl)lastLow=pl;if(ph)lastHigh=ph;
-  if(dl){if(prevLo&&dl.v<prevLo.v&&dl.rsi>prevLo.rsi)divBull=k===i;prevLo=dl;}
-  if(dh){if(prevHi&&dh.v>prevHi.v&&dh.rsi<prevHi.rsi)divBear=k===i;prevHi=dh;}
+  if(pl){const wave=lastHigh&&lastHigh.v>0?Math.abs((lastHigh.v-pl.v)/lastHigh.v)*100:999;
+   const rsiOk=cfg.useRsiFilter===false||(pl.rsi>=rsiMinBuy&&pl.rsi<=rsiMaxBuy);
+   if(wave>=(cfg.minWavePct??2)&&(!cfg.requireGridHit||nearGrid(pl.v))&&rsiOk)candLow={...pl,expires:k+(cfg.confirmWindow??5),anchor:lo[pl.at]};
+   else candLow=null;lastLow=pl;
+  }
+  if(ph){const wave=lastLow&&lastLow.v>0?Math.abs((ph.v-lastLow.v)/lastLow.v)*100:999;
+   const rsiOk=cfg.useRsiFilter===false||(ph.rsi>=rsiMinSell&&ph.rsi<=rsiMaxSell);
+   if(wave>=(cfg.minWavePct??2)&&(!cfg.requireGridHit||nearGrid(ph.v))&&rsiOk)candHigh={...ph,expires:k+(cfg.confirmWindow??5),anchor:hi[ph.at]};
+   else candHigh=null;lastHigh=ph;
+  }
+  if(dl){if(prevDivLow&&dl.v<prevDivLow.v&&dl.rsi>prevDivLow.rsi&&k-prevDivLow.at<=(cfg.divMaxLookback??60)&&k-prevDivLow.at>=(divLeft+divRight)&&k-lastPosDiv>=divGap){positiveDiv=k===i; if(positiveDiv)lastPosDiv=k;}prevDivLow=dl;}
+  if(dh){if(prevDivHigh&&dh.v>prevDivHigh.v&&dh.rsi<prevDivHigh.rsi&&k-prevDivHigh.at<=(cfg.divMaxLookback??60)&&k-prevDivHigh.at>=(divLeft+divRight)&&k-lastNegDiv>=divGap){negativeDiv=k===i;if(negativeDiv)lastNegDiv=k;}prevDivHigh=dh;}
  }
- const out=[],last=arr=>arr[arr.length-1],prev=arr=>arr[arr.length-2];
- const rsiNow=r[i],rsiPrev=r[i-1],rsiBuy=cfg.useRsiFilter===false||(rsiNow>=0&&rsiNow<=45),rsiSell=cfg.useRsiFilter===false||(rsiNow>=55&&rsiNow<=100);
- const waveLow=lastHigh&&lastHigh.v>0?Math.abs((lastHigh.v-lastLow?.v)/lastHigh.v)*100:999;
- const waveHigh=lastLow&&lastLow.v>0?Math.abs((lastHigh?.v-lastLow.v)/lastLow.v)*100:999;
- const lowOk=lastLow&&waveLow>=(cfg.minWavePct??2)&&(!cfg.requireGridHit||nearGrid(lastLow.v))&&rsiBuy;
- const highOk=lastHigh&&waveHigh>=(cfg.minWavePct??2)&&(!cfg.requireGridHit||nearGrid(lastHigh.v))&&rsiSell;
- const buyBreak=Math.max(...hi.slice(Math.max(0,i-4),i)),sellBreak=Math.min(...lo.slice(Math.max(0,i-4),i));
- const dipBuy=lowOk&&i-lastLow.at<=8&&cl[i]>op[i]&&cl[i]>buyBreak&&cl[i]>lastLow.v&&rsiNow>rsiPrev;
- const peakSell=highOk&&i-lastHigh.at<=8&&cl[i]<op[i]&&cl[i]<sellBreak&&cl[i]<lastHigh.v&&rsiNow<rsiPrev;
- if(dipBuy)out.push(sig('lotuseric-magic-lines-dip-buy','LONG','DİP AL','Teyitli dip pivotu, yatay ızgara yakınlığı, RSI filtresi ve mum kırılımı aynı yönde.',{pivotPrice:lastLow.v,rsi:rsiNow,gridLevels:levels}));
- if(peakSell)out.push(sig('lotuseric-magic-lines-peak-sell','SHORT','TEPE SAT','Teyitli tepe pivotu, yatay ızgara yakınlığı, RSI filtresi ve mum kırılımı aynı yönde.',{pivotPrice:lastHigh.v,rsi:rsiNow,gridLevels:levels}));
- if(divBull)out.push(sig('lotuseric-magic-lines-bull-div','INFO','POZİTİF RSI UYUMSUZLUĞU','Fiyat daha düşük dip, RSI daha yüksek dip yaptı.',{rsi:rsiNow}));
- if(divBear)out.push(sig('lotuseric-magic-lines-bear-div','INFO','NEGATİF RSI UYUMSUZLUĞU','Fiyat daha yüksek tepe, RSI daha düşük tepe yaptı.',{rsi:rsiNow}));
+ const rsiNow=r[i],rsiPrev=r[i-1],barOk=!confirmed||c[i].confirmed===true||c[i].closed===true;
+ // Candle feeds used by the scanner contain closed candles; keep the final-bar gate enabled by default.
+ const buyRsiOk=cfg.useRsiFilter===false||(rsiNow>=rsiMinBuy&&rsiNow<=rsiMaxBuy);
+ const sellRsiOk=cfg.useRsiFilter===false||(rsiNow>=rsiMinSell&&rsiNow<=rsiMaxSell);
+ if(candLow&&(i>candLow.expires||lo[i]<candLow.v*.997))candLow=null;
+ if(candHigh&&(i>candHigh.expires||hi[i]>candHigh.v*1.003))candHigh=null;
+ const buyLook=cfg.dipBreakBars??4,sellLook=cfg.peakBreakBars??4;
+ const priorHigh=Math.max(...hi.slice(Math.max(0,i-buyLook),i)),priorLow=Math.min(...lo.slice(Math.max(0,i-sellLook),i));
+ const gapOk=i-lastSignal>=minGap;
+ const dipBuy=!!candLow&&gapOk&&(!cfg.rsiTurnConfirm||rsiNow>rsiPrev)&&cl[i]>op[i]&&cl[i]>priorHigh&&cl[i]>candLow.v&&buyRsiOk;
+ const peakSell=!!candHigh&&gapOk&&(!cfg.rsiTurnConfirm||rsiNow<rsiPrev)&&cl[i]<op[i]&&cl[i]<priorLow&&cl[i]<candHigh.v&&sellRsiOk;
+ if(dipBuy){lastSignal=i;candLow=null;}
+ if(peakSell){lastSignal=i;candHigh=null;}
+ // Cross-trend guide lines are calculated from the rolling grid anchors, like the Pine source.
+ const start=Math.max(0,i-gridN+1),end=i+(cfg.trendExtend??16),bars=Math.max(1,end-start);
+ const upStart=levels[5],upTarget=cfg.trendTargetMode==='highest'?gh*(cfg.trendHighMultiplier??1.02):cl[i];
+ let upEnd=upTarget;
+ if(cfg.trendTargetMode!=='highest'&&end>i&&i-start>0)upEnd=upStart+((cl[i]-upStart)/(i-start))*(end-start);
+ const dnStart=levels[0],dnEnd=levels[5];
+ const upOn=cfg.showUpTrend!==false&&Number.isFinite(upStart)&&Number.isFinite(upEnd)&&upEnd>upStart&&end>start;
+ const dnOn=cfg.showDownTrend!==false&&Number.isFinite(dnStart)&&Number.isFinite(dnEnd)&&dnStart>dnEnd&&end>start;
+ const lineAt=(a,b,x)=>a+(b-a)*((x-start)/bars);
+ const upNow=upOn?lineAt(upStart,upEnd,i):null,upPrev=upOn?lineAt(upStart,upEnd,i-1):null;
+ const dnNow=dnOn?lineAt(dnStart,dnEnd,i):null,dnPrev=dnOn?lineAt(dnStart,dnEnd,i-1):null;
+ const breakBuy=cfg.enableBreakout!==false&&i-lastBreak>=breakGap&&upOn&&upNow!==null&&upPrev!==null&&cl[i-1]<=upPrev&&cl[i]>upNow&&(!cfg.useBreakoutRsi||buyRsiOk);
+ const breakSell=cfg.enableBreakout!==false&&i-lastBreak>=breakGap&&dnOn&&dnNow!==null&&dnPrev!==null&&cl[i-1]>=dnPrev&&cl[i]<dnNow&&(!cfg.useBreakoutRsi||sellRsiOk);
+ if(breakBuy||breakSell)lastBreak=i;
+ const out=[];
+ const levelsMeta=levels.map((v,j)=>({level:j+1,price:v}));
+ if(dipBuy)out.push(sig('takoz-dip-buy','LONG','DİP AL','Pivot dip, dalga boyu, ızgara yakınlığı, RSI dönüşü ve kapanış kırılımı onaylandı.',{pivotPrice:candLow?.v??lastLow?.v,rsi:rsiNow,gridLevels:levelsMeta}));
+ if(peakSell)out.push(sig('takoz-peak-sell','SHORT','TEPE SAT','Pivot tepe, dalga boyu, ızgara yakınlığı, RSI dönüşü ve kapanış kırılımı onaylandı.',{pivotPrice:lastHigh?.v,rsi:rsiNow,gridLevels:levelsMeta}));
+ if(breakBuy)out.push(sig('takoz-breakout-buy','LONG','KIRILIM AL','Fiyat yükselen çapraz trend çizgisini kapanışta yukarı kırdı.',{price:cl[i],trendLine:upNow,gridLevels:levelsMeta}));
+ if(breakSell)out.push(sig('takoz-breakout-sell','SHORT','KIRILIM SAT','Fiyat düşen çapraz trend çizgisini kapanışta aşağı kırdı.',{price:cl[i],trendLine:dnNow,gridLevels:levelsMeta}));
+ if(positiveDiv)out.push(sig('takoz-positive-div','INFO','POZİTİF RSI UYUMSUZLUĞU','Fiyat daha düşük dip, RSI daha yüksek dip yaptı.',{rsi:rsiNow}));
+ if(negativeDiv)out.push(sig('takoz-negative-div','INFO','NEGATİF RSI UYUMSUZLUĞU','Fiyat daha yüksek tepe, RSI daha düşük tepe yaptı.',{rsi:rsiNow}));
+ out.push(sig('takoz-level-map','INFO','TAKOZ · IZGARA / TREND HARİTASI','Altı yatay seviye ve çapraz trend çizgilerinin güncel değerleri.',{gridLevels:levelsMeta,upTrend:upOn?{start:upStart,end:upEnd,current:upNow}:null,downTrend:dnOn?{start:dnStart,end:dnEnd,current:dnNow}:null,rsi:rsiNow,latestConfirmedClose:cl[i],divergence:{positive:positiveDiv,negative:negativeDiv}}));
  return out;
 }
-module.exports={megaScalp,fiboTrade,specialFibo,ghostCandles,roket,egitim,kosullu,onayliDouble,supportResistanceScalp,dipAvcisi,fullPaket,signalQualities,magicLines33,magicLinesProV4,lotusericMagicLines};
+
+module.exports={megaScalp,fiboTrade,specialFibo,ghostCandles,roket,egitim,kosullu,onayliDouble,supportResistanceScalp,dipAvcisi,fullPaket,signalQualities,magicLines33,magicLinesProV4,takoz};
 },"pine_math.js":function(module,exports,__require){
 'use strict';
 const finite=x=>Number.isFinite(x);
