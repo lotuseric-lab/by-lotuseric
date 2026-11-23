@@ -1,5 +1,4 @@
 """Leakage-aware chronological dataset preparation helpers."""
-from datetime import datetime
 from typing import Any
 
 
@@ -14,15 +13,16 @@ def chronological_split(
         raise ValueError("train + validation ratios must be below 1")
     if not rows:
         return {"train": [], "validation": [], "test": []}
+    if len(rows) < 3:
+        raise ValueError("at least three resolved samples are required")
 
     ordered = sorted(rows, key=lambda row: row["feature_at"])
     if any(row["label_at"] < row["feature_at"] for row in ordered):
         raise ValueError("label_at cannot precede feature_at")
 
     count = len(ordered)
-    train_end = max(1, int(count * train_ratio))
-    validation_end = max(train_end + 1, int(count * (train_ratio + validation_ratio)))
-    validation_end = min(validation_end, count - 1)
+    train_end = min(max(1, int(count * train_ratio)), count - 2)
+    validation_end = min(max(train_end + 1, int(count * (train_ratio + validation_ratio))), count - 1)
 
     validation_start_at = ordered[train_end]["feature_at"]
     test_start_at = ordered[validation_end]["feature_at"]
