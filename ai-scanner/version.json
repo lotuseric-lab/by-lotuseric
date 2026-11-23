@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.4.0",
-  "build": 1540,
-  "publishedAt": "2026-11-23T06:00:00.000Z",
-  "notes": "Kullanıcı ayarlarını hesap bazında kaydetme ve sonraki açılışta otomatik yükleme; manuel kaydet düğmesi ve cihaz içi yedek."
+  "version": "15.5.0",
+  "build": 1550,
+  "publishedAt": "2026-11-23T08:00:00.000Z",
+  "notes": "LOTUSERIC Sihirli Çizgiler indikatörü eklendi; teyitli dip/tepe, RSI uyumsuzluğu ve yatay ızgara tabanlı sinyal adaptörü."
 }
