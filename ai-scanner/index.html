@@ -1252,7 +1252,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>>
 <script>
 (()=>{'use strict';
-const APP_VERSION='15.9.3',MANIFEST='./version.json';let latest=null;
+const APP_VERSION='15.9.4',MANIFEST='./version.json';let latest=null;
 const $=id=>document.getElementById(id);
 function cmp(a,b){const x=String(a||'0').split('.').map(v=>parseInt(v,10)||0),y=String(b||'0').split('.').map(v=>parseInt(v,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
 async function check(){
@@ -1671,3 +1671,21 @@ document.getElementById('la-invite-form').addEventListener('submit',async e=>{e.
 window.LotusericLicense={requireActive:async()=>{await verificationPromise;return active;},refresh:async()=>{verificationPromise=verify();return verificationPromise;}};
 verificationPromise=verify();
 </script></body></html>
+<script>
+/* LOTUSERIC_LEARNING_DISCLOSURE_FIX: explicit accessible toggle for iOS Safari */
+(()=>{
+ function bindLearningDisclosure(){
+  const details=document.getElementById('learningDisclosure');
+  const summary=details?.querySelector(':scope > summary');
+  if(!details||!summary||summary.dataset.learningToggleBound==='1')return;
+  summary.dataset.learningToggleBound='1';
+  summary.setAttribute('role','button');
+  summary.setAttribute('tabindex','0');
+  const toggle=()=>{details.open=!details.open;summary.setAttribute('aria-expanded',String(details.open));};
+  summary.addEventListener('click',e=>{e.preventDefault();toggle();});
+  summary.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();toggle();}});
+  summary.setAttribute('aria-expanded',String(details.open));
+ }
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindLearningDisclosure,{once:true});else bindLearningDisclosure();
+})();
+</script>
