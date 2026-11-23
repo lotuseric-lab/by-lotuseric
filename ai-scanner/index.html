@@ -465,7 +465,7 @@ function lotusericMagicLines(c,cfg={}){
  const waveHigh=lastLow&&lastLow.v>0?Math.abs((lastHigh?.v-lastLow.v)/lastLow.v)*100:999;
  const lowOk=lastLow&&waveLow>=(cfg.minWavePct??2)&&(!cfg.requireGridHit||nearGrid(lastLow.v))&&rsiBuy;
  const highOk=lastHigh&&waveHigh>=(cfg.minWavePct??2)&&(!cfg.requireGridHit||nearGrid(lastHigh.v))&&rsiSell;
- const buyBreak=last(hi.slice(0,-1).slice(-4)),sellBreak=last(lo.slice(0,-1).slice(-4));
+ const buyBreak=Math.max(...hi.slice(Math.max(0,i-4),i)),sellBreak=Math.min(...lo.slice(Math.max(0,i-4),i));
  const dipBuy=lowOk&&i-lastLow.at<=8&&cl[i]>op[i]&&cl[i]>buyBreak&&cl[i]>lastLow.v&&rsiNow>rsiPrev;
  const peakSell=highOk&&i-lastHigh.at<=8&&cl[i]<op[i]&&cl[i]<sellBreak&&cl[i]<lastHigh.v&&rsiNow<rsiPrev;
  if(dipBuy)out.push(sig('lotuseric-magic-lines-dip-buy','LONG','DİP AL','Teyitli dip pivotu, yatay ızgara yakınlığı, RSI filtresi ve mum kırılımı aynı yönde.',{pivotPrice:lastLow.v,rsi:rsiNow,gridLevels:levels}));
