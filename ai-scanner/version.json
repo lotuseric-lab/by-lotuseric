@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.3.0",
-  "build": 1530,
-  "publishedAt": "2026-11-22T22:30:00.000Z",
-  "notes": "Kullanıcı destek merkezi: uygulama içinden öneri, istek ve hata bildirimi; yönetici gelen kutusu, durum takibi ve kullanıcıya yanıt."
+  "version": "15.4.0",
+  "build": 1540,
+  "publishedAt": "2026-11-23T06:00:00.000Z",
+  "notes": "Kullanıcı ayarlarını hesap bazında kaydetme ve sonraki açılışta otomatik yükleme; manuel kaydet düğmesi ve cihaz içi yedek."
 }
