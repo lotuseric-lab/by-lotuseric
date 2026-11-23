@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.9.2",
-  "build": 1592,
-  "publishedAt": "2026-11-24T00:05:00.000Z",
-  "notes": "Önerilen dört temel indikatör seçimi düzeltildi; TAKOZ önerilen seçimlere eklendi."
+  "version": "15.9.3",
+  "build": 1593,
+  "publishedAt": "2026-11-24T08:20:00.000Z",
+  "notes": "İlk açılışta indikatörler otomatik seçilmez; uygulama sürümü ve güncelleme kontrolü eşitlendi."
 }
