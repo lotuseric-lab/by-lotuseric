@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.9.0",
-  "build": 1590,
+  "version": "15.9.1",
+  "build": 1591,
   "publishedAt": "2026-11-23T23:55:00.000Z",
-  "notes": "Tarama durdur/yeniden başlat yarış durumu düzeltildi; Pine indikatör kaynak sayısı dinamik olarak listeden hesaplanıyor."
+  "notes": "Güncelleme denetleyicisindeki sürüm uyuşmazlığı giderildi; uygulama ve sürüm manifesti eşitlendi."
 }
