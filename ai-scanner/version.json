@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.10.5",
-  "build": 151005,
-  "publishedAt": "2026-11-24T07:08:00.000Z",
-  "notes": "Tarama başlatma akışında sessiz çıkış kaldırıldı; aynı anda ikinci taramanın başlatılması açık hata veriyor. Takoz indikatöründe kapanış teyidi kapatıldığında sinyal üretiminin yanlışlıkla engellenmesi düzeltildi."
+  "version": "15.10.6",
+  "build": 151006,
+  "publishedAt": "2026-11-24T07:11:02.957Z",
+  "notes": "Güncelleme kontrolü ve yükleme sabit Vercel üretim adresine taşındı; eski dağıtım bağlantılarından yeni sürüme geçiş düzeltildi. Uygulama sürümü manifest ile eşitlendi."
 }
