@@ -4,7 +4,7 @@ const { spawnSync } = require("node:child_process");
 const htmlPath = path.resolve(process.argv[2] || path.join(process.cwd(), "ai-scanner", "index.html"));
 const html = fs.readFileSync(htmlPath, "utf8");
 const scripts = [];
-const pattern = /<script\b(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
+const pattern = /<script\\b(?![^>]*\\bsrc\\s*=)([^>]*)>([\\s\\S]*?)<\\/script>/gi;
 let match;
 while ((match = pattern.exec(html))) {
   const attrs = match[1] || "";
