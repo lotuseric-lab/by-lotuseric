@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.10.8",
-  "build": 151008,
-  "publishedAt": "2026-11-24T07:58:13.937Z",
-  "notes": "TAKOZ yeniden eklendi. Mobil indikatör seçimi idempotent hale getirildi; zaman dilimi seçenekleri aynıysa DOM yeniden oluşturulmaz ve seçimler korunur. Güncelleme denetimi GitHub Pages ana adresiyle eşitlendi."
+  "version": "15.10.9",
+  "build": 151009,
+  "publishedAt": "2026-11-24T08:45:58.845Z",
+  "notes": "İndikatör listesinin başlatma korumasındaki eksik blok kapatıldı. İlk yüklemede liste ve olay dinleyicileri doğru kapsamda çalışır; TAKOZ korunmuştur. Tarama başlatma ve mobil davranış doğrulaması ayrıca sürmektedir."
 }
