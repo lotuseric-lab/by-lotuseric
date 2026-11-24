@@ -38,6 +38,20 @@ class PaperBrokerTests(unittest.TestCase):
         self.assertEqual(fill.status, "NOT_FILLED")
         self.assertEqual(self.ledger.get_balance("USDT"), Decimal("1000"))
 
+    def test_two_strategies_cannot_reserve_same_quote_balance(self):
+        self.ledger.set_balance("USDT", Decimal("100"))
+        self.ledger.reserve("USDT", Decimal("70"), "grid-order-1")
+        with self.assertRaises(ValueError):
+            self.ledger.reserve("USDT", Decimal("40"), "scalp-order-1")
+        self.assertEqual(self.ledger.available_balance("USDT"), Decimal("30"))
+
+    def test_reserved_balance_cannot_be_spent_by_unreserved_fill(self):
+        self.ledger.set_balance("USDT", Decimal("100"))
+        self.ledger.reserve("USDT", Decimal("80"), "grid-order-1")
+        with self.assertRaises(ValueError):
+            self.ledger.apply_fill("other", "BTC/USDT", "BUY", Decimal("0.5"),
+                                   Decimal("50"), Decimal("0"))
+
     def test_duplicate_fill_id_is_rejected(self):
         self.ledger.set_balance("USDT", Decimal("1000"))
         self.ledger.apply_fill("same-id", "BTC/USDT", "BUY", Decimal("0.001"),
