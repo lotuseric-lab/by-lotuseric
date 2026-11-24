@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.10.9",
-  "build": 151009,
-  "publishedAt": "2026-11-24T08:45:58.845Z",
-  "notes": "İndikatör listesinin başlatma korumasındaki eksik blok kapatıldı. İlk yüklemede liste ve olay dinleyicileri doğru kapsamda çalışır; TAKOZ korunmuştur. Tarama başlatma ve mobil davranış doğrulaması ayrıca sürmektedir."
+  "version": "15.11.0",
+  "build": 151100,
+  "publishedAt": "2026-11-24T08:50:00.000Z",
+  "notes": "Kritik hata düzeltildi: kayıtlı ayarlar geri yüklenirken exchange change olayının yeniden ayar yüklemesini tetikleyerek oluşturduğu sonsuz döngü engellendi. Bu döngü ekran yenilenmesi ve seçimlerin gidip gelmesine neden oluyordu. TAKOZ korunmuştur."
 }
