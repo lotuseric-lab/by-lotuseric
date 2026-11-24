@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.10.7",
-  "build": 151007,
-  "publishedAt": "2026-11-24T07:39:32.369Z",
-  "notes": "TAKOZ indikatörü geri alındı; önceki LOTUSERIC SİHİRLİ ÇİZGİLER indikatör adı ve sinyal adaptörü geri yüklendi. Diğer tarama, öğrenme ve sabit adresli güncelleme düzeltmeleri korundu."
+  "version": "15.10.8",
+  "build": 151008,
+  "publishedAt": "2026-11-24T07:57:23.072Z",
+  "notes": "TAKOZ indikatörü geri eklendi. Mobil indikatör ve zaman dilimi seçimlerinde gereksiz DOM yenilemeleri engellendi; seçimler korunuyor. Güncelleme adresi GitHub Pages ana uygulama adresiyle eşitlendi."
 }
