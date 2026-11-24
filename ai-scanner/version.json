@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.9.5",
-  "build": 1595,
-  "publishedAt": "2026-11-24T04:44:56.717Z",
-  "notes": "Tarama motorundaki JavaScript ayrıştırma hatası giderildi; mevcut özellikler ve boş indikatör varsayılanı korundu."
+  "version": "15.9.6",
+  "build": 1596,
+  "publishedAt": "2026-11-24T05:15:00.000Z",
+  "notes": "Güncelleme mekanizmasının sürüm sabiti düzeltildi; 15.9.5 tarama motoru düzeltmesi korundu."
 }
