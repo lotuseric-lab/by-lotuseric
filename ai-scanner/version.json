@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.9.9",
-  "build": 1599,
-  "publishedAt": "2026-11-24T06:05:00.000Z",
-  "notes": "Tarama isteklerine zaman aşımı ve görünür ilerleme eklendi; iOS öğrenme açılır panelindeki özel çift-tıklama müdahalesi kaldırıldı; öğrenme sayacı gerçek toplam ve görüntülenen örnek olarak ayrıldı."
+  "version": "15.10.0",
+  "build": 151000,
+  "publishedAt": "2026-11-24T06:20:00.000Z",
+  "notes": "Mobil indikatör seçimi tek dokunma alanına alındı; hızlı seçim düğmesi ilk dört indikatörü seçer; öğrenme paneli iOS uyumlu sabit aç/kapa düğmesine taşındı; çift sinyal listesi yenilemesi ve öğrenme sayaç başlatma hatası giderildi."
 }
