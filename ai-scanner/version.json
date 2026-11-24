@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.10.6",
-  "build": 151006,
-  "publishedAt": "2026-11-24T07:11:02.957Z",
-  "notes": "Güncelleme kontrolü ve yükleme sabit Vercel üretim adresine taşındı; eski dağıtım bağlantılarından yeni sürüme geçiş düzeltildi. Uygulama sürümü manifest ile eşitlendi."
+  "version": "15.10.7",
+  "build": 151007,
+  "publishedAt": "2026-11-24T07:39:32.369Z",
+  "notes": "TAKOZ indikatörü geri alındı; önceki LOTUSERIC SİHİRLİ ÇİZGİLER indikatör adı ve sinyal adaptörü geri yüklendi. Diğer tarama, öğrenme ve sabit adresli güncelleme düzeltmeleri korundu."
 }
