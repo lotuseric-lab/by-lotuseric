@@ -1,27 +1,60 @@
 # Smart Grid AI — Spot Engine
 
-Bağımsız spot grid + hızlı al-sat araştırma ve paper-trading motoru.
+Independent spot grid + fast trading research and paper-trading service.
 
-## Onaylı çalışma kararları
-- Hybrid AI: deterministik teknik analiz + makine öğrenmesi + haber LLM katmanı.
-- Haber kapsamı: kripto haberleri, borsa duyuruları, makro takvim ve sosyal/sentiment.
-- Karar yetkisi: guarded; ilk sürüm yalnızca paper trading.
-- Yalnızca SPOT USDT pariteleri; perpetual/futures ve short yok.
-- OKX, Binance, Bybit arasından tek aktif borsa seçilir.
+## Approved operating decisions
+- Hybrid AI: deterministic technical analysis + machine learning + LLM news analysis.
+- News coverage: crypto media, official exchange announcements, macro calendar and social/sentiment feeds.
+- Authority: guarded; V1 is paper-only.
+- Spot USDT markets only; no perpetual/futures and no short selling.
+- One active exchange at a time: OKX, Binance or Bybit.
 
-## Başlangıç
-- Mimari ve veri sözleşmeleri: [ARCHITECTURE.md](ARCHITECTURE.md)
-- Bot envanteri: bots/registry.py
-- Merkezi karar koordinatörü: ai/brain.py
-- Eğitim ve model terfi güvenliği: ai/training.py
-- Risk veto kapısı: core/risk.py
+## Quick start
+From this directory:
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app:app --host 0.0.0.0 --port 8002
+```
+Open `/docs` for the read-only API. Useful endpoints:
+- `GET /health`
+- `GET /api/spot/symbols?exchange=okx`
+- `GET /api/spot/snapshot?exchange=okx&symbol=BTC/USDT&timeframe=5m`
+- `GET /api/news/coverage`
+- `GET /api/news/latest`
 
-## İzolasyon
-Bu dizin mevcut uygulama, ai-bot, ai-scanner ve pine dosyalarından bağımsızdır. Mevcut Supabase tabloları değiştirilmez. Yeni veriler için ayrı spot_grid/private şeması tasarlanacaktır.
+Public market data uses CCXT unified market metadata, order-book, ticker and OHLCV methods. Only markets explicitly marked spot and not marked contract/swap/future are eligible. See the [CCXT manual](https://docs.ccxt.com/docs/manual).
 
-## Güvenlik
-Canlı emir adapter'ı V1'de bulunmaz. LLM tek başına karar veya emir üretemez. Grid ve Scalp ortak portföy/rezervasyon defteri kullanır. Komisyon, spread ve kayma sonrası net PnL izlenir.
+## News feed setup
+Set `NEWS_FEEDS_JSON` to a JSON array of operator-reviewed RSS/Atom sources. Each item has `key`, `url`, `category` and optional `trust_tier`.
+Supported categories: `crypto_media`, `exchange_official`, `macro_calendar`, `social`.
+Trust tiers: `official`, `reputable`, `unverified`.
+No feed is silently treated as official. Untrusted article text cannot issue an order. Review publishers and terms before enabling sources.
 
-## Test
-spot-grid-ai dizininde:
+## Shared portfolio and paper broker
+- `core/portfolio.py` stores balances, active reservations and paper fills in SQLite.
+- Grid and Scalp can reserve from the same asset ledger; an atomic transaction prevents double allocation.
+- `core/paper_broker.py` only simulates marketable limit fills against supplied top-of-book data and includes fee/slippage assumptions.
+- It never calls exchange private order endpoints. Unfilled limit intents are currently returned as `NOT_FILLED`; persistent resting orders/partial fills are a later phase.
+
+## AI and bot foundations
+- Architecture and data contracts: [ARCHITECTURE.md](ARCHITECTURE.md)
+- Bot inventory: `bots/registry.py`
+- Central decision coordinator: `ai/brain.py`
+- Training split and model-promotion safety: `ai/training.py`, `ai/dataset.py`
+- Non-bypassable risk gate: `core/risk.py`
+
+## Isolation and safety
+This directory is independent from the existing application, `ai-bot`, `ai-scanner` and `pine` paths. Existing Supabase tables are not changed. The isolated SQL draft is `database/001_spot_grid_schema.sql`; it has not been applied to Supabase.
+
+Live order adapters are not included in V1. LLM output alone cannot create a trade. Grid and Scalp share one portfolio ledger. Net performance must include fees, spread and slippage.
+
+## Tests
+```bash
 python -m unittest discover -s tests -v
+python -m unittest test_engine -v
+```
+A GitHub Actions workflow runs these suites when files under `spot-grid-ai/` change.
+
+> Grid trading is not guaranteed to be profitable. In a sharp decline, inventory accumulation and unrealized losses are possible.
