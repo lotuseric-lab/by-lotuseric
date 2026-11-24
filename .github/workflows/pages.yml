@@ -23,6 +23,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Check scanner inline JavaScript syntax
+        run: node pine/check-inline-scripts.js ai-scanner/index.html
       - name: Download and vendor Lightweight Charts
         run: |
           mkdir -p vendor /tmp/lwc
