@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.10.4",
-  "build": 151004,
-  "publishedAt": "2026-11-24T07:10:00.000Z",
-  "notes": "Mobil indikatör seçim alanının gerçek grid hatası düzeltildi; öğrenme paneli aynı performans verisi geldiğinde alt tabloları yeniden oluşturmuyor ve titreşimi azaltıyor."
+  "version": "15.10.5",
+  "build": 151005,
+  "publishedAt": "2026-11-24T07:08:00.000Z",
+  "notes": "Tarama başlatma akışında sessiz çıkış kaldırıldı; aynı anda ikinci taramanın başlatılması açık hata veriyor. Takoz indikatöründe kapanış teyidi kapatıldığında sinyal üretiminin yanlışlıkla engellenmesi düzeltildi."
 }
