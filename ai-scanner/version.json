@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.10.3",
-  "build": 151003,
-  "publishedAt": "2026-11-24T07:00:00.000Z",
-  "notes": "Asıl mobil yerleşim hatası düzeltildi: indikatör etiketi artık checkbox ve ad için tam genişlikte; ayar düğmesi ayrı sağ sütunda. Tarama ve öğrenme önceki düzeltmeleri korur."
+  "version": "15.10.4",
+  "build": 151004,
+  "publishedAt": "2026-11-24T07:10:00.000Z",
+  "notes": "Mobil indikatör seçim alanının gerçek grid hatası düzeltildi; öğrenme paneli aynı performans verisi geldiğinde alt tabloları yeniden oluşturmuyor ve titreşimi azaltıyor."
 }
