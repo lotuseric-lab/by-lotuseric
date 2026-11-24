@@ -1241,8 +1241,9 @@ async function refresh(){
   const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.detail||data.error||('HTTP '+response.status));
   lastData=data;render(data);
  }catch(e){
-  const groups=host.querySelector('[data-learning-exchanges]');
-  if(groups)groups.innerHTML='<div class="sub">Performans verisi alınamadı: '+esc(e.message||e)+'</div>';
+  // Geçici ağ/API hatasında mevcut performans görünümünü silme; iOS disclosure titremesini önle.
+  const status=host.querySelector('[data-learning-updated]');
+  if(status)status.textContent='Yenileme başarısız: '+String(e.message||e)+' · Önceki veriler korunuyor.';
  }finally{busy=false;if(btn)btn.disabled=false;}
 }
 window.LotusericLearning={refresh};
@@ -1677,6 +1678,6 @@ function adminMsg(t){document.getElementById('la-admin-msg').textContent=t;}
 document.getElementById('la-admin-close').onclick=()=>document.getElementById('lotuseric-admin-panel').hidden=true;
 document.getElementById('la-admin-refresh').onclick=loadUsers;document.getElementById('la-support-inbox-refresh').onclick=loadSupportInbox;
 document.getElementById('la-invite-form').addEventListener('submit',async e=>{e.preventDefault();try{const email=document.getElementById('la-invite-email').value.trim(),days=Number(document.getElementById('la-invite-days').value||15);await call('invite',{email,days});adminMsg('Davet gönderildi: '+email);e.target.reset();document.getElementById('la-invite-days').value=15;loadUsers();}catch(err){adminMsg(err.message);}});
-window.LotusericLicense={requireActive:async()=>{await verificationPromise;return active;},refresh:async()=>{verificationPromise=verify();return verificationPromise;}};
+window.LotusericLicense={requireActive:async()=>{if(active)return true;await verificationPromise;return active;},refresh:async()=>{verificationPromise=verify();return verificationPromise;}};
 verificationPromise=verify();
 </script></body></html>
