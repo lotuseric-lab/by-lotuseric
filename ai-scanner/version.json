@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.10.0",
-  "build": 151000,
-  "publishedAt": "2026-11-24T06:20:00.000Z",
-  "notes": "Mobil indikatör seçimi tek dokunma alanına alındı; hızlı seçim düğmesi ilk dört indikatörü seçer; öğrenme paneli iOS uyumlu sabit aç/kapa düğmesine taşındı; çift sinyal listesi yenilemesi ve öğrenme sayaç başlatma hatası giderildi."
+  "version": "15.10.1",
+  "build": 151001,
+  "publishedAt": "2026-11-24T06:10:00.000Z",
+  "notes": "Mobil indikatör isimlerinin harf harf bölünmesi düzeltildi; tarama hataları artık başarı gibi gösterilmiyor; boş hacim evreninde tarama açık hata veriyor; öğrenme paneli kapalıyken yenileme yapmıyor ve açık borsa bölümlerini koruyor."
 }
