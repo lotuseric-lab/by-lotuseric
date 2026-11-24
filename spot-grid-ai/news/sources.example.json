@@ -1,0 +1,32 @@
+[
+  {
+    "key": "cointelegraph",
+    "url": "https://cointelegraph.com/rss",
+    "category": "crypto_media",
+    "trust_tier": "reputable"
+  },
+  {
+    "key": "coindesk",
+    "url": "https://www.coindesk.com/arc/outboundfeeds/rss/",
+    "category": "crypto_media",
+    "trust_tier": "reputable"
+  },
+  {
+    "key": "the_block",
+    "url": "https://www.theblock.co/rss.xml",
+    "category": "crypto_media",
+    "trust_tier": "reputable"
+  },
+  {
+    "key": "decrypt",
+    "url": "https://decrypt.co/feed",
+    "category": "crypto_media",
+    "trust_tier": "reputable"
+  },
+  {
+    "key": "federal_reserve_press",
+    "url": "https://www.federalreserve.gov/feeds/press_all.xml",
+    "category": "macro_calendar",
+    "trust_tier": "official"
+  }
+]
