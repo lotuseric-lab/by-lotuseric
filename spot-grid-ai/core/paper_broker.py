@@ -31,8 +31,8 @@ class PaperBroker:
     ) -> PaperFill:
         if side not in ("BUY", "SELL"):
             raise ValueError("Spot supports BUY or SELL only")
-        if min(quantity, limit_price, best_bid, best_ask) <= 0 or best_ask < best_bid:
-            raise ValueError("Invalid order book or order values")
+        if symbol.count("/") != 1 or min(quantity, limit_price, best_bid, best_ask) <= 0 or best_ask < best_bid:
+            raise ValueError("Invalid spot symbol, order or order book")
 
         crosses = (side == "BUY" and limit_price >= best_ask) or (
             side == "SELL" and limit_price <= best_bid
@@ -45,5 +45,12 @@ class PaperBroker:
         raw_price = best_ask if side == "BUY" else best_bid
         fill_price = raw_price * (Decimal("1") + slip if side == "BUY" else Decimal("1") - slip)
         fee_quote = quantity * fill_price * self.config.fee_rate
-        self.ledger.apply_fill(order_id, symbol, side, quantity, fill_price, fee_quote)
+        reserve_asset = symbol.split("/")[1] if side == "BUY" else symbol.split("/")[0]
+        reserve_amount = quantity * fill_price + fee_quote if side == "BUY" else quantity
+        reservation_id = self.ledger.reserve(reserve_asset, reserve_amount, order_id)
+        try:
+            self.ledger.apply_fill(order_id, symbol, side, quantity, fill_price, fee_quote, reservation_id)
+        except Exception:
+            self.ledger.release(reservation_id)
+            raise
         return PaperFill(order_id, symbol, side, quantity, fill_price, fee_quote, "FILLED")
