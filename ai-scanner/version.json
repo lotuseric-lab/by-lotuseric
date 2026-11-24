@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.10.2",
-  "build": 151002,
-  "publishedAt": "2026-11-24T06:20:00.000Z",
-  "notes": "Mobil indikatör metin kırılması düzeltildi; tarama hataları başarı gibi gösterilmiyor; öğrenme paneli kapalıyken yenileme yapmıyor; açık borsa bölümleri korunuyor; ortak sinyal sayısı artık veritabanındaki kesin toplamı ve son 50 saat kapsamını gösteriyor."
+  "version": "15.10.3",
+  "build": 151003,
+  "publishedAt": "2026-11-24T07:00:00.000Z",
+  "notes": "Asıl mobil yerleşim hatası düzeltildi: indikatör etiketi artık checkbox ve ad için tam genişlikte; ayar düğmesi ayrı sağ sütunda. Tarama ve öğrenme önceki düzeltmeleri korur."
 }
