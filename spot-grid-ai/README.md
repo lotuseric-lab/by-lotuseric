@@ -30,7 +30,7 @@ Public market data uses CCXT unified market metadata, order-book, ticker and OHL
 Set `NEWS_FEEDS_JSON` to a JSON array of operator-reviewed RSS/Atom sources. Each item has `key`, `url`, `category` and optional `trust_tier`.
 Supported categories: `crypto_media`, `exchange_official`, `macro_calendar`, `social`.
 Trust tiers: `official`, `reputable`, `unverified`.
-No feed is silently treated as official. Untrusted article text cannot issue an order. Review publishers and terms before enabling sources.
+No feed is silently treated as official. Untrusted article text cannot issue an order. Review publishers and terms before enabling sources. The categories are implemented, but feed URLs have not yet been configured.
 
 ## Shared portfolio and paper broker
 - `core/portfolio.py` stores balances, active reservations and paper fills in SQLite.
@@ -45,9 +45,10 @@ No feed is silently treated as official. Untrusted article text cannot issue an 
 - Training split and model-promotion safety: `ai/training.py`, `ai/dataset.py`
 - Non-bypassable risk gate: `core/risk.py`
 
-## Isolation and safety
-This directory is independent from the existing application, `ai-bot`, `ai-scanner` and `pine` paths. Existing Supabase tables are not changed. The isolated SQL draft is `database/001_spot_grid_schema.sql`; it has not been applied to Supabase.
+## Supabase and isolation
+The isolated `spot_grid` schema is now created in the linked Supabase project with 10 tables. RLS is enabled on all 10; `anon` and `authenticated` have no schema usage, while `service_role` has schema usage. Existing `public` application tables were left untouched. SQL source: `database/001_spot_grid_schema.sql`.
 
+## Safety
 Live order adapters are not included in V1. LLM output alone cannot create a trade. Grid and Scalp share one portfolio ledger. Net performance must include fees, spread and slippage.
 
 ## Tests
@@ -55,6 +56,6 @@ Live order adapters are not included in V1. LLM output alone cannot create a tra
 python -m unittest discover -s tests -v
 python -m unittest test_engine -v
 ```
-A GitHub Actions workflow runs these suites when files under `spot-grid-ai/` change.
+GitHub Actions runs both suites when files under `spot-grid-ai/` change.
 
 > Grid trading is not guaranteed to be profitable. In a sharp decline, inventory accumulation and unrealized losses are possible.
