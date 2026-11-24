@@ -30,7 +30,7 @@ Public market data uses CCXT unified market metadata, order-book, ticker and OHL
 Set `NEWS_FEEDS_JSON` to a JSON array of operator-reviewed RSS/Atom sources. Each item has `key`, `url`, `category` and optional `trust_tier`.
 Supported categories: `crypto_media`, `exchange_official`, `macro_calendar`, `social`.
 Trust tiers: `official`, `reputable`, `unverified`.
-No feed is silently treated as official. Untrusted article text cannot issue an order. Review publishers and terms before enabling sources. The categories are implemented, but feed URLs have not yet been configured.
+No feed is silently treated as official. Untrusted article text cannot issue an order. A reviewed starter list is in `news/sources.example.json` (Cointelegraph, CoinDesk, The Block, Decrypt and the Federal Reserve). Copy/edit it into `NEWS_FEEDS_JSON` after reviewing publisher terms. The starter list covers crypto media and a macro source; exchange announcements need dedicated official-source adapters, while social feeds need a supported authenticated provider. Reddit RSS is not used because its feeds were discontinued in November 2026.
 
 ## Shared portfolio and paper broker
 - `core/portfolio.py` stores balances, active reservations and paper fills in SQLite.
