@@ -1,6 +1,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
-const htmlPath = path.join(process.cwd(), "index.html");
+const htmlPath = path.resolve(process.argv[2] || path.join(process.cwd(), "ai-scanner", "index.html"));
 const html = fs.readFileSync(htmlPath, "utf8");
 const scripts = [];
 const pattern = /<script\b(?![^>]*\bsrc\s*=)[^>]*>([\s\S]*?)<\/script>/gi;
