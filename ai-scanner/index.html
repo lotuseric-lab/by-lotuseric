@@ -1192,7 +1192,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const num=v=>v===null||v===undefined||v===''?null:Number(v);
 const pct=v=>{const n=num(v);return n===null||!Number.isFinite(n)?'—':(n>0?'+':'')+n.toFixed(2)+'%';};
 const count=v=>Number.isFinite(Number(v))?Number(v).toLocaleString('tr-TR'):'—';
-let lastData=null,busy=false,refreshTimer=null;
+let lastData=null,busy=false,refreshTimer=null,lastRenderKey='';
 function selectedHorizon(){return root()?.querySelector('[data-learning-horizon]')?.value||'1h';}
 function render(data){
  const host=root();if(!host)return;
@@ -1201,8 +1201,11 @@ function render(data){
  const total=data.count??data.totals?.signals??'—';
  const summary=host.querySelector('[data-learning-summary]');
  if(summary)summary.textContent='Ortak sinyal (son 50 saat): '+count(total)+' · Model: '+String(data.modelStatus||'Bilinmiyor').replaceAll('_',' ')+' · Canlı işlem: '+(data.liveTrading===false?'KAPALI':'Bilinmiyor');
+ const cal=Array.isArray(data.scoreCalibration1h)?data.scoreCalibration1h:[];
+ const renderKey=JSON.stringify({horizon:selectedHorizon(),rows,cal});
+ const renderChanged=renderKey!==lastRenderKey;
  const groups=host.querySelector('[data-learning-exchanges]');
- if(groups){
+ if(groups&&renderChanged){
   const openExchanges=new Set([...groups.querySelectorAll('.learning-exchange[open]')].map(el=>el.querySelector('summary span')?.textContent||''));
   if(!exchanges.length){groups.innerHTML='<div class="sub">Bu zaman ufkunda henüz performans kaydı yok.</div>';}
   else {groups.innerHTML=exchanges.map((ex,i)=>{
@@ -1220,10 +1223,10 @@ function render(data){
   }).join('');
    groups.querySelectorAll('.learning-exchange').forEach(el=>{const name=el.querySelector('summary span')?.textContent||'';if(openExchanges.has(name))el.open=true;});
   }
+  lastRenderKey=renderKey;
  }
- const cal=Array.isArray(data.scoreCalibration1h)?data.scoreCalibration1h:[];
  const calHost=host.querySelector('[data-learning-calibration]');
- if(calHost)calHost.innerHTML=cal.length?cal.map(x=>{
+ if(calHost&&renderChanged)calHost.innerHTML=cal.length?cal.map(x=>{
   const wins=Number(x.positive_count||0),loss=Number(x.negative_count||0),directional=wins+loss,rate=directional?100*wins/directional:null;
   return '<div class="learning-cal-row"><b>'+esc(x.score_band||'—')+'</b><span>Örnek '+count(x.signal_count)+'</span><b>'+pct(rate)+'</b><span>Ort. '+pct(x.avg_return_pct)+'</span></div>';
  }).join(''):'<div class="sub">Skor kalibrasyonu için henüz veri yok.</div>';
@@ -1258,7 +1261,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 <script>
 (()=>{'use strict';
-const APP_VERSION='15.10.3',MANIFEST='./version.json';let latest=null;
+const APP_VERSION='15.10.4',MANIFEST='./version.json';let latest=null;
 const $=id=>document.getElementById(id);
 function cmp(a,b){const x=String(a||'0').split('.').map(v=>parseInt(v,10)||0),y=String(b||'0').split('.').map(v=>parseInt(v,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
 async function check(){
