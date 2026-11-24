@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.9.7",
-  "build": 1597,
-  "publishedAt": "2026-11-24T05:45:00.000Z",
-  "notes": "Öğrenme sayaçları daha anlaşılır hale getirildi; HTML etiketi düzeltildi ve dağıtım öncesi JavaScript sözdizimi kontrolü eklendi."
+  "version": "15.9.8",
+  "build": 1598,
+  "publishedAt": "2026-11-24T05:55:00.000Z",
+  "notes": "Sürüm kontrolü uygulama içi sürüm sabitiyle eşitlendi; öğrenme sayaçları ve dağıtım öncesi JavaScript kontrolü korundu."
 }
