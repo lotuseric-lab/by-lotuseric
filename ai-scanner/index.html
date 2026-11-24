@@ -1198,9 +1198,9 @@ function render(data){
  const host=root();if(!host)return;
  const rows=(Array.isArray(data.segmentPerformance)?data.segmentPerformance:[]).filter(x=>String(x.horizon)===selectedHorizon());
  const exchanges=[...new Set(rows.map(x=>String(x.exchange||'').toLowerCase()).filter(Boolean))].sort();
- const total=data.totals?.signals??'—';
+ const total=data.count??data.totals?.signals??'—';
  const summary=host.querySelector('[data-learning-summary]');
- if(summary)summary.textContent='Toplam sinyal: '+count(total)+' · Model: '+String(data.modelStatus||'Bilinmiyor').replaceAll('_',' ')+' · Canlı işlem: '+(data.liveTrading===false?'KAPALI':'Bilinmiyor');
+ if(summary)summary.textContent='Ortak sinyal (son 50 saat): '+count(total)+' · Model: '+String(data.modelStatus||'Bilinmiyor').replaceAll('_',' ')+' · Canlı işlem: '+(data.liveTrading===false?'KAPALI':'Bilinmiyor');
  const groups=host.querySelector('[data-learning-exchanges]');
  if(groups){
   const openExchanges=new Set([...groups.querySelectorAll('.learning-exchange[open]')].map(el=>el.querySelector('summary span')?.textContent||''));
@@ -1258,7 +1258,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 <script>
 (()=>{'use strict';
-const APP_VERSION='15.10.1',MANIFEST='./version.json';let latest=null;
+const APP_VERSION='15.10.2',MANIFEST='./version.json';let latest=null;
 const $=id=>document.getElementById(id);
 function cmp(a,b){const x=String(a||'0').split('.').map(v=>parseInt(v,10)||0),y=String(b||'0').split('.').map(v=>parseInt(v,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
 async function check(){
