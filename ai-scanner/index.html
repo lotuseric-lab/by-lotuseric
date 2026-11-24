@@ -1221,7 +1221,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 <script>
 (()=>{'use strict';
-const APP_VERSION='15.10.6',UPDATE_BASE='https://by-lotuseric-pine-preview.vercel.app/ai-scanner/',MANIFEST=UPDATE_BASE+'version.json';let latest=null;
+const APP_VERSION='15.10.7',UPDATE_BASE='https://by-lotuseric-pine-preview.vercel.app/ai-scanner/',MANIFEST=UPDATE_BASE+'version.json';let latest=null;
 const $=id=>document.getElementById(id);
 function cmp(a,b){const x=String(a||'0').split('.').map(v=>parseInt(v,10)||0),y=String(b||'0').split('.').map(v=>parseInt(v,10)||0);for(let i=0;i<Math.max(x.length,y.length);i++){const d=(x[i]||0)-(y[i]||0);if(d)return d;}return 0;}
 async function check(){
