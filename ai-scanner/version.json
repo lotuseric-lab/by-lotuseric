@@ -1,7 +1,7 @@
 {
   "app": "By LOTUSERIC AI Scanner",
-  "version": "15.9.6",
-  "build": 1596,
-  "publishedAt": "2026-11-24T05:15:00.000Z",
-  "notes": "Güncelleme mekanizmasının sürüm sabiti düzeltildi; 15.9.5 tarama motoru düzeltmesi korundu."
+  "version": "15.9.7",
+  "build": 1597,
+  "publishedAt": "2026-11-24T05:45:00.000Z",
+  "notes": "Öğrenme sayaçları daha anlaşılır hale getirildi; HTML etiketi düzeltildi ve dağıtım öncesi JavaScript sözdizimi kontrolü eklendi."
 }
