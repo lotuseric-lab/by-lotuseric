@@ -153,8 +153,10 @@ async def ai_decision_preview(
     """Read recent bot signals and matching HBR evidence; never creates an order."""
     if exchange not in SUPPORTED_EXCHANGES:
         raise HTTPException(status_code=400, detail="Unsupported exchange")
-    if "/" not in symbol or not symbol.endswith("/USDT"):
+    parts = symbol.upper().split("/")
+    if len(parts) != 2 or not parts[0] or parts[1] != "USDT":
         raise HTTPException(status_code=400, detail="Only BASE/USDT spot symbols are supported")
+    symbol = f"{parts[0]}/USDT"
     store = SupabaseNewsStore()
     if not store.configured:
         raise HTTPException(status_code=503, detail="Server-side Supabase credentials are not configured")
