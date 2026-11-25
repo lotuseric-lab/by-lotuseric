@@ -49,7 +49,7 @@ No feed is silently treated as official. Untrusted article text cannot issue an 
 ## AI and bot foundations
 - Architecture and data contracts: [ARCHITECTURE.md](ARCHITECTURE.md)
 - Bot inventory: `bots/registry.py`
-- Central decision coordinator: `ai/brain.py`
+- Central decision coordinator: `ai/brain.py`; `decide_with_news()` attaches symbol-matched HBR evidence as context only and does not let news cast a vote or change the bot-consensus decision.
 - Training split and model-promotion safety: `ai/training.py`, `ai/dataset.py`
 - Non-bypassable risk gate: `core/risk.py`
 
