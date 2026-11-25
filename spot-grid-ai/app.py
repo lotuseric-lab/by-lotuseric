@@ -3,11 +3,11 @@ import hmac
 import os
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, Header, HTTPException, Query
+from fastapi import FastAPI, Header, HTTPException, Query\nfrom pydantic import BaseModel, Field
 
 from config import BotConfig, SUPPORTED_EXCHANGES
 from ai.brain import AIBrain
-from ai.grid_advisor import build_grid_preview
+from ai.grid_advisor import build_grid_preview\nfrom grid.store import SupabaseGridStore
 from core.events import BotSignal
 from data.market_feed import PublicSpotFeed
 from news.providers import configured_bluesky_actors, fetch_all_news
@@ -144,6 +144,80 @@ def grid_preview(
         raise HTTPException(status_code=502, detail=f"Grid preview failed: {type(exc).__name__}")
     finally:
         feed.close()
+
+
+
+class GridSessionRequest(BaseModel):
+    symbol: str = Field(min_length=5, max_length=24)
+    exchange: str = Field(default="okx")
+    timeframe: str = Field(default="5m", pattern=r"^(1m|3m|5m|15m|1h|4h|1d)$")
+    budget_usdt: float = Field(default=100, gt=0, le=100000)
+    grid_count: int = Field(default=10, ge=4, le=30)
+
+
+@app.post("/api/grid/sessions")
+def save_grid_session(request: GridSessionRequest):
+    """Recalculate current market suitability and persist a preview only; no orders."""
+    if request.exchange not in SUPPORTED_EXCHANGES:
+        raise HTTPException(status_code=400, detail="Unsupported exchange")
+    parts = request.symbol.upper().split("/")
+    if len(parts) != 2 or not parts[0] or parts[1] != "USDT":
+        raise HTTPException(status_code=400, detail="Only BASE/USDT spot symbols are supported")
+    store = SupabaseGridStore()
+    if not store.configured:
+        raise HTTPException(status_code=503, detail="Server-side Supabase credentials are not configured")
+    feed = PublicSpotFeed(BotConfig(exchange=request.exchange))
+    try:
+        snapshot = feed.fetch_snapshot(f"{parts[0]}/USDT", timeframe=request.timeframe)
+        preview = build_grid_preview(
+            symbol=snapshot.symbol, last=snapshot.last, bid=snapshot.bid, ask=snapshot.ask,
+            spread_rate=snapshot.spread_rate, quote_volume=snapshot.quote_volume,
+            candles=snapshot.candles, budget=request.budget_usdt, grid_count=request.grid_count,
+        )
+        if not preview["eligible"]:
+            raise HTTPException(status_code=409, detail={"message":"Market is not suitable for grid", "reason_codes":preview["reason_codes"]})
+        import asyncio
+        saved = asyncio.run(store.create_preview(
+            request.exchange, snapshot.symbol, request.timeframe,
+            request.budget_usdt, request.grid_count, preview,
+        ))
+        return {"session": saved, "execution": "disabled", "status": "PREVIEW"}
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Grid session save failed: {type(exc).__name__}")
+    finally:
+        feed.close()
+
+
+@app.get("/api/grid/sessions")
+async def grid_sessions(exchange: str = Query("okx"), limit: int = Query(20, ge=1, le=100)):
+    if exchange not in SUPPORTED_EXCHANGES:
+        raise HTTPException(status_code=400, detail="Unsupported exchange")
+    store = SupabaseGridStore()
+    if not store.configured:
+        raise HTTPException(status_code=503, detail="Server-side Supabase credentials are not configured")
+    try:
+        sessions = await store.latest_sessions(exchange, limit)
+        return {"exchange": exchange, "count": len(sessions), "sessions": sessions, "execution": "disabled"}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Grid session read failed: {type(exc).__name__}")
+
+
+@app.get("/api/grid/balances")
+async def grid_balances(exchange: str = Query("okx")):
+    if exchange not in SUPPORTED_EXCHANGES:
+        raise HTTPException(status_code=400, detail="Unsupported exchange")
+    store = SupabaseGridStore()
+    if not store.configured:
+        raise HTTPException(status_code=503, detail="Server-side Supabase credentials are not configured")
+    try:
+        balances = await store.balances(exchange)
+        return {"exchange": exchange, "balances": balances, "mode": "paper_only"}
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Paper balance read failed: {type(exc).__name__}")
 
 
 @app.get("/api/news/coverage")
