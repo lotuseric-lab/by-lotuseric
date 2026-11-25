@@ -7,7 +7,7 @@ def sideways_candles(count=48):
     for i in range(count):
         close = 100 + 10 * __import__("math").sin(i * __import__("math").pi / 4)
         open_price = 100 + 10 * __import__("math").sin((i - 1) * __import__("math").pi / 4)
-        rows.append([i * 300000, open_price, close + 1.5, close - 1.5, close, 1000])
+        rows.append([i * 300000, open_price, max(open_price, close) + 1.5, min(open_price, close) - 1.5, close, 1000])
     return rows
 
 
