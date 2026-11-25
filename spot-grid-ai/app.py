@@ -156,7 +156,7 @@ class GridSessionRequest(BaseModel):
 
 
 @app.post("/api/grid/sessions")
-def save_grid_session(request: GridSessionRequest):
+async def save_grid_session(request: GridSessionRequest):
     """Recalculate current market suitability and persist a preview only; no orders."""
     if request.exchange not in SUPPORTED_EXCHANGES:
         raise HTTPException(status_code=400, detail="Unsupported exchange")
