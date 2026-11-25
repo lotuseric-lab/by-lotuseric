@@ -21,3 +21,22 @@ $("symbolSearch").addEventListener("input",renderSymbols);$("refreshBtn").addEve
 document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n===b));const names={overview:"Genel Bakış",markets:"Piyasalar",signals:"AI Kararları",news:"Haber Merkezi",portfolio:"Demo Portföy"};$("pageTitle").textContent=names[b.dataset.view]||"Genel Bakış";if(b.dataset.view==="news")$("newsList").scrollIntoView({behavior:"smooth",block:"center"});else if(b.dataset.view==="markets")$("symbolSearch").focus()}));
 window.addEventListener("resize",()=>drawChart(state.snapshot?.candles||[]));refresh();setInterval(refresh,20000);
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("/sw-dashboard.js").catch(()=>{}));
+
+async function previewGrid(){
+  const btn=$("gridPreviewBtn"),box=$("gridResult");
+  const symbol=$("gridSymbol").value.trim().toUpperCase();
+  const budget=Number($("gridBudget").value),count=Number($("gridCount").value);
+  if(!/^[A-Z0-9]+\\/USDT$/.test(symbol)||!Number.isFinite(budget)||budget<10){toast("Geçerli BASE/USDT ve en az 10 USDT bütçe gir");return}
+  btn.disabled=true;btn.textContent="Piyasa analiz ediliyor…";box.innerHTML='<div class="empty">Kapalı mumlar, spread ve Grid maliyeti kontrol ediliyor…</div>';
+  try{
+    const d=await api("/api/grid/preview?exchange="+state.exchange+"&symbol="+encodeURIComponent(symbol)+"&timeframe="+state.timeframe+"&budget_usdt="+budget+"&grid_count="+count);
+    const p=d.preview,m=p.metrics||{},r=p.range||{};
+    const good=p.eligible;
+    box.innerHTML='<div class="grid-verdict '+(good?"eligible":"rejected")+'"><b>'+(good?"GRID İÇİN UYGUN ADAY":"GRID AÇILMAMALI")+'</b><span>'+esc(p.market_regime||p.status)+'</span></div>'+
+      '<div class="grid-metrics"><div><small>Alt sınır</small><b>'+money(r.lower)+'</b></div><div><small>Üst sınır</small><b>'+money(r.upper)+'</b></div><div><small>Grid aralığı</small><b>'+(Number(m.grid_spacing_rate)*100).toFixed(2)+'%</b></div><div><small>Tahmini net / grid</small><b class="'+(Number(m.estimated_net_per_grid_rate)>0?"green-text":"amber-text")+'">'+(Number(m.estimated_net_per_grid_rate)*100).toFixed(2)+'%</b></div></div>'+
+      (good?'<div class="grid-levels">'+p.levels.map(x=>'<span>'+money(x.price)+'</span>').join('')+'</div>':'<div class="grid-reasons">'+(p.reason_codes||[]).map(x=>'<span>• '+esc(x)+'</span>').join('')+'</div>')+
+      '<p class="grid-note">Teknik uygunluk önizlemesi · '+p.grid_count+' grid · '+esc(p.budget_usdt)+' USDT bütçe. Emir oluşturma kapalıdır; ortak ve kalıcı demo emir defteri bağlanmadan bot çalıştırılmaz.</p>';
+  }catch(e){box.innerHTML='<div class="empty">Grid analizi alınamadı: '+esc(e.message)+'</div>'}
+  finally{btn.disabled=false;btn.textContent="AI ile Grid planla"}
+}
+$("gridPreviewBtn").addEventListener("click",previewGrid);
