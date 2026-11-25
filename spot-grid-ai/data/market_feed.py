@@ -52,6 +52,37 @@ class PublicSpotFeed:
             and market.get("active") is not False
         )
 
+
+    def fetch_tickers(self) -> list[dict[str, Any]]:
+        """Fetch one public ticker batch and retain only active USDT spot pairs."""
+        exchange = self.connect()
+        tickers = exchange.fetch_tickers()
+        rows = []
+        for symbol, ticker in tickers.items():
+            market = exchange.markets.get(symbol) or {}
+            if not (market.get("spot") is True and market.get("contract") is not True
+                    and market.get("swap") is not True and market.get("future") is not True
+                    and market.get("quote") == self.config.quote and market.get("active") is not False):
+                continue
+            last = ticker.get("last")
+            if last is None:
+                continue
+            bid, ask = ticker.get("bid"), ticker.get("ask")
+            spread = None
+            if bid and ask and float(ask) >= float(bid) and (float(ask) + float(bid)) > 0:
+                spread = (float(ask) - float(bid)) / ((float(ask) + float(bid)) / 2)
+            rows.append({
+                "symbol": symbol, "last": float(last),
+                "percentage": float(ticker["percentage"]) if ticker.get("percentage") is not None else None,
+                "quote_volume": float(ticker["quoteVolume"]) if ticker.get("quoteVolume") is not None else None,
+                "bid": float(bid) if bid is not None else None,
+                "ask": float(ask) if ask is not None else None,
+                "spread_rate": spread,
+                "timestamp": ticker.get("timestamp"),
+            })
+        rows.sort(key=lambda row: row["quote_volume"] or 0, reverse=True)
+        return rows
+
     def fetch_snapshot(self, symbol: str, timeframe: str = "5m", candle_limit: int = 100) -> MarketSnapshot:
         exchange = self.connect()
         market = exchange.market(symbol)
