@@ -4,7 +4,7 @@ Independent spot grid + fast trading research and paper-trading service.
 
 ## Approved operating decisions
 - Hybrid AI: deterministic technical analysis + machine learning + LLM news analysis.
-- News coverage: crypto media, official exchange announcements, macro calendar and social/sentiment feeds.
+- News coverage: crypto media, official exchange announcements, macro calendar and curated social evidence.
 - Authority: guarded; V1 is paper-only.
 - Spot USDT markets only; no perpetual/futures and no short selling.
 - One active exchange at a time: OKX, Binance or Bybit.
@@ -31,7 +31,7 @@ Public market data uses CCXT unified market metadata, order-book, ticker and OHL
 Set `NEWS_FEEDS_JSON` to a JSON array of operator-reviewed RSS/Atom sources. Public OKX and Bybit announcement APIs are enabled by default (`ENABLE_OFFICIAL_EXCHANGE_NEWS=true`) and require no exchange credentials. Curated Bluesky actor feeds can be enabled by adding comma-separated handles to `BLUESKY_ACTORS`; posts are always marked unverified and never gain order authority. Each item has `key`, `url`, `category` and optional `trust_tier`.
 Supported categories: `crypto_media`, `exchange_official`, `macro_calendar`, `social`.
 Trust tiers: `official`, `reputable`, `unverified`.
-No feed is silently treated as official. Untrusted article text cannot issue an order. A reviewed starter list is in `news/sources.example.json` (Cointelegraph, CoinDesk, The Block, Decrypt and the Federal Reserve). Copy/edit it into `NEWS_FEEDS_JSON` after reviewing publisher terms. The starter list covers crypto media and a macro source. `news/providers.py` additionally fetches public OKX and Bybit announcements and optional curated Bluesky actor feeds. Binance's announcement WebSocket is intentionally deferred to a separate long-running stream worker; no unsupported REST endpoint is assumed. Reddit RSS is not used because its feeds were discontinued in November 2026.
+No feed is silently treated as official. Untrusted article text cannot issue an order. A reviewed starter list is in `news/sources.example.json` (Cointelegraph, CoinDesk, The Block, Decrypt and the Federal Reserve). Copy/edit it into `NEWS_FEEDS_JSON` after reviewing publisher terms. The starter list covers crypto media and a macro source. `news/providers.py` additionally fetches public OKX and Bybit announcements and optional curated Bluesky actor feeds. Binance announcements use the documented authenticated WebSocket stream rather than an unsupported REST endpoint. Reddit RSS is not used because its feeds were discontinued in November 2026.
 
 ## News persistence and HBR evidence
 - `news/store.py` writes normalized feed items to `spot_grid.news_events` using the unique `dedupe_key`; repeat syncs are idempotent.
@@ -43,6 +43,12 @@ No feed is silently treated as official. Untrusted article text cannot issue an 
 - Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the server environment only. Never commit the service-role key or expose it in a browser/mobile client. Set a separate high-entropy `SMART_GRID_SYNC_TOKEN`; the ingestion endpoint stays disabled without it and rejects requests without the matching `X-Sync-Token` header.
 - Supabase Data API must expose the `spot_grid` schema in Dashboard → Settings → API → Exposed schemas. The schema's RLS/grants already deny `anon` and `authenticated`; the server uses `service_role`.
 - Configure approved RSS/Atom feeds in `NEWS_FEEDS_JSON`, then call `POST /api/news/sync`. To enable the optional Binance worker, set `BINANCE_ANNOUNCEMENTS_API_KEY` and `BINANCE_ANNOUNCEMENTS_API_SECRET` as server secrets, then run the worker as a persistent process. `GET /api/news/latest` reads persisted rows when configured.
+
+## Official provider references
+- [OKX public announcements API](https://www.okx.com/docs-v5/en/#support-announcements)
+- [Bybit V5 announcements API](https://bybit-exchange.github.io/docs/v5/announcement)
+- [Binance announcement WebSocket](https://developers.binance.com/en/docs/products/announcements/announcement)
+- [Bluesky public API and authentication](https://bsky.network/docs/api-directory/)
 
 ## Shared portfolio and paper broker
 - `core/portfolio.py` stores balances, active reservations and paper fills in SQLite.
