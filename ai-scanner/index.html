@@ -218,7 +218,7 @@ for(let attempt=0;attempt<=this.maxRetries;attempt++){
 const prev=lastRequest.get(exchange)||0,wait=cfg.minIntervalMs-(this.now()-prev);if(wait>0)await sleep(wait);
 lastRequest.set(exchange,this.now());
 try{
-const res=await this.fetch(url,{method:'GET',headers:{Accept:'application/json'}});
+const controller=new AbortController();const timeout=setTimeout(()=>controller.abort(),15000);let res;try{res=await this.fetch(url,{method:'GET',headers:{Accept:'application/json'},signal:controller.signal});}catch(fetchError){if(controller.signal.aborted)throw new Error(`${cfg.label} veri isteği 15 saniyede zaman aşımına uğradı`);throw fetchError;}finally{clearTimeout(timeout);}
 if(res.status===429||res.status>=500){if(attempt===this.maxRetries)throw new Error(`${cfg.label} HTTP ${res.status}`);await sleep(Math.min(5000,800*(attempt+1)));continue;}
 if(!res.ok)throw new Error(`${cfg.label} HTTP ${res.status}`);
 const body=await res.json();cache.set(url,{at:this.now(),value:body});return body;
@@ -1115,10 +1115,13 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const num=v=>v===null||v===undefined||v===''?null:Number(v);
 const pct=v=>{const n=num(v);return n===null||!Number.isFinite(n)?'—':(n>0?'+':'')+n.toFixed(2)+'%';};
 const count=v=>Number.isFinite(Number(v))?Number(v).toLocaleString('tr-TR'):'—';
-let lastData=null,busy=false,refreshTimer=null;
+let lastData=null,busy=false,refreshTimer=null,lastRenderKey='';
 function selectedHorizon(){return root()?.querySelector('[data-learning-horizon]')?.value||'1h';}
 function render(data){
  const host=root();if(!host)return;
+ const renderKey=JSON.stringify({segmentPerformance:data.segmentPerformance||[],totals:data.totals||{},modelStatus:data.modelStatus||'',liveTrading:data.liveTrading,scoreCalibration1h:data.scoreCalibration1h||[]});
+ if(renderKey===lastRenderKey){const status=host.querySelector('[data-learning-updated]');if(status)status.textContent='Son güncelleme: '+new Date(data.generatedAt||Date.now()).toLocaleTimeString('tr-TR');return;}
+ lastRenderKey=renderKey;
  const rows=(Array.isArray(data.segmentPerformance)?data.segmentPerformance:[]).filter(x=>String(x.horizon)===selectedHorizon());
  const exchanges=[...new Set(rows.map(x=>String(x.exchange||'').toLowerCase()).filter(Boolean))].sort();
  const total=data.totals?.signals??'—';
@@ -1158,19 +1161,21 @@ async function refresh(){
   const data=await response.json();if(!response.ok||!data.ok)throw new Error(data.detail||data.error||('HTTP '+response.status));
   lastData=data;render(data);
  }catch(e){
-  const groups=host.querySelector('[data-learning-exchanges]');
-  if(groups)groups.innerHTML='<div class="sub">Performans verisi alınamadı: '+esc(e.message||e)+'</div>';
+  const status=host.querySelector('[data-learning-updated]');
+  if(status)status.textContent='Yenileme başarısız: '+esc(e.message||e)+' · Önceki veriler korunuyor.';
  }finally{busy=false;if(btn)btn.disabled=false;}
 }
-function scheduleRefresh(){clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,900);}
+function scheduleRefresh(){const disclosure=document.getElementById('learningDisclosure');if(!disclosure?.open)return;clearTimeout(refreshTimer);refreshTimer=setTimeout(refresh,900);}
 document.addEventListener('DOMContentLoaded',()=>{
  const host=root();if(!host)return;
+ const disclosure=document.getElementById('learningDisclosure');
+ disclosure?.addEventListener('toggle',()=>{if(disclosure.open)refresh();});
  host.querySelector('[data-learning-refresh]')?.addEventListener('click',refresh);
  host.querySelector('[data-learning-horizon]')?.addEventListener('change',()=>{if(lastData)render(lastData);else refresh();});
  document.addEventListener('lotuseric:signals-saved',scheduleRefresh);
  document.addEventListener('lotuseric:outcome-saved',scheduleRefresh);
  refresh();
- setInterval(()=>{if(!document.hidden)refresh();},60000);
+ setInterval(()=>{if(!document.hidden&&document.getElementById('learningDisclosure')?.open)refresh();},60000);
 });
 })();
 </script>>
