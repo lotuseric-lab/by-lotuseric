@@ -61,7 +61,7 @@ async def spot_snapshot(
             try:
                 await store.insert_market_snapshot(result)
                 result["persistence"] = "saved"
-            except RuntimeError:
+            except Exception:
                 result["persistence"] = "failed"
         return result
     except ValueError as exc:
