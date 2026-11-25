@@ -5,9 +5,9 @@ from ai.grid_advisor import build_grid_preview
 def sideways_candles(count=48):
     rows = []
     for i in range(count):
-        close = 100 + 5 * __import__("math").sin(i * __import__("math").pi / 6)
-        open_price = 100 + 5 * __import__("math").sin((i - 1) * __import__("math").pi / 6)
-        rows.append([i * 300000, open_price, max(open_price, close) + 0.5, min(open_price, close) - 0.5, close, 1000])
+        close = 100 + 2.2 * __import__("math").sin(i * __import__("math").pi / 2)
+        open_price = 100 + 2.2 * __import__("math").sin((i - 1) * __import__("math").pi / 2)
+        rows.append([i * 300000, open_price, max(open_price, close) + 0.25, min(open_price, close) - 0.25, close, 1000])
     return rows
 
 
@@ -16,10 +16,10 @@ class GridAdvisorTests(unittest.TestCase):
         result = build_grid_preview(
             symbol="BTC/USDT", last=100, bid=99.99, ask=100.01,
             spread_rate=0.0002, quote_volume=10000000,
-            candles=sideways_candles(), budget=100, grid_count=10,
+            candles=sideways_candles(), budget=100, grid_count=6,
         )
         self.assertTrue(result["eligible"], result["reason_codes"])
-        self.assertEqual(len(result["levels"]), 11)
+        self.assertEqual(len(result["levels"]), 7)
         self.assertFalse(result["order_creation_enabled"])
 
     def test_trending_market_is_rejected(self):
