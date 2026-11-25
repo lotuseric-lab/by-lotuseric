@@ -220,3 +220,4 @@ async def news_latest(limit: int = Query(50, ge=1, le=200)):
         "items": [item.__dict__ for item in items[:limit]],
         "note": "Configure server-side Supabase credentials and call POST /api/news/sync to persist. News cannot authorize an order.",
     }
+\n\n# Serve the responsive monitoring UI from this FastAPI app. Keep this mount last\n# so the API routes above always take precedence.\nDASHBOARD_DIR = Path(__file__).parent / "dashboard"\nif DASHBOARD_DIR.is_dir():\n    app.mount("/", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")\n
