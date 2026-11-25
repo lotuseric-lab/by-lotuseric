@@ -48,15 +48,22 @@ class AIBrain:
         return {"decision": side, "confidence": confidence, "reason": "BOT_CONSENSUS",
                 "signal_ids": [s.signal_id for s in votes]}
 
-    def decide_with_news(self, signals: list[BotSignal], news_items: list[dict]) -> dict:
+    def decide_with_news(self, signals: list[BotSignal], news_items: list[dict],
+                         symbol: str | None = None) -> dict:
         """Attach symbol-matched news as context without allowing it to vote or alter a decision."""
         result = self.decide(signals)
-        symbols = {signal.symbol for signal in signals}
+        signal_symbols = {signal.symbol for signal in signals}
+        context_symbol = next(iter(signal_symbols)) if len(signal_symbols) == 1 else None
+        if not signal_symbols and symbol:
+            context_symbol = symbol
+        if symbol and signal_symbols and symbol not in signal_symbols:
+            context_symbol = None
+
         matched = []
-        if len(symbols) == 1:
-            base_asset = next(iter(symbols)).split("/", 1)[0]
+        if context_symbol:
+            base_asset = context_symbol.split("/", 1)[0].upper()
             for item in news_items:
-                item_symbols = set(item.get("symbols") or [])
+                item_symbols = {str(value).upper() for value in (item.get("symbols") or [])}
                 if base_asset not in item_symbols:
                     continue
                 matched.append({
