@@ -682,17 +682,17 @@ const SpotDecisionEngine=Object.freeze({profile:'spot-profile-v2',analyze:analyz
 window.LotusericAI={perpetual:PerpetualDecisionEngine,spot:SpotDecisionEngine,analyze,analyzePerpetual,analyzeSpot};
 window.LotusericAIBackend={
   endpoint:'https://okrpkmvcjsbiemdvrenp.supabase.co/functions/v1/lotuseric-ai-ingest',
-  async health(){const r=await fetch(this.endpoint+'?view=public-learning',{method:'GET',cache:'no-store'});const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));return j;},
+  async health(){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);let r;try{r=await fetch(this.endpoint+'?view=public-learning',{method:'GET',cache:'no-store',signal:controller.signal});}catch(e){if(controller.signal.aborted)throw new Error('AI hafıza servisi 12 saniyede yanıt vermedi');throw e;}finally{clearTimeout(timer);}const j=await r.json();if(!r.ok||!j.ok)throw new Error(j.error||('HTTP '+r.status));return j;},
   async saveSignals(signals){
     if(!Array.isArray(signals)||!signals.length)return{saved:0,failed:0};
     const {data:{session}}=await window.LotusericSupabase?.auth.getSession()||{data:{session:null}};
     if(!session)return{saved:0,failed:signals.length,reason:'login_required'};
     let saved=0,failed=0,skippedConsent=false;const chunks=[];for(let i=0;i<signals.length;i+=50)chunks.push(signals.slice(i,i+50));
-    for(const batch of chunks){try{const r=await fetch(this.endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,'apikey':'sb_publishable_d5WfsR3b7TlT0_-Fbef21A_YMbDmPq5'},body:JSON.stringify({action:'signals',signals:batch})});const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||('HTTP '+r.status));if(j.skipped_consent)skippedConsent=true;saved+=Number(j.count||0);}catch(e){failed+=batch.length;}}
+    for(const batch of chunks){try{const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);let r;try{r=await fetch(this.endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+session.access_token,'apikey':'sb_publishable_d5WfsR3b7TlT0_-Fbef21A_YMbDmPq5'},body:JSON.stringify({action:'signals',signals:batch}),signal:controller.signal});}finally{clearTimeout(timer);}const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||('HTTP '+r.status));if(j.skipped_consent)skippedConsent=true;saved+=Number(j.count||0);}catch(e){failed+=batch.length;}}
     if(saved>0)document.dispatchEvent(new CustomEvent('lotuseric:signals-saved',{detail:{saved}}));
     return{saved,failed,skippedConsent};
   },
-  async saveOutcome(outcome){const r=await fetch(this.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'outcome',...outcome})});const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||('HTTP '+r.status));document.dispatchEvent(new CustomEvent('lotuseric:outcome-saved',{detail:j}));return j;}
+  async saveOutcome(outcome){const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),12000);let r;try{r=await fetch(this.endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'outcome',...outcome}),signal:controller.signal});}catch(e){if(controller.signal.aborted)throw new Error('AI sonuç kaydı 12 saniyede yanıt vermedi');throw e;}finally{clearTimeout(timer);}const j=await r.json();if(!r.ok||!j.ok)throw Error(j.error||('HTTP '+r.status));document.dispatchEvent(new CustomEvent('lotuseric:outcome-saved',{detail:j}));return j;}
 };
 
 })();
