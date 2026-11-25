@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#090d16"><meta name="description" content="Smart Grid AI spot piyasa ve demo işlem kontrol paneli">
+  <link rel="manifest" href="/manifest.webmanifest"><link rel="stylesheet" href="/dashboard.css">
+  <title>Smart Grid AI | Kontrol Merkezi</title>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-mark">SG</div><div><b>SMART GRID AI</b><small>SPOT CONTROL CENTER</small></div></div>
+    <div class="side-label">ÇALIŞMA ALANI</div>
+    <button class="nav-item active" data-view="overview"><span>◫</span> Genel Bakış</button>
+    <button class="nav-item" data-view="markets"><span>⌁</span> Piyasalar</button>
+    <button class="nav-item" data-view="signals"><span>⌖</span> AI Kararları</button>
+    <button class="nav-item" data-view="news"><span>▤</span> Haber Merkezi</button>
+    <button class="nav-item" data-view="portfolio"><span>◉</span> Demo Portföy</button>
+    <div class="sidebar-bottom"><div class="mode-pill"><i></i><span>DEMO MODU</span></div><small>Gerçek emirler kapalıdır.</small></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div><div class="eyebrow">SPOT PİYASA İSTİHBARATI</div><h1 id="pageTitle">Genel Bakış</h1></div>
+      <div class="top-actions"><span class="live-indicator"><i></i> CANLI VERİ</span><select id="exchange"><option value="okx">OKX</option><option value="binance">BINANCE</option><option value="bybit">BYBIT</option></select><button id="refreshBtn" class="icon-btn" aria-label="Yenile">↻</button></div>
+    </header>
+    <section class="status-strip"><span><i id="apiDot" class="dot amber"></i><b id="apiStatus">Bağlantı kontrol ediliyor</b></span><span>SPOT · USDT</span><span id="updatedAt">Henüz güncellenmedi</span></section>
+    <section class="metric-grid">
+      <article class="metric"><div class="metric-head">TAKİP EDİLEN PARİTELER <span>◈</span></div><strong id="symbolCount">—</strong><small id="symbolHint">Borsa verisi bekleniyor</small></article>
+      <article class="metric"><div class="metric-head">SEÇİLİ VARLIK <span>↗</span></div><strong id="lastPrice">—</strong><small id="priceChange">Canlı fiyat</small></article>
+      <article class="metric"><div class="metric-head">HABER KAYITLARI <span>▤</span></div><strong id="newsCount">—</strong><small id="newsHint">Haber kaynağı durumu</small></article>
+      <article class="metric"><div class="metric-head">İŞLEM MODU <span>⬡</span></div><strong class="green-text">PAPER</strong><small>Canlı emir gönderimi kapalı</small></article>
+    </section>
+    <section class="content-grid">
+      <article class="panel chart-panel">
+        <div class="panel-head"><div><div class="eyebrow">PİYASA GÖRÜNÜMÜ</div><h2 id="chartSymbol">BTC/USDT</h2></div><div class="chart-controls"><select id="timeframe"><option>1m</option><option>3m</option><option selected>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div></div>
+        <div class="price-line"><strong id="chartPrice">—</strong><span id="spreadLabel">Spread: —</span></div>
+        <canvas id="priceChart" height="230" aria-label="Fiyat grafiği"></canvas>
+        <div class="chart-foot"><span id="volumeLabel">24s hacim: —</span><span id="chartTime">—</span></div>
+      </article>
+      <article class="panel market-panel">
+        <div class="panel-head"><div><div class="eyebrow">SPOT EVRENİ</div><h2>Parite listesi</h2></div><span class="count-tag" id="listCount">0</span></div>
+        <input id="symbolSearch" class="search" placeholder="Coin ara (örn. BTC)" autocomplete="off">
+        <div class="table-wrap"><table><thead><tr><th>VARLIK</th><th>SON FİYAT</th><th></th></tr></thead><tbody id="symbolRows"><tr><td colspan="3" class="empty">Piyasa verisi bekleniyor…</td></tr></tbody></table></div>
+      </article>
+    </section>
+    <section class="lower-grid">
+      <article class="panel"><div class="panel-head"><div><div class="eyebrow">KARAR MOTORU</div><h2>AI değerlendirmesi</h2></div><span class="count-tag">READ ONLY</span></div>
+        <div class="decision-state" id="decisionState"><span class="state-icon">⌁</span><div><b>Veri bekleniyor</b><small>Seçili parite için karar önizlemesi</small></div></div>
+        <div class="detail-list"><div><span>Bot sinyali</span><b id="signalCount">—</b></div><div><span>Eşleşen haber</span><b id="matchedNews">—</b></div><div><span>Emir yetkisi</span><b class="green-text">YOK</b></div></div>
+      </article>
+      <article class="panel"><div class="panel-head"><div><div class="eyebrow">HBR / HABER AKIŞI</div><h2>Son gelişmeler</h2></div><button class="text-btn" data-view="news">Tümünü gör →</button></div><div id="newsList" class="news-list"><div class="empty">Haberler yükleniyor…</div></div></article>
+    </section>
+    <section class="lower-grid">
+      <article class="panel"><div class="panel-head"><div><div class="eyebrow">SİSTEM SAĞLIĞI</div><h2>Servis durumu</h2></div></div><div class="detail-list"><div><span>API servisi</span><b id="healthApi">Kontrol ediliyor</b></div><div><span>Supabase kayıt</span><b id="healthDb">Kontrol ediliyor</b></div><div><span>Canlı işlem</span><b class="green-text">KAPALI</b></div><div><span>Tarama motoru</span><b class="amber-text">Henüz etkin değil</b></div></div></article>
+      <article class="panel"><div class="panel-head"><div><div class="eyebrow">DEMO PORTFÖY</div><h2>İşlem defteri</h2></div></div><div class="empty-block"><span>◉</span><b>Demo kayıtları hazır olduğunda burada</b><small>Portföy ve emir defteri bağlantısı henüz etkin değil. Bu alan boş veriyi kâr/zarar gibi göstermeyecek.</small></div></article>
+    </section>
+    <footer>SMART GRID AI <span>·</span> Spot only <span>·</span> Paper mode <span>·</span> <span id="footerClock">—</span></footer>
+  </main>
+</div>
+<div id="toast" class="toast" role="status"></div>
+<script src="/dashboard.js" defer></script>
+</body></html>
