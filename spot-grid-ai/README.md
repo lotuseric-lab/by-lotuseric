@@ -22,7 +22,7 @@ Open `/docs` for the read-only API. Useful endpoints:
 - `GET /api/spot/symbols?exchange=okx`
 - `GET /api/spot/snapshot?exchange=okx&symbol=BTC/USDT&timeframe=5m`
 - `GET /api/news/coverage`
-- `GET /api/news/latest`
+- `GET /api/news/latest` (reads persisted news when Supabase is configured; otherwise a non-persisted preview)\n- `POST /api/news/sync` (fetches configured feeds and deduplicates them into `spot_grid.news_events`)
 
 Public market data uses CCXT unified market metadata, order-book, ticker and OHLCV methods. Only markets explicitly marked spot and not marked contract/swap/future are eligible. See the [CCXT manual](https://docs.ccxt.com/docs/manual).
 
@@ -31,6 +31,14 @@ Set `NEWS_FEEDS_JSON` to a JSON array of operator-reviewed RSS/Atom sources. Eac
 Supported categories: `crypto_media`, `exchange_official`, `macro_calendar`, `social`.
 Trust tiers: `official`, `reputable`, `unverified`.
 No feed is silently treated as official. Untrusted article text cannot issue an order. A reviewed starter list is in `news/sources.example.json` (Cointelegraph, CoinDesk, The Block, Decrypt and the Federal Reserve). Copy/edit it into `NEWS_FEEDS_JSON` after reviewing publisher terms. The starter list covers crypto media and a macro source; exchange announcements need dedicated official-source adapters, while social feeds need a supported authenticated provider. Reddit RSS is not used because its feeds were discontinued in November 2026.
+
+## News persistence and HBR evidence
+- `news/store.py` writes normalized feed items to `spot_grid.news_events` using the unique `dedupe_key`; repeat syncs are idempotent.
+- `news/normalizer.py` extracts only explicit ticker forms (`$BTC`, `BTC/USDT`, `BTC-USDT`) and applies a transparent keyword heuristic for event type/sentiment. This is not a trained model.
+- News is stored as evidence only. The HBR/news bot has no BUY/SELL authority and is not counted as an independent trading vote.
+- Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the server environment only. Never commit the service-role key or expose it in a browser/mobile client.
+- Supabase Data API must expose the `spot_grid` schema in Dashboard → Settings → API → Exposed schemas. The schema's RLS/grants already deny `anon` and `authenticated`; the server uses `service_role`.
+- Configure approved RSS/Atom feeds in `NEWS_FEEDS_JSON`, then call `POST /api/news/sync`. `GET /api/news/latest` reads persisted rows when configured.
 
 ## Shared portfolio and paper broker
 - `core/portfolio.py` stores balances, active reservations and paper fills in SQLite.
