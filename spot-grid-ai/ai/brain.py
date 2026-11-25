@@ -40,3 +40,27 @@ class AIBrain:
             return {"decision": "HOLD", "confidence": confidence, "reason": "INSUFFICIENT_CONSENSUS"}
         return {"decision": side, "confidence": confidence, "reason": "BOT_CONSENSUS",
                 "signal_ids": [s.signal_id for s in votes]}
+
+    def decide_with_news(self, signals: list[BotSignal], news_items: list[dict]) -> dict:
+        """Attach symbol-matched news as context without allowing it to vote or alter a decision."""
+        result = self.decide(signals)
+        symbols = {signal.symbol for signal in signals}
+        matched = []
+        if len(symbols) == 1:
+            base_asset = next(iter(symbols)).split("/", 1)[0]
+            for item in news_items:
+                item_symbols = set(item.get("symbols") or [])
+                if base_asset not in item_symbols:
+                    continue
+                matched.append({
+                    "dedupe_key": item.get("dedupe_key"),
+                    "source_key": item.get("source_key"),
+                    "source_category": item.get("source_category"),
+                    "trust_tier": item.get("trust_tier"),
+                    "event_type": item.get("event_type"),
+                    "sentiment_score": item.get("sentiment_score"),
+                    "published_at": item.get("published_at"),
+                })
+        result["news_evidence"] = matched[:10]
+        result["news_effect"] = "context_only_no_vote"
+        return result
