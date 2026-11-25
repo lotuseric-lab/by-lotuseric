@@ -178,7 +178,7 @@ async def ai_decision_preview(
             expires_at=_parse_datetime(row.get("expires_at")),
             signal_id=row["id"],
         ))
-    result = AIBrain().decide_with_news(signals, news_items)
+    result = AIBrain().decide_with_news(signals, news_items, symbol=symbol)
     return {
         "exchange": exchange,
         "symbol": symbol,
