@@ -21,6 +21,20 @@ class ApiSmokeTests(unittest.TestCase):
         response = self.client.get("/api/spot/tickers?exchange=unknown")
         self.assertEqual(response.status_code, 400)
 
+    def test_grid_session_rejects_derivative_symbol(self):
+        response = self.client.post("/api/grid/sessions", json={"symbol":"BTC-USDT-SWAP","exchange":"okx"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("BASE/USDT", response.json()["detail"])
+
+    def test_grid_session_rejects_unsupported_exchange(self):
+        response = self.client.post("/api/grid/sessions", json={"symbol":"BTC/USDT","exchange":"unknown"})
+        self.assertEqual(response.status_code, 400)
+
+    def test_grid_sessions_require_server_credentials(self):
+        with __import__("unittest").mock.patch("grid.store.SupabaseGridStore.configured", new_callable=__import__("unittest").mock.PropertyMock, return_value=False):
+            response = self.client.get("/api/grid/sessions?exchange=okx")
+        self.assertEqual(response.status_code, 503)
+
     def test_news_sync_is_disabled_without_server_token(self):
         response = self.client.post("/api/news/sync")
         self.assertEqual(response.status_code, 503)
