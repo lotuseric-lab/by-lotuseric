@@ -6,10 +6,8 @@ from fastapi import FastAPI, Header, HTTPException, Query
 
 from config import BotConfig, SUPPORTED_EXCHANGES
 from data.market_feed import PublicSpotFeed
-from news.ingestor import fetch_all_feeds
 from news.providers import configured_bluesky_actors, fetch_all_news
 from news.settings import load_news_sources, news_category_coverage
-import os
 from news.store import SupabaseNewsStore
 
 app = FastAPI(title="Smart Grid AI — Spot", version="0.2.0")
