@@ -7,6 +7,7 @@ from fastapi import FastAPI, Header, HTTPException, Query
 
 from config import BotConfig, SUPPORTED_EXCHANGES
 from ai.brain import AIBrain
+from ai.grid_advisor import build_grid_preview
 from core.events import BotSignal
 from data.market_feed import PublicSpotFeed
 from news.providers import configured_bluesky_actors, fetch_all_news
@@ -104,6 +105,43 @@ async def spot_snapshot(
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Market snapshot failed: {type(exc).__name__}")
+    finally:
+        feed.close()
+
+
+
+@app.get("/api/grid/preview")
+def grid_preview(
+    symbol: str,
+    exchange: str = Query("okx"),
+    timeframe: str = Query("5m", pattern=r"^(1m|3m|5m|15m|1h|4h|1d)$"),
+    budget_usdt: float = Query(100, gt=0, le=100000),
+    grid_count: int = Query(10, ge=4, le=30),
+):
+    """Build a technical spot-grid preview. This endpoint cannot create orders."""
+    if exchange not in SUPPORTED_EXCHANGES:
+        raise HTTPException(status_code=400, detail="Unsupported exchange")
+    parts = symbol.upper().split("/")
+    if len(parts) != 2 or not parts[0] or parts[1] != "USDT":
+        raise HTTPException(status_code=400, detail="Only BASE/USDT spot symbols are supported")
+    feed = PublicSpotFeed(BotConfig(exchange=exchange))
+    try:
+        snapshot = feed.fetch_snapshot(f"{parts[0]}/USDT", timeframe=timeframe)
+        preview = build_grid_preview(
+            symbol=snapshot.symbol, last=snapshot.last, bid=snapshot.bid, ask=snapshot.ask,
+            spread_rate=snapshot.spread_rate, quote_volume=snapshot.quote_volume,
+            candles=snapshot.candles, budget=budget_usdt, grid_count=grid_count,
+        )
+        return {
+            "exchange": exchange, "timeframe": timeframe,
+            "observed_at": snapshot.observed_at.isoformat(),
+            "preview": preview,
+            "execution": "disabled",
+        }
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Grid preview failed: {type(exc).__name__}")
     finally:
         feed.close()
 
