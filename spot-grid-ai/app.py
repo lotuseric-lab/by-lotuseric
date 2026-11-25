@@ -86,12 +86,14 @@ def news_coverage():
     categories = news_category_coverage(sources)
     official_enabled = os.getenv("ENABLE_OFFICIAL_EXCHANGE_NEWS", "true").lower() in ("1", "true", "yes")
     actors = configured_bluesky_actors()
-    categories["exchange_official"] = categories["exchange_official"] or official_enabled
+    binance_stream_configured = bool(os.getenv("BINANCE_ANNOUNCEMENTS_API_KEY") and os.getenv("BINANCE_ANNOUNCEMENTS_API_SECRET"))
+    categories["exchange_official"] = categories["exchange_official"] or official_enabled or binance_stream_configured
     categories["social"] = categories["social"] or bool(actors)
     return {
         "configured_rss_sources": len(sources),
         "official_exchange_providers_enabled": official_enabled,
         "bluesky_actors_configured": len(actors),
+        "binance_stream_configured": binance_stream_configured,
         "categories": categories,
         "storage_configured": store.configured,
     }
