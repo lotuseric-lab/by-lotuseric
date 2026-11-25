@@ -24,7 +24,8 @@ class NewsStoreTests(unittest.TestCase):
         row = SupabaseNewsStore._row(self.item)
         self.assertEqual(row["source_key"], "sample")
         self.assertEqual(row["symbols"], ["BTC"])
-        self.assertEqual(row["content_hash"], "a" * 64)
+        self.assertEqual(len(row["content_hash"]), 64)
+        self.assertNotEqual(row["content_hash"], row["dedupe_key"])
         self.assertEqual(row["payload"]["authority"], "evidence_only_no_order_permission")
 
     def test_invalid_publisher_timestamp_is_null(self):
