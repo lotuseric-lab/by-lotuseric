@@ -79,3 +79,10 @@ python -m unittest test_engine -v
 GitHub Actions runs both suites when files under `spot-grid-ai/` change.
 
 > Grid trading is not guaranteed to be profitable. In a sharp decline, inventory accumulation and unrealized losses are possible.
+
+
+## Web control panel
+
+A responsive, mobile-first monitoring dashboard is served by the FastAPI app at `/`. It includes exchange selection (OKX, Binance, Bybit), active USDT spot market discovery, batch ticker monitoring, selected-pair candles/order-book snapshot, HBR news evidence, AI decision preview, service health, and paper-mode status. The UI refreshes public market/news data every 20 seconds and can be added to an iPhone home screen. The shell can be cached offline; API data remains network-only.
+
+Vercel project: `smart-grid-ai-dashboard` (root directory: `spot-grid-ai`). The dashboard is not an order-entry screen. The batch ticker scan is market-data monitoring only; the strategy signal-generation and portfolio/order-ledger UI remain pending until those engines are connected. Supabase service credentials and the sync token must be configured as server-side environment variables before news persistence and stored AI evidence are available. Keep `SUPABASE_SERVICE_ROLE_KEY` and `SMART_GRID_SYNC_TOKEN` out of browser code.
