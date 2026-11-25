@@ -2,10 +2,8 @@
 import hmac
 import os
 from datetime import datetime, timezone
-from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Query
-from fastapi.staticfiles import StaticFiles
 
 from config import BotConfig, SUPPORTED_EXCHANGES
 from ai.brain import AIBrain
@@ -243,8 +241,3 @@ async def news_latest(limit: int = Query(50, ge=1, le=200)):
     }
 
 
-# Serve the responsive monitoring UI from this FastAPI app. Keep this mount last
-# so the API routes above always take precedence.
-DASHBOARD_DIR = Path(__file__).parent / "dashboard"
-if DASHBOARD_DIR.is_dir():
-    app.mount("/", StaticFiles(directory=str(DASHBOARD_DIR), html=True), name="dashboard")
