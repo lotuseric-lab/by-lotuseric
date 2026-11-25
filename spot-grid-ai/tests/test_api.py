@@ -21,6 +21,15 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertIn("SMART_GRID_SYNC_TOKEN", response.json()["detail"])
 
+    def test_ai_preview_rejects_derivative_symbols(self):
+        response = self.client.get("/api/ai/decision-preview?symbol=BTC-USDT-SWAP")
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("BASE/USDT", response.json()["detail"])
+
+    def test_ai_preview_rejects_unsupported_exchange(self):
+        response = self.client.get("/api/ai/decision-preview?symbol=BTC/USDT&exchange=unknown")
+        self.assertEqual(response.status_code, 400)
+
     def test_news_coverage_exposes_all_source_categories(self):
         response = self.client.get("/api/news/coverage")
         self.assertEqual(response.status_code, 200)
