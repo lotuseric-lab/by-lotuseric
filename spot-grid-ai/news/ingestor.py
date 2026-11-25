@@ -78,20 +78,23 @@ async def fetch_feed(client, source: FeedConfig) -> list[NewsItem]:
     return parse_feed(response.text, source)
 
 
-async def fetch_all_feeds(sources: list[FeedConfig]) -> list[NewsItem]:
-    """Fetch feeds concurrently; caller persists by unique dedupe_key."""
+async def fetch_all_feeds(sources: list[FeedConfig], diagnostics: dict | None = None) -> list[NewsItem]:
+    """Fetch feeds concurrently and optionally report per-source errors."""
     import asyncio
     import httpx
 
-    async with httpx.AsyncClient(headers={"User-Agent": "SmartGridAI-NewsBot/0.1"}) as client:
+    async with httpx.AsyncClient(headers={"User-Agent": "SmartGridAI-NewsBot/0.2"}) as client:
         results = await asyncio.gather(
             *(fetch_feed(client, source) for source in sources),
             return_exceptions=True,
         )
     items = []
-    for result in results:
+    report = diagnostics if diagnostics is not None else {}
+    for source, result in zip(sources, results):
         if isinstance(result, Exception):
+            report[source.key] = {"status": "error", "error_type": type(result).__name__}
             continue
+        report[source.key] = {"status": "ok", "fetched": len(result)}
         items.extend(result)
     unique = {item.dedupe_key: item for item in items}
     return list(unique.values())
