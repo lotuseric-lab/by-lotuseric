@@ -5,6 +5,8 @@ import os
 from fastapi import FastAPI, Header, HTTPException, Query
 
 from config import BotConfig, SUPPORTED_EXCHANGES
+from ai.brain import AIBrain
+from core.events import BotSignal
 from data.market_feed import PublicSpotFeed
 from news.providers import configured_bluesky_actors, fetch_all_news
 from news.settings import load_news_sources, news_category_coverage
@@ -131,6 +133,51 @@ async def news_sync(x_sync_token: str | None = Header(default=None, alias="X-Syn
         "submitted_for_deduplicated_storage": submitted,
         "storage": "spot_grid.news_events",
         "authority": "evidence_only_no_order_permission",
+    }
+
+
+@app.get("/api/ai/decision-preview")
+async def ai_decision_preview(
+    symbol: str,
+    exchange: str = Query("okx"),
+    limit: int = Query(50, ge=1, le=200),
+):
+    """Read recent bot signals and matching HBR evidence; never creates an order."""
+    if exchange not in SUPPORTED_EXCHANGES:
+        raise HTTPException(status_code=400, detail="Unsupported exchange")
+    if "/" not in symbol or not symbol.endswith("/USDT"):
+        raise HTTPException(status_code=400, detail="Only BASE/USDT spot symbols are supported")
+    store = SupabaseNewsStore()
+    if not store.configured:
+        raise HTTPException(status_code=503, detail="Server-side Supabase credentials are not configured")
+    try:
+        signal_rows = await store.latest_signals(exchange, symbol, limit)
+        news_items = await store.latest_for_symbol(symbol, limit)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"AI evidence read failed: {type(exc).__name__}")
+    signals = []
+    for row in signal_rows:
+        signals.append(BotSignal(
+            bot=row["bot_key"],
+            symbol=row["symbol"],
+            side=row["side"],
+            confidence=float(row["confidence"]),
+            reason=row["reason"],
+            evidence=row.get("evidence") or {},
+            created_at=BotSignal.__dataclass_fields__["created_at"].default_factory()
+                if not row.get("created_at") else __import__("datetime").datetime.fromisoformat(row["created_at"].replace("Z", "+00:00")),
+            expires_at=None if not row.get("expires_at") else __import__("datetime").datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00")),
+            signal_id=row["id"],
+        ))
+    result = AIBrain().decide_with_news(signals, news_items)
+    return {
+        "exchange": exchange,
+        "symbol": symbol,
+        "signals_considered": len(signals),
+        "news_items_matched": len(result.get("news_evidence", [])),
+        "result": result,
+        "order_created": False,
+        "authority": "decision_preview_only_no_order_permission",
     }
 
 
