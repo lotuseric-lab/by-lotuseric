@@ -28,6 +28,13 @@ class AISafetyTests(unittest.TestCase):
         self.assertEqual(len(result["news_evidence"]), 1)
         self.assertEqual(result["news_effect"], "context_only_no_vote")
 
+    def test_news_is_still_matched_when_no_bot_signals_exist(self):
+        news = [{"symbols": ["BTC"], "dedupe_key": "b" * 64}]
+        result = AIBrain().decide_with_news([], news, symbol="BTC/USDT")
+        self.assertEqual(result["decision"], "HOLD")
+        self.assertEqual(result["reason"], "NO_SIGNALS")
+        self.assertEqual(len(result["news_evidence"]), 1)
+
     def test_expired_signals_are_ignored(self):
         expired = datetime.now(timezone.utc) - timedelta(minutes=1)
         a = BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.95,
