@@ -16,6 +16,11 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(body["trading_mode"], "paper_only")
         self.assertFalse(body["live_trading_enabled"])
 
+    def test_news_sync_requires_configured_sources(self):
+        response = self.client.post("/api/news/sync")
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("No news feeds configured", response.json()["detail"])
+
     def test_news_coverage_exposes_all_source_categories(self):
         response = self.client.get("/api/news/coverage")
         self.assertEqual(response.status_code, 200)
