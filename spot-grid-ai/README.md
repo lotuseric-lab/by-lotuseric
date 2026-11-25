@@ -22,7 +22,8 @@ Open `/docs` for the read-only API. Useful endpoints:
 - `GET /api/spot/symbols?exchange=okx`
 - `GET /api/spot/snapshot?exchange=okx&symbol=BTC/USDT&timeframe=5m`
 - `GET /api/news/coverage` (includes built-in OKX/Bybit announcement providers and configured Bluesky accounts)
-- `GET /api/news/latest` (reads persisted news when Supabase is configured; otherwise a non-persisted preview)\n- `POST /api/news/sync` (fetches configured feeds and deduplicates them into `spot_grid.news_events`; requires `X-Sync-Token`)
+- `GET /api/news/latest` (reads persisted news when Supabase is configured; otherwise a non-persisted preview)
+- `POST /api/news/sync` (fetches configured feeds and deduplicates them into `spot_grid.news_events`; requires `X-Sync-Token`)
 
 Public market data uses CCXT unified market metadata, order-book, ticker and OHLCV methods. Only markets explicitly marked spot and not marked contract/swap/future are eligible. See the [CCXT manual](https://docs.ccxt.com/docs/manual).
 
