@@ -59,13 +59,14 @@ async def spot_snapshot(
             "asks": snapshot.asks, "candles": snapshot.candles,
         }
         store = SupabaseNewsStore()
-        result["persistence"] = "not_configured"
         if store.configured:
             try:
                 await store.insert_market_snapshot(result)
                 result["persistence"] = "saved"
             except Exception:
                 result["persistence"] = "failed"
+        else:
+            result["persistence"] = "not_configured"
         return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
