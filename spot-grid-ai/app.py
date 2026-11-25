@@ -7,7 +7,9 @@ from fastapi import FastAPI, Header, HTTPException, Query
 from config import BotConfig, SUPPORTED_EXCHANGES
 from data.market_feed import PublicSpotFeed
 from news.ingestor import fetch_all_feeds
+from news.providers import configured_bluesky_actors, fetch_all_news
 from news.settings import load_news_sources, news_category_coverage
+import os
 from news.store import SupabaseNewsStore
 
 app = FastAPI(title="Smart Grid AI — Spot", version="0.2.0")
@@ -80,9 +82,16 @@ async def spot_snapshot(
 def news_coverage():
     sources = load_news_sources()
     store = SupabaseNewsStore()
+    categories = news_category_coverage(sources)
+    official_enabled = os.getenv("ENABLE_OFFICIAL_EXCHANGE_NEWS", "true").lower() in ("1", "true", "yes")
+    actors = configured_bluesky_actors()
+    categories["exchange_official"] = categories["exchange_official"] or official_enabled
+    categories["social"] = categories["social"] or bool(actors)
     return {
-        "configured_sources": len(sources),
-        "categories": news_category_coverage(sources),
+        "configured_rss_sources": len(sources),
+        "official_exchange_providers_enabled": official_enabled,
+        "bluesky_actors_configured": len(actors),
+        "categories": categories,
         "storage_configured": store.configured,
     }
 
@@ -96,18 +105,22 @@ async def news_sync(x_sync_token: str | None = Header(default=None, alias="X-Syn
     if not x_sync_token or not hmac.compare_digest(x_sync_token, expected_token):
         raise HTTPException(status_code=401, detail="Invalid sync token")
     sources = load_news_sources()
-    if not sources:
-        raise HTTPException(status_code=409, detail="No news feeds configured in NEWS_FEEDS_JSON")
+    official_enabled = os.getenv("ENABLE_OFFICIAL_EXCHANGE_NEWS", "true").lower() in ("1", "true", "yes")
+    actors = configured_bluesky_actors()
+    if not sources and not official_enabled and not actors:
+        raise HTTPException(status_code=409, detail="No RSS, official exchange or social sources configured")
     store = SupabaseNewsStore()
     if not store.configured:
         raise HTTPException(status_code=503, detail="Server-side Supabase credentials are not configured")
-    items = await fetch_all_feeds(sources)
+    items = await fetch_all_news(sources, bluesky_actors=actors, enable_official=official_enabled)
     try:
         submitted = await store.upsert_items(items)
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"News persistence failed: {type(exc).__name__}")
     return {
-        "configured_sources": len(sources),
+        "configured_rss_sources": len(sources),
+        "official_exchange_providers_enabled": official_enabled,
+        "bluesky_actors_configured": len(actors),
         "fetched_unique_items": len(items),
         "submitted_for_deduplicated_storage": submitted,
         "storage": "spot_grid.news_events",
@@ -130,10 +143,14 @@ async def news_latest(limit: int = Query(50, ge=1, le=200)):
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Supabase news read failed: {type(exc).__name__}")
     sources = load_news_sources()
-    items = await fetch_all_feeds(sources)
+    official_enabled = os.getenv("ENABLE_OFFICIAL_EXCHANGE_NEWS", "true").lower() in ("1", "true", "yes")
+    actors = configured_bluesky_actors()
+    items = await fetch_all_news(sources, bluesky_actors=actors, enable_official=official_enabled)
     return {
         "source": "live_feed_preview_not_persisted",
-        "configured_sources": len(sources),
+        "configured_rss_sources": len(sources),
+        "official_exchange_providers_enabled": official_enabled,
+        "bluesky_actors_configured": len(actors),
         "items_count": len(items[:limit]),
         "items": [item.__dict__ for item in items[:limit]],
         "note": "Configure server-side Supabase credentials and call POST /api/news/sync to persist. News cannot authorize an order.",
