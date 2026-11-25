@@ -104,8 +104,8 @@ async def news_sync(x_sync_token: str | None = Header(default=None, alias="X-Syn
     items = await fetch_all_feeds(sources)
     try:
         submitted = await store.upsert_items(items)
-    except RuntimeError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"News persistence failed: {type(exc).__name__}")
     return {
         "configured_sources": len(sources),
         "fetched_unique_items": len(items),
@@ -127,8 +127,8 @@ async def news_latest(limit: int = Query(50, ge=1, le=200)):
                 "items": items,
                 "note": "News is evidence only; it cannot authorize an order.",
             }
-        except RuntimeError as exc:
-            raise HTTPException(status_code=502, detail=str(exc))
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Supabase news read failed: {type(exc).__name__}")
     sources = load_news_sources()
     items = await fetch_all_feeds(sources)
     return {
