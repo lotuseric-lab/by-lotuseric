@@ -16,7 +16,7 @@ from news.providers import configured_bluesky_actors, fetch_all_news
 from news.settings import load_news_sources, news_category_coverage
 from news.store import SupabaseNewsStore
 
-app = FastAPI(title="Smart Grid AI — Spot", version="0.2.0")
+app = FastAPI(title="RANGEFLOW AI — Spot Grid", version="0.2.0")
 
 
 def _parse_datetime(value: str | None):
