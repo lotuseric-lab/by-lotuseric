@@ -51,6 +51,25 @@ def spot_symbols(exchange: str = Query("okx")):
         feed.close()
 
 
+@app.get("/api/spot/tickers")
+def spot_tickers(exchange: str = Query("okx")):
+    """Batch scan every eligible active USDT spot ticker on the selected venue."""
+    if exchange not in SUPPORTED_EXCHANGES:
+        raise HTTPException(status_code=400, detail="Unsupported exchange")
+    feed = PublicSpotFeed(BotConfig(exchange=exchange))
+    try:
+        tickers = feed.fetch_tickers()
+        return {
+            "exchange": exchange, "market": "spot_only", "quote": "USDT",
+            "count": len(tickers), "observed_at": datetime.now(timezone.utc).isoformat(),
+            "tickers": tickers,
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Spot ticker scan failed: {type(exc).__name__}")
+    finally:
+        feed.close()
+
+
 @app.get("/api/spot/snapshot")
 async def spot_snapshot(
     symbol: str,
