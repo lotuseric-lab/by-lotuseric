@@ -37,7 +37,7 @@ def spot_symbols(exchange: str = Query("okx")):
 
 
 @app.get("/api/spot/snapshot")
-def spot_snapshot(
+async def spot_snapshot(
     symbol: str,
     exchange: str = Query("okx"),
     timeframe: str = Query("5m", pattern=r"^(1m|3m|5m|15m|1h|4h|1d)$"),
@@ -47,14 +47,23 @@ def spot_snapshot(
     feed = PublicSpotFeed(BotConfig(exchange=exchange))
     try:
         snapshot = feed.fetch_snapshot(symbol, timeframe=timeframe)
-        return {
+        result = {
             "exchange": snapshot.exchange, "symbol": snapshot.symbol,
-            "observed_at": snapshot.observed_at.isoformat(),
+            "timeframe": timeframe, "observed_at": snapshot.observed_at.isoformat(),
             "bid": snapshot.bid, "ask": snapshot.ask, "last": snapshot.last,
             "base_volume": snapshot.base_volume, "quote_volume": snapshot.quote_volume,
             "spread_rate": snapshot.spread_rate, "bids": snapshot.bids,
             "asks": snapshot.asks, "candles": snapshot.candles,
         }
+        store = SupabaseNewsStore()
+        result["persistence"] = "not_configured"
+        if store.configured:
+            try:
+                await store.insert_market_snapshot(result)
+                result["persistence"] = "saved"
+            except RuntimeError:
+                result["persistence"] = "failed"
+        return result
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
