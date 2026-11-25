@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app import app
@@ -31,7 +32,7 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_grid_sessions_require_server_credentials(self):
-        with __import__("unittest").mock.patch("grid.store.SupabaseGridStore.configured", new=property(lambda self: False)):
+        with patch("grid.store.SupabaseGridStore.configured", new=property(lambda self: False)):
             response = self.client.get("/api/grid/sessions?exchange=okx")
         self.assertEqual(response.status_code, 503)
 
