@@ -29,6 +29,18 @@
       <article class="metric"><div class="metric-head">HABER KAYITLARI <span>▤</span></div><strong id="newsCount">—</strong><small id="newsHint">Haber kaynağı durumu</small></article>
       <article class="metric"><div class="metric-head">İŞLEM MODU <span>⬡</span></div><strong class="green-text">PAPER</strong><small>Canlı emir gönderimi kapalı</small></article>
     </section>
+
+    <section class="panel grid-workbench">
+      <div class="panel-head"><div><div class="eyebrow">AI DESTEKLİ SPOT GRID</div><h2>Grid planlayıcı</h2></div><span class="count-tag">DEMO · ÖNİZLEME</span></div>
+      <p class="grid-note">AI teknik uygunluğu kontrol eder. Uygun olmayan piyasada Grid önerisi reddedilir. Bu aşamada emir gönderilmez.</p>
+      <div class="grid-form">
+        <label>Coin <input id="gridSymbol" value="BTC/USDT" autocomplete="off"></label>
+        <label>Demo bütçe (USDT) <input id="gridBudget" type="number" min="10" max="100000" step="10" value="100"></label>
+        <label>Grid seviyesi <select id="gridCount"><option>6</option><option selected>10</option><option>12</option><option>16</option><option>20</option><option>24</option></select></label>
+        <button id="gridPreviewBtn" class="primary-btn">AI ile Grid planla</button>
+      </div>
+      <div id="gridResult" class="grid-result"><div class="empty">Coin ve bütçe seçip Grid uygunluk kontrolü başlat.</div></div>
+    </section>
     <section class="content-grid">
       <article class="panel chart-panel">
         <div class="panel-head"><div><div class="eyebrow">PİYASA GÖRÜNÜMÜ</div><h2 id="chartSymbol">BTC/USDT</h2></div><div class="chart-controls"><select id="timeframe"><option>1m</option><option>3m</option><option selected>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div></div>
