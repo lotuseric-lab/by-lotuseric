@@ -31,7 +31,7 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_grid_sessions_require_server_credentials(self):
-        with __import__("unittest").mock.patch("grid.store.SupabaseGridStore.configured", new_callable=__import__("unittest").mock.PropertyMock, return_value=False):
+        with __import__("unittest").mock.patch("grid.store.SupabaseGridStore.configured", new=property(lambda self: False)):
             response = self.client.get("/api/grid/sessions?exchange=okx")
         self.assertEqual(response.status_code, 503)
 
