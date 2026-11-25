@@ -28,6 +28,19 @@ class AISafetyTests(unittest.TestCase):
         self.assertEqual(len(result["news_evidence"]), 1)
         self.assertEqual(result["news_effect"], "context_only_no_vote")
 
+    def test_expired_signals_are_ignored(self):
+        expired = datetime.now(timezone.utc) - timedelta(minutes=1)
+        a = BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.95,
+                      reason="expired", expires_at=expired)
+        b = BotSignal(bot="volume_liquidity", symbol="BTC/USDT", side="BUY", confidence=0.95,
+                      reason="expired", expires_at=expired)
+        self.assertEqual(AIBrain().decide([a, b])["reason"], "NO_FRESH_SIGNALS")
+
+    def test_mixed_symbols_cannot_form_consensus(self):
+        a = BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.95, reason="btc")
+        b = BotSignal(bot="volume_liquidity", symbol="ETH/USDT", side="BUY", confidence=0.95, reason="eth")
+        self.assertEqual(AIBrain().decide([a, b])["reason"], "MIXED_SYMBOLS")
+
     def test_duplicate_votes_from_same_bot_count_once(self):
         a = BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.9, reason="a")
         b = BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.9, reason="b")
