@@ -173,8 +173,10 @@ async def fetch_all_news(rss_sources, bluesky_actors: list[str] | None = None,
         enable_official = os.getenv("ENABLE_OFFICIAL_EXCHANGE_NEWS", "true").lower() in ("1", "true", "yes")
     actors = configured_bluesky_actors() if bluesky_actors is None else bluesky_actors
     report = diagnostics if diagnostics is not None else {}
-    rss_items = await fetch_all_feeds(rss_sources)
-    report["rss"] = {"configured": len(rss_sources), "fetched": len(rss_items)}
+    rss_diagnostics = {}
+    rss_items = await fetch_all_feeds(rss_sources, diagnostics=rss_diagnostics)
+    report["rss"] = {"configured": len(rss_sources), "fetched": len(rss_items),
+                     "sources": rss_diagnostics}
     tasks = {}
     async with httpx.AsyncClient(headers={"User-Agent": "SmartGridAI-NewsBot/0.2"},
                                  follow_redirects=True) as client:
