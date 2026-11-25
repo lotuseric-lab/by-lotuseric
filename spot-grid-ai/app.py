@@ -1,5 +1,8 @@
 """Read-only market API and guarded paper-mode news persistence service."""
-from fastapi import FastAPI, HTTPException, Query
+import hmac
+import os
+
+from fastapi import FastAPI, Header, HTTPException, Query
 
 from config import BotConfig, SUPPORTED_EXCHANGES
 from data.market_feed import PublicSpotFeed
@@ -84,8 +87,13 @@ def news_coverage():
 
 
 @app.post("/api/news/sync")
-async def news_sync():
+async def news_sync(x_sync_token: str | None = Header(default=None, alias="X-Sync-Token")):
     """Fetch reviewed feeds and persist deduplicated evidence to spot_grid.news_events."""
+    expected_token = os.getenv("SMART_GRID_SYNC_TOKEN", "")
+    if not expected_token:
+        raise HTTPException(status_code=503, detail="News sync is disabled until SMART_GRID_SYNC_TOKEN is configured")
+    if not x_sync_token or not hmac.compare_digest(x_sync_token, expected_token):
+        raise HTTPException(status_code=401, detail="Invalid sync token")
     sources = load_news_sources()
     if not sources:
         raise HTTPException(status_code=409, detail="No news feeds configured in NEWS_FEEDS_JSON")
