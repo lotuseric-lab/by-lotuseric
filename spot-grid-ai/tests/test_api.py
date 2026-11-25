@@ -16,6 +16,11 @@ class ApiSmokeTests(unittest.TestCase):
         self.assertEqual(body["trading_mode"], "paper_only")
         self.assertFalse(body["live_trading_enabled"])
 
+
+    def test_ticker_scan_rejects_unsupported_exchange(self):
+        response = self.client.get("/api/spot/tickers?exchange=unknown")
+        self.assertEqual(response.status_code, 400)
+
     def test_news_sync_is_disabled_without_server_token(self):
         response = self.client.post("/api/news/sync")
         self.assertEqual(response.status_code, 503)
