@@ -5,6 +5,17 @@ from news.settings import load_news_sources, news_category_coverage
 
 
 class NewsIngestorTests(unittest.TestCase):
+    def test_rss_dedupe_ignores_tracking_query_parameters(self):
+        first = parse_feed(
+            "<rss><channel><item><title>Story</title><link>https://example.test/story?utm_source=x</link></item></channel></rss>",
+            FeedConfig("a", "https://example.test/rss", "crypto_media"),
+        )[0]
+        second = parse_feed(
+            "<rss><channel><item><title>Story</title><link>https://example.test/story?ref=y</link></item></channel></rss>",
+            FeedConfig("a", "https://example.test/rss", "crypto_media"),
+        )[0]
+        self.assertEqual(first.dedupe_key, second.dedupe_key)
+
     def test_parse_rss_and_dedupe_key(self):
         xml = """<?xml version="1.0"?><rss><channel><item>
         <title>Exchange listing notice</title><description>Spot market notice</description>
