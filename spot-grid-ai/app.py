@@ -1,21 +1,24 @@
-"""Read-only market/news API and paper-mode service status."""
+"""Read-only market API and guarded paper-mode news persistence service."""
 from fastapi import FastAPI, HTTPException, Query
 
 from config import BotConfig, SUPPORTED_EXCHANGES
 from data.market_feed import PublicSpotFeed
 from news.ingestor import fetch_all_feeds
 from news.settings import load_news_sources, news_category_coverage
+from news.store import SupabaseNewsStore
 
-app = FastAPI(title="Smart Grid AI — Spot", version="0.1.0")
+app = FastAPI(title="Smart Grid AI — Spot", version="0.2.0")
 
 
 @app.get("/health")
 def health():
+    store = SupabaseNewsStore()
     return {
         "status": "ok",
         "market": "spot_only",
         "trading_mode": "paper_only",
         "live_trading_enabled": False,
+        "news_storage_configured": store.configured,
     }
 
 
@@ -45,18 +48,12 @@ def spot_snapshot(
     try:
         snapshot = feed.fetch_snapshot(symbol, timeframe=timeframe)
         return {
-            "exchange": snapshot.exchange,
-            "symbol": snapshot.symbol,
+            "exchange": snapshot.exchange, "symbol": snapshot.symbol,
             "observed_at": snapshot.observed_at.isoformat(),
-            "bid": snapshot.bid,
-            "ask": snapshot.ask,
-            "last": snapshot.last,
-            "base_volume": snapshot.base_volume,
-            "quote_volume": snapshot.quote_volume,
-            "spread_rate": snapshot.spread_rate,
-            "bids": snapshot.bids,
-            "asks": snapshot.asks,
-            "candles": snapshot.candles,
+            "bid": snapshot.bid, "ask": snapshot.ask, "last": snapshot.last,
+            "base_volume": snapshot.base_volume, "quote_volume": snapshot.quote_volume,
+            "spread_rate": snapshot.spread_rate, "bids": snapshot.bids,
+            "asks": snapshot.asks, "candles": snapshot.candles,
         }
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
@@ -69,16 +66,57 @@ def spot_snapshot(
 @app.get("/api/news/coverage")
 def news_coverage():
     sources = load_news_sources()
-    return {"configured_sources": len(sources), "categories": news_category_coverage(sources)}
+    store = SupabaseNewsStore()
+    return {
+        "configured_sources": len(sources),
+        "categories": news_category_coverage(sources),
+        "storage_configured": store.configured,
+    }
+
+
+@app.post("/api/news/sync")
+async def news_sync():
+    """Fetch reviewed feeds and persist deduplicated evidence to spot_grid.news_events."""
+    sources = load_news_sources()
+    if not sources:
+        raise HTTPException(status_code=409, detail="No news feeds configured in NEWS_FEEDS_JSON")
+    store = SupabaseNewsStore()
+    if not store.configured:
+        raise HTTPException(status_code=503, detail="Server-side Supabase credentials are not configured")
+    items = await fetch_all_feeds(sources)
+    try:
+        submitted = await store.upsert_items(items)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return {
+        "configured_sources": len(sources),
+        "fetched_unique_items": len(items),
+        "submitted_for_deduplicated_storage": submitted,
+        "storage": "spot_grid.news_events",
+        "authority": "evidence_only_no_order_permission",
+    }
 
 
 @app.get("/api/news/latest")
-async def news_latest():
+async def news_latest(limit: int = Query(50, ge=1, le=200)):
+    store = SupabaseNewsStore()
+    if store.configured:
+        try:
+            items = await store.latest(limit)
+            return {
+                "source": "supabase_spot_grid",
+                "items_count": len(items),
+                "items": items,
+                "note": "News is evidence only; it cannot authorize an order.",
+            }
+        except RuntimeError as exc:
+            raise HTTPException(status_code=502, detail=str(exc))
     sources = load_news_sources()
     items = await fetch_all_feeds(sources)
     return {
+        "source": "live_feed_preview_not_persisted",
         "configured_sources": len(sources),
-        "items_count": len(items),
-        "items": [item.__dict__ for item in items],
-        "note": "Raw feed text is untrusted input; no item can authorize an order.",
+        "items_count": len(items[:limit]),
+        "items": [item.__dict__ for item in items[:limit]],
+        "note": "Configure server-side Supabase credentials and call POST /api/news/sync to persist. News cannot authorize an order.",
     }
