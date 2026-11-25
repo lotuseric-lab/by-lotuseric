@@ -1,6 +1,7 @@
 """Read-only market API and guarded paper-mode news persistence service."""
 import hmac
 import os
+from datetime import datetime, timezone
 
 from fastapi import FastAPI, Header, HTTPException, Query
 
@@ -13,6 +14,13 @@ from news.settings import load_news_sources, news_category_coverage
 from news.store import SupabaseNewsStore
 
 app = FastAPI(title="Smart Grid AI — Spot", version="0.2.0")
+
+
+def _parse_datetime(value: str | None):
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return parsed.replace(tzinfo=timezone.utc) if parsed.tzinfo is None else parsed
 
 
 @app.get("/health")
@@ -164,9 +172,8 @@ async def ai_decision_preview(
             confidence=float(row["confidence"]),
             reason=row["reason"],
             evidence=row.get("evidence") or {},
-            created_at=BotSignal.__dataclass_fields__["created_at"].default_factory()
-                if not row.get("created_at") else __import__("datetime").datetime.fromisoformat(row["created_at"].replace("Z", "+00:00")),
-            expires_at=None if not row.get("expires_at") else __import__("datetime").datetime.fromisoformat(row["expires_at"].replace("Z", "+00:00")),
+            created_at=_parse_datetime(row.get("created_at")) or datetime.now(timezone.utc),
+            expires_at=_parse_datetime(row.get("expires_at")),
             signal_id=row["id"],
         ))
     result = AIBrain().decide_with_news(signals, news_items)
