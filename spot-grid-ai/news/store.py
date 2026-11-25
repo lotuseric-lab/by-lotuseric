@@ -118,6 +118,52 @@ class SupabaseNewsStore:
                 "check Data API exposure for spot_grid and service_role grants"
             )
 
+    async def latest_for_symbol(self, symbol: str, limit: int = 50) -> list[dict]:
+        """Read news explicitly tagged with the requested base-asset ticker."""
+        if not self.configured:
+            raise RuntimeError("Supabase news storage is not configured")
+        base_asset = symbol.split("/", 1)[0].strip().upper()
+        headers = self._headers()
+        headers.pop("Content-Profile", None)
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(
+                f"{self.url}/rest/v1/news_events",
+                params={
+                    "select": "source_key,source_category,trust_tier,canonical_url,dedupe_key,published_at,fetched_at,symbols,event_type,sentiment_score,summary,payload",
+                    "symbols": f"cs.{{{base_asset}}}",
+                    "order": "published_at.desc.nullslast,fetched_at.desc",
+                    "limit": max(1, min(int(limit), 200)),
+                },
+                headers=headers,
+            )
+        if response.is_error:
+            raise RuntimeError(f"Supabase symbol news read failed ({response.status_code})")
+        data = response.json()
+        return data if isinstance(data, list) else []
+
+    async def latest_signals(self, exchange: str, symbol: str, limit: int = 50) -> list[dict]:
+        """Read recent bot evidence for one exact spot market."""
+        if not self.configured:
+            raise RuntimeError("Supabase signal storage is not configured")
+        headers = self._headers()
+        headers.pop("Content-Profile", None)
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.get(
+                f"{self.url}/rest/v1/bot_signals",
+                params={
+                    "select": "id,bot_key,exchange,symbol,side,confidence,reason,evidence,created_at,expires_at",
+                    "exchange": f"eq.{exchange}",
+                    "symbol": f"eq.{symbol}",
+                    "order": "created_at.desc",
+                    "limit": max(1, min(int(limit), 200)),
+                },
+                headers=headers,
+            )
+        if response.is_error:
+            raise RuntimeError(f"Supabase bot signal read failed ({response.status_code})")
+        data = response.json()
+        return data if isinstance(data, list) else []
+
     async def latest(self, limit: int = 50) -> list[dict]:
         if not self.configured:
             raise RuntimeError("Supabase news storage is not configured")
