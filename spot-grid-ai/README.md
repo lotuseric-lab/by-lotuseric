@@ -34,6 +34,9 @@ No feed is silently treated as official. Untrusted article text cannot issue an 
 
 ## News persistence and HBR evidence
 - `news/store.py` writes normalized feed items to `spot_grid.news_events` using the unique `dedupe_key`; repeat syncs are idempotent.
+- Built-in official sources: OKX and Bybit public announcement endpoints. Optional social source: recent posts from explicitly curated public Bluesky handles, always tagged `unverified`.
+- `POST /api/news/sync` returns per-source diagnostics so failed exchange/social providers are visible rather than silently treated as successful.
+- Market snapshot writes are opt-in with `PERSIST_MARKET_SNAPSHOTS=true`; the default avoids inserting a database row on every chart refresh.
 - `news/normalizer.py` extracts only explicit ticker forms (`$BTC`, `BTC/USDT`, `BTC-USDT`) and applies a transparent keyword heuristic for event type/sentiment. This is not a trained model.
 - News is stored as evidence only. The HBR/news bot has no BUY/SELL authority and is not counted as an independent trading vote.
 - Set `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the server environment only. Never commit the service-role key or expose it in a browser/mobile client. Set a separate high-entropy `SMART_GRID_SYNC_TOKEN`; the ingestion endpoint stays disabled without it and rejects requests without the matching `X-Sync-Token` header.
