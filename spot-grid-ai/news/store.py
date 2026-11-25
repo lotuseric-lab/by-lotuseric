@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timezone
+from hashlib import sha256
 from typing import Iterable
 
 import httpx
@@ -63,7 +64,7 @@ class SupabaseNewsStore:
             "event_type": analysis["event_type"],
             "sentiment_score": analysis["sentiment_score"],
             "summary": item.summary[:8000],
-            "content_hash": item.dedupe_key,
+            "content_hash": sha256(f"{item.title}\\n{item.summary}".encode("utf-8")).hexdigest(),
             "payload": {
                 "title": item.title[:2000],
                 "raw_published_at": item.published_at,
