@@ -5,8 +5,8 @@ from ai.grid_advisor import build_grid_preview
 def sideways_candles(count=48):
     rows = []
     for i in range(count):
-        close = 100 + 2.2 * __import__("math").sin(i * __import__("math").pi / 2)
-        open_price = 100 + 2.2 * __import__("math").sin((i - 1) * __import__("math").pi / 2)
+        close = 100 + 2.2 * __import__("math").sin(i * 2 * __import__("math").pi * 6 / 47)
+        open_price = 100 + 2.2 * __import__("math").sin((i - 1) * 2 * __import__("math").pi * 6 / 47)
         rows.append([i * 300000, open_price, max(open_price, close) + 0.25, min(open_price, close) - 0.25, close, 1000])
     return rows
 
