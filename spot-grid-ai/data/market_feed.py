@@ -109,8 +109,8 @@ class PublicSpotFeed:
             base_volume=float(ticker["baseVolume"]) if ticker.get("baseVolume") is not None else None,
             quote_volume=float(ticker["quoteVolume"]) if ticker.get("quoteVolume") is not None else None,
             spread_rate=spread,
-            bids=[[float(p), float(q)] for p, q in book.get("bids", [])],
-            asks=[[float(p), float(q)] for p, q in book.get("asks", [])],
+            bids=[[float(level[0]), float(level[1])] for level in book.get("bids", []) if len(level) >= 2],
+            asks=[[float(level[0]), float(level[1])] for level in book.get("asks", []) if len(level) >= 2],
             candles=[[float(v) for v in row] for row in candles],
         )
 
