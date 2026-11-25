@@ -23,6 +23,7 @@ Open `/docs` for the read-only API. Useful endpoints:
 - `GET /api/spot/snapshot?exchange=okx&symbol=BTC/USDT&timeframe=5m`
 - `GET /api/news/coverage` (includes built-in OKX/Bybit announcement providers and configured Bluesky accounts)
 - `GET /api/news/latest` (reads persisted news when Supabase is configured; otherwise a non-persisted preview)
+- `GET /api/ai/decision-preview?exchange=okx&symbol=BTC/USDT` (combines stored bot signals with matching HBR news as context; never places an order)
 - `POST /api/news/sync` (fetches configured feeds and deduplicates them into `spot_grid.news_events`; requires `X-Sync-Token`)
 
 Public market data uses CCXT unified market metadata, order-book, ticker and OHLCV methods. Only markets explicitly marked spot and not marked contract/swap/future are eligible. See the [CCXT manual](https://docs.ccxt.com/docs/manual).
@@ -37,6 +38,7 @@ No feed is silently treated as official. Untrusted article text cannot issue an 
 - `news/store.py` writes normalized feed items to `spot_grid.news_events` using the unique `dedupe_key`; repeat syncs are idempotent.
 - Built-in official sources: OKX and Bybit public announcement endpoints. Optional Binance announcement WebSocket worker is available as `python -m news.binance_stream_worker`; it requires a dedicated API key with no Trade/Withdraw permissions, reconnects before the 24-hour connection limit, and stores into the same news table. Optional social source: recent posts from explicitly curated public Bluesky handles, always tagged `unverified`.
 - `POST /api/news/sync` returns per-source diagnostics so failed exchange/social providers are visible rather than silently treated as successful.
+- `GET /api/ai/decision-preview` reads recent `bot_signals` plus symbol-matched `news_events`, then calls `AIBrain.decide_with_news()`. News remains context-only and the endpoint is strictly read-only.
 - Market snapshot writes are opt-in with `PERSIST_MARKET_SNAPSHOTS=true`; the default avoids inserting a database row on every chart refresh.
 - `news/normalizer.py` extracts only explicit ticker forms (`$BTC`, `BTC/USDT`, `BTC-USDT`) and applies a transparent keyword heuristic for event type/sentiment. This is not a trained model.
 - News is stored as evidence only. The HBR/news bot has no BUY/SELL authority and is not counted as an independent trading vote.
