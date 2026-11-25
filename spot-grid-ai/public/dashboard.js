@@ -27,7 +27,7 @@ async function previewGrid(){
   const btn=$("gridPreviewBtn"),box=$("gridResult");
   const symbol=$("gridSymbol").value.trim().toUpperCase();
   const budget=Number($("gridBudget").value),count=Number($("gridCount").value);
-  if(!/^[A-Z0-9]+\\/USDT$/.test(symbol)||!Number.isFinite(budget)||budget<10){toast("Geçerli BASE/USDT ve en az 10 USDT bütçe gir");return}
+  if(!/^[A-Z0-9]+\/USDT$/.test(symbol)||!Number.isFinite(budget)||budget<10){toast("Geçerli BASE/USDT ve en az 10 USDT bütçe gir");return}
   btn.disabled=true;btn.textContent="Piyasa analiz ediliyor…";box.innerHTML='<div class="empty">Kapalı mumlar, spread ve Grid maliyeti kontrol ediliyor…</div>';
   try{
     const d=await api("/api/grid/preview?exchange="+state.exchange+"&symbol="+encodeURIComponent(symbol)+"&timeframe="+state.timeframe+"&budget_usdt="+budget+"&grid_count="+count);
