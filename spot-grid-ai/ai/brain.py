@@ -11,13 +11,13 @@ class AIBrain:
     def decide(self, signals: list[BotSignal]) -> dict:
         if not signals:
             return {"decision": "HOLD", "confidence": 0.0, "reason": "NO_SIGNALS"}
-        symbols = {signal.symbol for signal in signals}
-        if len(symbols) != 1:
-            return {"decision": "HOLD", "confidence": 0.0, "reason": "MIXED_SYMBOLS"}
         now = utc_now()
         signals = [signal for signal in signals if signal.expires_at is None or signal.expires_at > now]
         if not signals:
             return {"decision": "HOLD", "confidence": 0.0, "reason": "NO_FRESH_SIGNALS"}
+        symbols = {signal.symbol for signal in signals}
+        if len(symbols) != 1:
+            return {"decision": "HOLD", "confidence": 0.0, "reason": "MIXED_SYMBOLS"}
 
         # Only the latest signal from each independent bot counts once.
         latest_by_bot = {}
