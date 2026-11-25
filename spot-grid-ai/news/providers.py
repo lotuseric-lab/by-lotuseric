@@ -162,7 +162,8 @@ def configured_bluesky_actors(raw: str | None = None) -> list[str]:
 
 
 async def fetch_all_news(rss_sources, bluesky_actors: list[str] | None = None,
-                         enable_official: bool | None = None) -> list[NewsItem]:
+                         enable_official: bool | None = None,
+                         diagnostics: dict | None = None) -> list[NewsItem]:
     """Fetch configured RSS, official exchange announcements and curated social posts."""
     import asyncio
     import httpx
@@ -171,18 +172,26 @@ async def fetch_all_news(rss_sources, bluesky_actors: list[str] | None = None,
     if enable_official is None:
         enable_official = os.getenv("ENABLE_OFFICIAL_EXCHANGE_NEWS", "true").lower() in ("1", "true", "yes")
     actors = configured_bluesky_actors() if bluesky_actors is None else bluesky_actors
-    tasks = [fetch_all_feeds(rss_sources)]
+    report = diagnostics if diagnostics is not None else {}
+    rss_items = await fetch_all_feeds(rss_sources)
+    report["rss"] = {"configured": len(rss_sources), "fetched": len(rss_items)}
+    tasks = {}
     async with httpx.AsyncClient(headers={"User-Agent": "SmartGridAI-NewsBot/0.2"},
                                  follow_redirects=True) as client:
-        provider_tasks = []
         if enable_official:
-            provider_tasks.extend([fetch_okx_announcements(client), fetch_bybit_announcements(client)])
-        provider_tasks.extend(fetch_bluesky_actor_feed(client, actor) for actor in actors)
-        results = await asyncio.gather(*provider_tasks, return_exceptions=True) if provider_tasks else []
-    rss_items = await tasks[0]
+            tasks["okx_announcements"] = fetch_okx_announcements(client)
+            tasks["bybit_announcements"] = fetch_bybit_announcements(client)
+        for actor in actors:
+            tasks[f"bluesky:{actor}"] = fetch_bluesky_actor_feed(client, actor)
+        names = list(tasks)
+        results = await asyncio.gather(*tasks.values(), return_exceptions=True) if tasks else []
     all_items = list(rss_items)
-    for result in results:
-        if not isinstance(result, Exception):
-            all_items.extend(result)
+    for name, result in zip(names, results):
+        if isinstance(result, Exception):
+            report[name] = {"status": "error", "error_type": type(result).__name__}
+            continue
+        report[name] = {"status": "ok", "fetched": len(result)}
+        all_items.extend(result)
     unique = {item.dedupe_key: item for item in all_items}
+    report["unique_items"] = len(unique)
     return list(unique.values())
