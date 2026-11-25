@@ -59,7 +59,10 @@ async def spot_snapshot(
             "asks": snapshot.asks, "candles": snapshot.candles,
         }
         store = SupabaseNewsStore()
-        if store.configured:
+        persist_snapshots = os.getenv("PERSIST_MARKET_SNAPSHOTS", "false").lower() in ("1", "true", "yes")
+        if not persist_snapshots:
+            result["persistence"] = "disabled_by_default"
+        elif store.configured:
             try:
                 await store.insert_market_snapshot(result)
                 result["persistence"] = "saved"
@@ -110,7 +113,9 @@ async def news_sync(x_sync_token: str | None = Header(default=None, alias="X-Syn
     store = SupabaseNewsStore()
     if not store.configured:
         raise HTTPException(status_code=503, detail="Server-side Supabase credentials are not configured")
-    items = await fetch_all_news(sources, bluesky_actors=actors, enable_official=official_enabled)
+    source_diagnostics = {}
+    items = await fetch_all_news(sources, bluesky_actors=actors, enable_official=official_enabled,
+                                 diagnostics=source_diagnostics)
     try:
         submitted = await store.upsert_items(items)
     except Exception as exc:
@@ -120,6 +125,7 @@ async def news_sync(x_sync_token: str | None = Header(default=None, alias="X-Syn
         "official_exchange_providers_enabled": official_enabled,
         "bluesky_actors_configured": len(actors),
         "fetched_unique_items": len(items),
+        "source_diagnostics": source_diagnostics,
         "submitted_for_deduplicated_storage": submitted,
         "storage": "spot_grid.news_events",
         "authority": "evidence_only_no_order_permission",
@@ -143,13 +149,16 @@ async def news_latest(limit: int = Query(50, ge=1, le=200)):
     sources = load_news_sources()
     official_enabled = os.getenv("ENABLE_OFFICIAL_EXCHANGE_NEWS", "true").lower() in ("1", "true", "yes")
     actors = configured_bluesky_actors()
-    items = await fetch_all_news(sources, bluesky_actors=actors, enable_official=official_enabled)
+    source_diagnostics = {}
+    items = await fetch_all_news(sources, bluesky_actors=actors, enable_official=official_enabled,
+                                 diagnostics=source_diagnostics)
     return {
         "source": "live_feed_preview_not_persisted",
         "configured_rss_sources": len(sources),
         "official_exchange_providers_enabled": official_enabled,
         "bluesky_actors_configured": len(actors),
         "items_count": len(items[:limit]),
+        "source_diagnostics": source_diagnostics,
         "items": [item.__dict__ for item in items[:limit]],
         "note": "Configure server-side Supabase credentials and call POST /api/news/sync to persist. News cannot authorize an order.",
     }
