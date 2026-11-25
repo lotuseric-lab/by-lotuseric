@@ -13,6 +13,21 @@ class AISafetyTests(unittest.TestCase):
         signal = BotSignal(bot="news_hbr", symbol="BTC/USDT", side="BUY", confidence=0.99, reason="headline")
         self.assertEqual(AIBrain().decide([signal])["decision"], "HOLD")
 
+    def test_news_evidence_is_attached_but_cannot_change_decision(self):
+        signals = [
+            BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.8, reason="trend"),
+            BotSignal(bot="volume_liquidity", symbol="BTC/USDT", side="BUY", confidence=0.8, reason="volume"),
+        ]
+        news = [{
+            "symbols": ["BTC"], "source_key": "publisher", "source_category": "crypto_media",
+            "trust_tier": "reputable", "event_type": "security", "sentiment_score": -1.0,
+            "dedupe_key": "a" * 64,
+        }]
+        result = AIBrain().decide_with_news(signals, news)
+        self.assertEqual(result["decision"], "BUY")
+        self.assertEqual(len(result["news_evidence"]), 1)
+        self.assertEqual(result["news_effect"], "context_only_no_vote")
+
     def test_duplicate_votes_from_same_bot_count_once(self):
         a = BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.9, reason="a")
         b = BotSignal(bot="technical", symbol="BTC/USDT", side="BUY", confidence=0.9, reason="b")
