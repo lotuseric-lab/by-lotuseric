@@ -16,11 +16,11 @@ async function loadNews(){try{const d=await api("/api/news/latest?limit=8"),item
 async function selectSymbol(s){state.selected=s;renderSymbols();await loadSnapshot()}
 function toast(s){const t=$("toast");t.textContent=s;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2200)}
 async function refresh(){if(state.busy)return;state.busy=true;$("refreshBtn").textContent="…";if(state.symbols.length)await Promise.all([loadHealth(),loadNews(),loadTickers(),loadSnapshot()]);else await Promise.all([loadHealth(),loadNews(),loadSymbols()]);$("updatedAt").textContent="Son güncelleme: "+new Date().toLocaleTimeString("tr-TR");$("footerClock").textContent=new Date().toLocaleString("tr-TR");$("refreshBtn").textContent="↻";state.busy=false}
-$("exchange").addEventListener("change",async e=>{state.exchange=e.target.value;state.symbols=[];state.tickers=[];await loadSymbols();await loadHealth()});
+$("exchange").addEventListener("change",async e=>{state.exchange=e.target.value;state.symbols=[];state.tickers=[];await loadSymbols();await loadHealth();await loadGridSessions()});
 $("timeframe").addEventListener("change",async e=>{state.timeframe=e.target.value;await loadSnapshot()});
 $("symbolSearch").addEventListener("input",renderSymbols);$("refreshBtn").addEventListener("click",refresh);
 document.querySelectorAll("[data-view]").forEach(b=>b.addEventListener("click",()=>{document.querySelectorAll(".nav-item").forEach(n=>n.classList.toggle("active",n===b));const names={overview:"Genel Bakış",markets:"Piyasalar",signals:"AI Kararları",news:"Haber Merkezi",portfolio:"Demo Portföy"};$("pageTitle").textContent=names[b.dataset.view]||"Genel Bakış";if(b.dataset.view==="news")$("newsList").scrollIntoView({behavior:"smooth",block:"center"});else if(b.dataset.view==="markets")$("symbolSearch").focus()}));
-window.addEventListener("resize",()=>drawChart(state.snapshot?.candles||[]));refresh();setInterval(refresh,20000);
+window.addEventListener("resize",()=>drawChart(state.snapshot?.candles||[]));refresh();loadGridSessions();setInterval(refresh,20000);
 if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("/sw-dashboard.js").catch(()=>{}));
 
 async function previewGrid(){
