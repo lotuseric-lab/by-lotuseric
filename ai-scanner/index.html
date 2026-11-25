@@ -1119,7 +1119,7 @@ let lastData=null,busy=false,refreshTimer=null,lastRenderKey='';
 function selectedHorizon(){return root()?.querySelector('[data-learning-horizon]')?.value||'1h';}
 function render(data){
  const host=root();if(!host)return;
- const renderKey=JSON.stringify({segmentPerformance:data.segmentPerformance||[],totals:data.totals||{},modelStatus:data.modelStatus||'',liveTrading:data.liveTrading,scoreCalibration1h:data.scoreCalibration1h||[]});
+ const renderKey=JSON.stringify({horizon:selectedHorizon(),segmentPerformance:data.segmentPerformance||[],totals:data.totals||{},modelStatus:data.modelStatus||'',liveTrading:data.liveTrading,scoreCalibration1h:data.scoreCalibration1h||[]});
  if(renderKey===lastRenderKey){const status=host.querySelector('[data-learning-updated]');if(status)status.textContent='Son güncelleme: '+new Date(data.generatedAt||Date.now()).toLocaleTimeString('tr-TR');return;}
  lastRenderKey=renderKey;
  const rows=(Array.isArray(data.segmentPerformance)?data.segmentPerformance:[]).filter(x=>String(x.horizon)===selectedHorizon());
