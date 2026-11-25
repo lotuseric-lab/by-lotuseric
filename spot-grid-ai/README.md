@@ -91,3 +91,13 @@ Vercel project: `smart-grid-ai-dashboard` (root directory: `spot-grid-ai`). The 
 ## AI Spot Grid Planner
 
 The dashboard includes a read-only grid suitability preview at `/api/grid/preview`. It evaluates closed OHLCV candles, price drift, efficiency ratio, ATR, spread, quote volume and estimated round-trip costs before producing an indicative price ladder. The preview never creates orders. Paper execution remains disabled until durable shared portfolio persistence, order lifecycle tracking, and risk controls are connected and verified. Live exchange orders remain disabled.
+
+
+### Persistent paper-grid plans
+
+- `POST /api/grid/sessions` re-fetches current public spot data, recomputes suitability on the server, and stores only an eligible plan with status `PREVIEW`.
+- `GET /api/grid/sessions?exchange=okx` lists recent saved plans.
+- `GET /api/grid/balances?exchange=okx` reads the private demo-balance ledger.
+- Supabase migration `database/003_spot_grid_paper_runtime.sql` creates `spot_grid.grid_sessions` and `spot_grid.paper_balances`.
+- Both tables have RLS enabled and no `anon` or `authenticated` grants. Only the server-side `service_role` is granted table access.
+- A saved `PREVIEW` is not a running bot and creates no order or balance movement. Paper order reservation/fill lifecycle remains a separate gated implementation step.
