@@ -94,6 +94,29 @@ class SupabaseNewsStore:
         # Return submitted unique rows, not a claim of newly inserted rows.
         return len(rows)
 
+    async def insert_market_snapshot(self, snapshot: dict) -> None:
+        """Append a public market snapshot; no exchange private endpoint is used."""
+        if not self.configured:
+            raise RuntimeError("Supabase market storage is not configured")
+        row = {
+            "exchange": snapshot["exchange"],
+            "symbol": snapshot["symbol"],
+            "timeframe": snapshot["timeframe"],
+            "observed_at": snapshot["observed_at"],
+            "payload": snapshot,
+        }
+        headers = self._headers()
+        headers["Prefer"] = "return=minimal"
+        async with httpx.AsyncClient(timeout=self.timeout) as client:
+            response = await client.post(
+                f"{self.url}/rest/v1/market_snapshots", headers=headers, json=row
+            )
+        if response.is_error:
+            raise RuntimeError(
+                f"Supabase market snapshot write failed ({response.status_code}); "
+                "check Data API exposure for spot_grid and service_role grants"
+            )
+
     async def latest(self, limit: int = 50) -> list[dict]:
         if not self.configured:
             raise RuntimeError("Supabase news storage is not configured")
