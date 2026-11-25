@@ -21,16 +21,16 @@ Open `/docs` for the read-only API. Useful endpoints:
 - `GET /health`
 - `GET /api/spot/symbols?exchange=okx`
 - `GET /api/spot/snapshot?exchange=okx&symbol=BTC/USDT&timeframe=5m`
-- `GET /api/news/coverage`
+- `GET /api/news/coverage` (includes built-in OKX/Bybit announcement providers and configured Bluesky accounts)
 - `GET /api/news/latest` (reads persisted news when Supabase is configured; otherwise a non-persisted preview)\n- `POST /api/news/sync` (fetches configured feeds and deduplicates them into `spot_grid.news_events`; requires `X-Sync-Token`)
 
 Public market data uses CCXT unified market metadata, order-book, ticker and OHLCV methods. Only markets explicitly marked spot and not marked contract/swap/future are eligible. See the [CCXT manual](https://docs.ccxt.com/docs/manual).
 
 ## News feed setup
-Set `NEWS_FEEDS_JSON` to a JSON array of operator-reviewed RSS/Atom sources. Each item has `key`, `url`, `category` and optional `trust_tier`.
+Set `NEWS_FEEDS_JSON` to a JSON array of operator-reviewed RSS/Atom sources. Public OKX and Bybit announcement APIs are enabled by default (`ENABLE_OFFICIAL_EXCHANGE_NEWS=true`) and require no exchange credentials. Curated Bluesky actor feeds can be enabled by adding comma-separated handles to `BLUESKY_ACTORS`; posts are always marked unverified and never gain order authority. Each item has `key`, `url`, `category` and optional `trust_tier`.
 Supported categories: `crypto_media`, `exchange_official`, `macro_calendar`, `social`.
 Trust tiers: `official`, `reputable`, `unverified`.
-No feed is silently treated as official. Untrusted article text cannot issue an order. A reviewed starter list is in `news/sources.example.json` (Cointelegraph, CoinDesk, The Block, Decrypt and the Federal Reserve). Copy/edit it into `NEWS_FEEDS_JSON` after reviewing publisher terms. The starter list covers crypto media and a macro source; exchange announcements need dedicated official-source adapters, while social feeds need a supported authenticated provider. Reddit RSS is not used because its feeds were discontinued in November 2026.
+No feed is silently treated as official. Untrusted article text cannot issue an order. A reviewed starter list is in `news/sources.example.json` (Cointelegraph, CoinDesk, The Block, Decrypt and the Federal Reserve). Copy/edit it into `NEWS_FEEDS_JSON` after reviewing publisher terms. The starter list covers crypto media and a macro source. `news/providers.py` additionally fetches public OKX and Bybit announcements and optional curated Bluesky actor feeds. Binance's announcement WebSocket is intentionally deferred to a separate long-running stream worker; no unsupported REST endpoint is assumed. Reddit RSS is not used because its feeds were discontinued in November 2026.
 
 ## News persistence and HBR evidence
 - `news/store.py` writes normalized feed items to `spot_grid.news_events` using the unique `dedupe_key`; repeat syncs are idempotent.
