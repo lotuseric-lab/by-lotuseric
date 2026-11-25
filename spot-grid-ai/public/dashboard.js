@@ -1,4 +1,5 @@
 const $=id=>document.getElementById(id);
+let lastGridPlan=null;
 const state={exchange:"okx",symbols:[],tickers:[],selected:"BTC/USDT",timeframe:"5m",snapshot:null,busy:false};
 const money=n=>n===null||n===undefined||!Number.isFinite(Number(n))?"—":Number(n).toLocaleString("en-US",{maximumFractionDigits:Number(n)<1?8:2});
 const api=async(path)=>{const r=await fetch(path);const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.detail||"API "+r.status);return j};
@@ -31,12 +32,33 @@ async function previewGrid(){
   try{
     const d=await api("/api/grid/preview?exchange="+state.exchange+"&symbol="+encodeURIComponent(symbol)+"&timeframe="+state.timeframe+"&budget_usdt="+budget+"&grid_count="+count);
     const p=d.preview,m=p.metrics||{},r=p.range||{};
-    const good=p.eligible;
+    const good=p.eligible;lastGridPlan=good?{symbol,exchange:state.exchange,timeframe:state.timeframe,budget_usdt:budget,grid_count:count}:null;
     box.innerHTML='<div class="grid-verdict '+(good?"eligible":"rejected")+'"><b>'+(good?"GRID İÇİN UYGUN ADAY":"GRID AÇILMAMALI")+'</b><span>'+esc(p.market_regime||p.status)+'</span></div>'+
       '<div class="grid-metrics"><div><small>Alt sınır</small><b>'+money(r.lower)+'</b></div><div><small>Üst sınır</small><b>'+money(r.upper)+'</b></div><div><small>Grid aralığı</small><b>'+(Number(m.grid_spacing_rate)*100).toFixed(2)+'%</b></div><div><small>Tahmini net / grid</small><b class="'+(Number(m.estimated_net_per_grid_rate)>0?"green-text":"amber-text")+'">'+(Number(m.estimated_net_per_grid_rate)*100).toFixed(2)+'%</b></div></div>'+
       (good?'<div class="grid-levels">'+p.levels.map(x=>'<span>'+money(x.price)+'</span>').join('')+'</div>':'<div class="grid-reasons">'+(p.reason_codes||[]).map(x=>'<span>• '+esc(x)+'</span>').join('')+'</div>')+
-      '<p class="grid-note">Teknik uygunluk önizlemesi · '+p.grid_count+' grid · '+esc(p.budget_usdt)+' USDT bütçe. Emir oluşturma kapalıdır; ortak ve kalıcı demo emir defteri bağlanmadan bot çalıştırılmaz.</p>';
+      '<p class="grid-note">Teknik uygunluk önizlemesi · '+p.grid_count+' grid · '+esc(p.budget_usdt)+' USDT bütçe. Emir oluşturma kapalıdır.</p>'+(good?'<button id="saveGridPlanBtn" class="primary-btn">Planı sunucuya kaydet</button>':'');
+    if(good)$("saveGridPlanBtn").addEventListener("click",saveGridPlan);
   }catch(e){box.innerHTML='<div class="empty">Grid analizi alınamadı: '+esc(e.message)+'</div>'}
   finally{btn.disabled=false;btn.textContent="AI ile Grid planla"}
 }
 $("gridPreviewBtn").addEventListener("click",previewGrid);
+
+async function saveGridPlan(){
+  if(!lastGridPlan)return;
+  const btn=$("saveGridPlanBtn");btn.disabled=true;btn.textContent="Kaydediliyor…";
+  try{
+    const response=await fetch("/api/grid/sessions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(lastGridPlan)});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.detail?.message||data.detail||"API "+response.status);
+    toast("Grid planı kaydedildi; emir çalıştırılmadı");
+    await loadGridSessions();
+  }catch(e){toast("Plan kaydedilemedi: "+e.message)}
+  finally{btn.disabled=false;btn.textContent="Planı sunucuya kaydet"}
+}
+async function loadGridSessions(){
+  const box=$("gridSessions");if(!box)return;
+  try{
+    const d=await api("/api/grid/sessions?exchange="+state.exchange+"&limit=10");
+    box.innerHTML='<div class="eyebrow">KAYITLI GRID PLANLARI · '+d.count+'</div>'+(d.sessions.length?d.sessions.map(s=>'<div class="grid-session-row"><b>'+esc(s.symbol)+'</b><span>'+esc(s.status)+'</span><small>'+money(s.budget_usdt)+' USDT · '+s.grid_count+' seviye</small></div>').join(''):'<div class="empty">Henüz kaydedilmiş Grid planı yok.</div>');
+  }catch(e){box.innerHTML='<div class="empty">Kalıcı Grid kayıtları için Supabase sunucu bağlantısı gerekli.</div>'}
+}
